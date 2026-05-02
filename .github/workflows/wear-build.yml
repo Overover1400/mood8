@@ -1,0 +1,90 @@
+name: Build Wear OS APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build unsigned Wear APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+          cache: gradle
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Display versions
+        run: |
+          flutter --version
+          java -version
+          dart --version
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+        continue-on-error: true
+
+      - name: Build Wear APK (unsigned release)
+        run: |
+          flutter build apk --release \
+            --target=lib/main_wear.dart \
+            --build-name=0.1.${{ github.run_number }} \
+            --build-number=${{ github.run_number }}
+
+      - name: Rename APK
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk \
+             build/app/outputs/flutter-apk/mood8-wear-${{ github.run_number }}.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mood8-wear-apk
+          path: build/app/outputs/flutter-apk/*.apk
+          retention-days: 30
+
+      - name: APK summary
+        run: |
+          APK_PATH="build/app/outputs/flutter-apk/mood8-wear-${{ github.run_number }}.apk"
+          APK_NAME="mood8-wear-${{ github.run_number }}.apk"
+          APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
+          {
+            echo "## Mood8 Wear APK"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Name | \`$APK_NAME\` |"
+            echo "| Size | $APK_SIZE |"
+            echo "| Build number | ${{ github.run_number }} |"
+            echo "| Version | 0.1.${{ github.run_number }} |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo ""
+            echo "Download under **Artifacts** → \`mood8-wear-apk\`."
+          } >> "$GITHUB_STEP_SUMMARY"

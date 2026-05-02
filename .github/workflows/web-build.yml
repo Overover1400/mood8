@@ -1,0 +1,70 @@
+name: Build Web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Flutter Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Display versions
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+        continue-on-error: true
+
+      - name: Build web (release)
+        run: flutter build web --release
+
+      - name: Upload web build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mood8-web
+          path: build/web
+          retention-days: 30
+
+      - name: Web summary
+        run: |
+          SIZE=$(du -sh build/web | cut -f1)
+          {
+            echo "## Mood8 Web build"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Output | \`build/web\` |"
+            echo "| Size | $SIZE |"
+            echo "| Run | ${{ github.run_number }} |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo ""
+            echo "Download under **Artifacts** → \`mood8-web\`."
+          } >> "$GITHUB_STEP_SUMMARY"
