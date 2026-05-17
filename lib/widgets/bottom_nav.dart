@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../models/sfx_type.dart';
+import '../services/haptic_service.dart';
+import '../services/sfx_service.dart';
 import '../theme/app_theme.dart';
 
 class NavItem {
@@ -96,7 +100,11 @@ class _NavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: () {
+        HapticService().selection();
+        SfxService().fire(SfxType.tabSwitch);
+        onTap();
+      },
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),

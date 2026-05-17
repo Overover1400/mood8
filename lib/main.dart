@@ -5,7 +5,9 @@ import 'models/user_profile.dart';
 import 'screens/main_navigation.dart';
 import 'screens/onboarding/onboarding_flow.dart';
 import 'services/database_service.dart';
+import 'services/haptic_service.dart';
 import 'services/routine_repository.dart';
+import 'services/sfx_service.dart';
 import 'services/user_repository.dart';
 import 'theme/app_theme.dart';
 
@@ -15,6 +17,10 @@ Future<void> main() async {
   if (UserRepository().isOnboardingComplete()) {
     await RoutineRepository().seedDefaultRoutines();
   }
+  // Fire-and-forget so a slow audio load doesn't block first paint.
+  // Both services degrade silently when assets or capabilities are missing.
+  HapticService().initialize();
+  SfxService().initialize();
   runApp(const Mood8App());
 }
 

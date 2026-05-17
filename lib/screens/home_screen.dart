@@ -9,12 +9,15 @@ import '../models/habit_log.dart';
 import '../models/mood_entry.dart';
 import '../models/reflection.dart';
 import '../models/routine_item.dart';
+import '../models/sfx_type.dart';
 import '../models/user_profile.dart';
 import '../services/habit_repository.dart';
+import '../services/haptic_service.dart';
 import '../services/mood_repository.dart';
 import '../services/onboarding_service.dart';
 import '../services/reflection_repository.dart';
 import '../services/routine_repository.dart';
+import '../services/sfx_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bottom_nav.dart';
@@ -261,6 +264,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  static const Set<int> _kStreakMilestones = {3, 7, 30, 100, 365};
+
   Future<void> _handleSave() async {
     if (_saving) return;
     setState(() => _saving = true);
@@ -270,19 +275,32 @@ class _HomeScreenState extends State<HomeScreen> {
         energy: _energy * 10,
         focus: _focus * 10,
       );
+      final streak = _moods.calculateStreak();
+      final hitMilestone = _kStreakMilestones.contains(streak);
+      if (hitMilestone) {
+        SfxService().fire(SfxType.streakMilestone);
+        HapticService().heavy();
+      } else {
+        SfxService().fire(SfxType.checkInSuccess);
+        HapticService().heavy();
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Check-in saved'),
+          content: Text(hitMilestone
+              ? '🔥 $streak-day streak — keep going.'
+              : 'Check-in saved'),
           backgroundColor: AppColors.bgCard,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          duration: const Duration(seconds: 2),
+          duration: Duration(seconds: hitMilestone ? 3 : 2),
         ),
       );
     } catch (e) {
+      SfxService().fire(SfxType.errorGentle);
+      HapticService().heavy();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

@@ -1,15 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/chat_message.dart';
 import '../models/daily_data.dart';
 import '../models/reflection.dart';
+import '../models/sfx_type.dart';
 import '../services/ai_service.dart';
 import '../services/chat_repository.dart';
+import '../services/haptic_service.dart';
 import '../services/reflection_repository.dart';
+import '../services/sfx_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/loading_orb.dart';
@@ -65,8 +67,10 @@ class _CoachScreenState extends State<CoachScreen> {
         suggestion: result.suggestion,
         identityScores: result.identityScores,
       );
-      HapticFeedback.lightImpact();
+      SfxService().fire(SfxType.aiMessage);
+      HapticService().medium();
     } on AiException catch (e) {
+      SfxService().fire(SfxType.errorGentle);
       setState(() => _generationError = e.message);
     } catch (e) {
       debugPrint('CoachScreen._generateReflection failed: $e');
@@ -94,7 +98,7 @@ class _CoachScreenState extends State<CoachScreen> {
                     _TabToggle(
                       value: _tab,
                       onChanged: (t) {
-                        HapticFeedback.selectionClick();
+                        HapticService().selection();
                         setState(() => _tab = t);
                       },
                     ),
@@ -603,11 +607,14 @@ class _ChatTabState extends State<_ChatTab> {
       final context = await DailyData.gather();
       final reply = await widget.ai.chat(history, context: context);
       await widget.repo.addMessage(role: 'assistant', content: reply);
-      HapticFeedback.selectionClick();
+      SfxService().fire(SfxType.aiMessage);
+      HapticService().light();
     } on AiException catch (e) {
+      SfxService().fire(SfxType.errorGentle);
       setState(() => _sendError = e.message);
     } catch (e) {
       debugPrint('CoachScreen.chat send failed: $e');
+      SfxService().fire(SfxType.errorGentle);
       setState(() => _sendError = "Couldn't send. Try again.");
     } finally {
       if (mounted) {

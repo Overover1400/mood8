@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../models/focus_area.dart';
+import '../../models/sfx_type.dart';
 import '../../models/user_profile.dart';
+import '../../services/haptic_service.dart';
 import '../../services/onboarding_service.dart';
+import '../../services/sfx_service.dart';
 import '../../theme/app_theme.dart';
 import 'steps/chronotype_step.dart';
 import 'steps/completion_step.dart';
@@ -47,7 +49,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   }
 
   void _go(int page) {
-    HapticFeedback.selectionClick();
+    HapticService().light();
+    SfxService().fire(SfxType.onboardingStep);
     _controller.animateToPage(
       page,
       duration: const Duration(milliseconds: 420),
@@ -59,7 +62,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   void _back() => _go((_page - 1).clamp(0, _totalSteps - 1));
 
   Future<void> _skip() async {
-    HapticFeedback.lightImpact();
+    HapticService().light();
     await _finish(skipCheckin: true);
   }
 
@@ -76,7 +79,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         energy: skipCheckin ? null : _data.energy,
         focus: skipCheckin ? null : _data.focus,
       );
+      SfxService().fire(SfxType.onboardingFinish);
+      HapticService().heavy();
     } catch (e) {
+      SfxService().fire(SfxType.errorGentle);
       if (mounted) {
         setState(() => _completing = false);
         ScaffoldMessenger.of(context).showSnackBar(

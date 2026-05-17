@@ -1,15 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/daily_data.dart';
 import '../models/insight.dart';
 import '../models/insight_type.dart';
+import '../models/sfx_type.dart';
+import '../services/haptic_service.dart';
 import '../services/insights_ai_service.dart';
 import '../services/insights_engine.dart';
 import '../services/insights_repository.dart';
+import '../services/sfx_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ai_summary_card.dart';
 import '../widgets/featured_insight_card.dart';
@@ -63,12 +65,20 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
   Future<void> _refresh({bool silent = false}) async {
     if (_refreshing) return;
+    final beforeCount = _repo.getActiveInsights().length;
     setState(() => _refreshing = true);
     try {
       await _engine.discover();
-      if (!silent) HapticFeedback.lightImpact();
+      final afterCount = _repo.getActiveInsights().length;
+      if (afterCount > beforeCount) {
+        SfxService().fire(SfxType.insightDiscovered);
+        HapticService().medium();
+      } else if (!silent) {
+        HapticService().light();
+      }
     } catch (e) {
       debugPrint('InsightsScreen.refresh failed: $e');
+      SfxService().fire(SfxType.errorGentle);
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
@@ -268,7 +278,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   void _onAction(Insight i) {
-    HapticFeedback.selectionClick();
+    HapticService().selection();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Marked as actioned.'),
@@ -452,7 +462,7 @@ class _FilterStrip extends StatelessWidget {
           final selected = f == value;
           return GestureDetector(
             onTap: () {
-              HapticFeedback.selectionClick();
+              HapticService().selection();
               onChanged(f);
             },
             child: AnimatedContainer(

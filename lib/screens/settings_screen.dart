@@ -5,10 +5,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
+import '../models/sfx_type.dart';
 import '../models/user_profile.dart';
 import '../services/analytics_service.dart';
+import '../services/haptic_service.dart';
 import '../services/onboarding_service.dart';
 import '../services/preferences_service.dart';
+import '../services/sfx_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/responsive_container.dart';
@@ -38,16 +41,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _devUnlocked = false;
   DateTime _lastVersionTap = DateTime.fromMillisecondsSinceEpoch(0);
 
+  final SfxService _sfx = SfxService();
+  final HapticService _haptic = HapticService();
+
   @override
   void initState() {
     super.initState();
     _prefs.addListener(_onPrefs);
+    _sfx.addListener(_onPrefs);
+    _haptic.addListener(_onPrefs);
     _prefs.load();
   }
 
   @override
   void dispose() {
     _prefs.removeListener(_onPrefs);
+    _sfx.removeListener(_onPrefs);
+    _haptic.removeListener(_onPrefs);
     super.dispose();
   }
 
@@ -262,6 +272,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           subtitle:
                               'Reflections, chat, and insights are sent to the Mood8 coach API.',
                           onTap: () => _comingSoon('Privacy details'),
+                        ),
+                      ],
+                    ),
+                    SettingsSection(
+                      title: 'Sound & haptics',
+                      children: [
+                        SettingsToggle(
+                          icon: Icons.volume_up_rounded,
+                          title: 'Sound effects',
+                          subtitle: 'Calming chimes for key moments',
+                          value: _sfx.isEnabled,
+                          onChanged: (v) => _sfx.setEnabled(v),
+                        ),
+                        Padding(
+                          padding:
+                              const EdgeInsets.fromLTRB(14, 4, 14, 8),
+                          child: Row(
+                            children: [
+                              Icon(Icons.volume_down_rounded,
+                                  color: AppColors.inkDim, size: 16),
+                              Expanded(
+                                child: Slider(
+                                  value: _sfx.volume,
+                                  onChanged: _sfx.isEnabled
+                                      ? (v) => _sfx.setVolume(v)
+                                      : null,
+                                  activeColor: AppColors.pinkLight,
+                                  inactiveColor: AppColors.bg,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 40,
+                                child: Text(
+                                  '${(_sfx.volume * 100).round()}%',
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    color: AppColors.inkSoft,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SettingsToggle(
+                          icon: Icons.vibration_rounded,
+                          title: 'Haptic feedback',
+                          subtitle: 'Gentle taps on important actions',
+                          value: _haptic.isEnabled,
+                          onChanged: (v) => _haptic.setEnabled(v),
+                        ),
+                        SettingsTile(
+                          icon: Icons.music_note_rounded,
+                          title: 'Test sound',
+                          subtitle: 'Play check-in chime',
+                          onTap: () => _sfx.fire(SfxType.checkInSuccess),
+                        ),
+                        SettingsTile(
+                          icon: Icons.touch_app_rounded,
+                          title: 'Test haptic',
+                          subtitle: 'Trigger medium impact',
+                          onTap: () => _haptic.medium(),
                         ),
                       ],
                     ),

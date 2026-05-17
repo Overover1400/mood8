@@ -1,12 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/habit.dart';
 import '../models/habit_log.dart';
+import '../models/sfx_type.dart';
 import '../services/habit_repository.dart';
+import '../services/haptic_service.dart';
+import '../services/sfx_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_habit_sheet.dart';
@@ -201,7 +203,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
   }
 
   Future<void> _openSheet({Habit? editing}) async {
-    HapticFeedback.selectionClick();
+    HapticService().light();
     await showAddHabitSheet(context, editing: editing);
   }
 
@@ -214,18 +216,26 @@ class _HabitsScreenState extends State<HabitsScreen> {
   }
 
   Future<void> _toggle(Habit h) async {
-    HapticFeedback.mediumImpact();
+    final currentValue =
+        _repo.getLogForDate(h.id, DateTime.now())?.value ?? 0;
+    final willComplete = currentValue == 0;
+    HapticService().medium();
+    if (willComplete) SfxService().fire(SfxType.habitComplete);
     await _repo.toggleYesNoLog(habitId: h.id);
   }
 
   Future<void> _increment(Habit h) async {
-    HapticFeedback.selectionClick();
+    HapticService().light();
     final step = h.targetUnit?.toLowerCase().contains('minute') == true ? 5 : 1;
     await _repo.incrementLog(habitId: h.id, by: step);
+    final after = _repo.getLogForDate(h.id, DateTime.now());
+    if (after != null && after.isCompleted && after.value - step < after.targetValue) {
+      SfxService().fire(SfxType.habitComplete);
+    }
   }
 
   Future<void> _decrement(Habit h) async {
-    HapticFeedback.selectionClick();
+    HapticService().light();
     final step = h.targetUnit?.toLowerCase().contains('minute') == true ? 5 : 1;
     await _repo.incrementLog(habitId: h.id, by: -step);
   }
@@ -336,7 +346,7 @@ class _IdentityFilter extends StatelessWidget {
           final label = id == _kAllFilter ? 'All' : id;
           return GestureDetector(
             onTap: () {
-              HapticFeedback.selectionClick();
+              HapticService().selection();
               onChanged(id);
             },
             child: AnimatedContainer(

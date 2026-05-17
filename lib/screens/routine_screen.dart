@@ -1,11 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/routine_item.dart';
+import '../models/sfx_type.dart';
+import '../services/haptic_service.dart';
 import '../services/routine_repository.dart';
+import '../services/sfx_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_routine_sheet.dart';
 import '../widgets/empty_state.dart';
@@ -117,12 +119,14 @@ class _RoutineScreenState extends State<RoutineScreen> {
                                   await _repo.updateRoutine(it);
                                 } else {
                                   await _repo.markComplete(it.id);
+                                  SfxService().fire(SfxType.routineDone);
+                                  HapticService().medium();
                                 }
                               },
                               onReorder: (oldIndex, newIndex) =>
                                   _repo.reorder(oldIndex, newIndex),
                               onDelete: (it) async {
-                                HapticFeedback.mediumImpact();
+                                HapticService().medium();
                                 await _repo.deleteRoutine(it.id);
                               },
                             ),
@@ -147,7 +151,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
   }
 
   Future<void> _openSheet(BuildContext context, {RoutineItem? editing}) {
-    HapticFeedback.selectionClick();
+    HapticService().light();
     return showAddRoutineSheet(context, editing: editing);
   }
 }
@@ -255,7 +259,8 @@ class _TabToggle extends StatelessWidget {
                 label: t == _DayTab.today ? 'Today' : 'Tomorrow',
                 selected: t == value,
                 onTap: () {
-                  HapticFeedback.selectionClick();
+                  HapticService().selection();
+                  SfxService().fire(SfxType.tabSwitch);
                   onChanged(t);
                 },
               ),
@@ -461,7 +466,7 @@ class _Timeline extends StatelessWidget {
       buildDefaultDragHandles: false,
       itemCount: items.length,
       onReorder: (oldIndex, newIndex) async {
-        HapticFeedback.lightImpact();
+        HapticService().light();
         await onReorder(oldIndex, newIndex);
       },
       proxyDecorator: (child, _, _) => Material(
