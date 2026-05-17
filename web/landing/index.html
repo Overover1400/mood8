@@ -1,406 +1,430 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Mood8 — Become more of yourself.</title>
-    <meta
-      name="description"
-      content="Mood8 is an AI-powered personal operating system that learns what actually makes you better."
-    />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="style.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <body>
-    <!-- Background glow -->
-    <div class="bg-glow bg-glow-tl"></div>
-    <div class="bg-glow bg-glow-br"></div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Primary Meta Tags -->
+    <title>Mood8 — Become more of yourself</title>
+    <meta name="title" content="Mood8 — Become more of yourself">
+    <meta name="description" content="AI-powered personal operating system that learns what makes you better. Identity-based habits, smart AI reflections, and beautiful insights into your patterns.">
+    <meta name="keywords" content="habit tracker, AI coach, mindfulness app, atomic habits, mood tracking, personal growth, identity-based habits, self-improvement">
+    <meta name="author" content="Mood8">
+    <meta name="theme-color" content="#A855F7">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Facebook / WhatsApp / Telegram -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://mood8.app/landing/">
+    <meta property="og:title" content="Mood8 — Become more of yourself">
+    <meta property="og:description" content="AI-powered personal operating system. Identity-based habits, smart reflections, beautiful insights into your patterns.">
+    <meta property="og:image" content="https://mood8.app/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="Mood8">
+    <meta property="og:locale" content="en_US">
+    
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://mood8.app/landing/">
+    <meta name="twitter:title" content="Mood8 — Become more of yourself">
+    <meta name="twitter:description" content="AI-powered personal operating system. Identity-based habits, smart reflections, beautiful insights into your patterns.">
+    <meta name="twitter:image" content="https://mood8.app/og-image.png">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://mood8.app/landing/">
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="apple-touch-icon" href="/icons/Icon-192.png">
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Structured Data for SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Mood8",
+      "description": "AI-powered personal operating system for identity-based habits, mood tracking, and personal growth.",
+      "url": "https://mood8.app",
+      "applicationCategory": "HealthApplication",
+      "operatingSystem": "Web, Android, Wear OS",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "creator": {
+        "@type": "Person",
+        "name": "Hamed Mostafaei"
+      }
+    }
+    </script>
+</head>
 
-    <!-- NAV -->
+<body>
+    <!-- NAVIGATION -->
     <nav class="nav">
-      <a href="#top" class="brand">
-        <span class="brand-dot"></span>
-        <span class="brand-word">Mood8</span>
-      </a>
-      <div class="nav-links">
-        <a href="#features">Features</a>
-        <a href="#how">How it works</a>
-        <a href="#pricing">Pricing</a>
-      </div>
-      <a class="btn btn-primary nav-cta" href="/">Open app →</a>
+        <div class="nav-container">
+            <a href="/landing/" class="logo">
+                <span class="logo-text">Mood<span class="logo-accent">8</span></span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#how-it-works">How it works</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="#faq">FAQ</a></li>
+            </ul>
+            <a href="/" class="btn btn-primary">Open app →</a>
+        </div>
     </nav>
-
+    
     <!-- HERO -->
-    <header class="hero" id="top">
-      <p class="eyebrow reveal">AI-powered personal operating system</p>
-      <h1 class="hero-title reveal">
-        Become more <span class="serif-italic">of yourself.</span>
-      </h1>
-      <p class="hero-sub reveal">
-        Mood8 learns your patterns, adapts your routines, and shows you what
-        actually makes you better.
-      </p>
-      <div class="hero-orb reveal" aria-hidden="true">
-        <div class="orb"></div>
-      </div>
-      <div class="hero-ctas reveal">
-        <a class="btn btn-primary btn-lg" href="/">Start free →</a>
-        <a class="btn btn-ghost btn-lg" href="#how">How it works</a>
-      </div>
-      <p class="hero-fineprint reveal">60-second setup. No credit card.</p>
-    </header>
-
-    <!-- PROBLEM -->
-    <section class="section section-narrow">
-      <p class="eyebrow center reveal">The shift</p>
-      <h2 class="section-title center reveal">
-        Stop tracking. <span class="serif-italic">Start understanding.</span>
-      </h2>
-      <div class="compare reveal">
-        <div class="compare-col compare-other">
-          <h3>Generic habit apps</h3>
-          <ul>
-            <li>❌ Streaks &amp; checkmarks</li>
-            <li>❌ One-size-fits-all advice</li>
-            <li>❌ Boring after week two</li>
-            <li>❌ Your data sits in a vault</li>
-          </ul>
+    <section class="hero">
+        <div class="hero-glow"></div>
+        <div class="container">
+            <div class="hero-content">
+                <span class="badge">✨ AI-powered personal OS</span>
+                <h1 class="hero-title">
+                    Become more of <em>yourself</em>.
+                </h1>
+                <p class="hero-subtitle">
+                    Mood8 is an AI-powered personal operating system that learns what actually makes you better. Identity-based habits. Smart reflections. Beautiful insights.
+                </p>
+                <div class="hero-cta">
+                    <a href="/" class="btn btn-primary btn-large">Start free →</a>
+                    <a href="#how-it-works" class="btn btn-secondary btn-large">How it works</a>
+                </div>
+                <p class="hero-note">60-second setup. No credit card required.</p>
+            </div>
+            <div class="hero-visual">
+                <div class="mood-orb"></div>
+            </div>
         </div>
-        <div class="compare-col compare-us">
-          <h3>Mood8</h3>
-          <ul>
-            <li>✅ AI learns <em>your</em> patterns</li>
-            <li>✅ Identity-based growth</li>
-            <li>✅ Gets smarter every day</li>
-            <li>✅ Insights you can act on</li>
-          </ul>
-        </div>
-      </div>
     </section>
-
+    
+    <!-- THE PROBLEM -->
+    <section class="problem">
+        <div class="container">
+            <h2 class="section-title">Stop tracking. Start <em>understanding.</em></h2>
+            <p class="section-subtitle">Most habit apps treat you like a checkbox. Mood8 treats you like a human becoming someone.</p>
+            
+            <div class="comparison">
+                <div class="comparison-col bad">
+                    <h3>Generic habit apps</h3>
+                    <ul>
+                        <li>❌ Just streaks and checkmarks</li>
+                        <li>❌ One-size-fits-all advice</li>
+                        <li>❌ Boring after week 2</li>
+                        <li>❌ No real understanding</li>
+                        <li>❌ Generic motivation</li>
+                    </ul>
+                </div>
+                <div class="comparison-col good">
+                    <h3>Mood8</h3>
+                    <ul>
+                        <li>✅ AI learns YOUR patterns</li>
+                        <li>✅ Identity-based growth</li>
+                        <li>✅ Gets smarter every day</li>
+                        <li>✅ Personal insights from data</li>
+                        <li>✅ Becomes who you want to be</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+    
     <!-- FEATURES -->
-    <section class="section" id="features">
-      <p class="eyebrow center reveal">What's inside</p>
-      <h2 class="section-title center reveal">
-        Four things <span class="serif-italic">that compound.</span>
-      </h2>
-
-      <div class="feature reveal">
-        <div class="feature-text">
-          <p class="feature-tag">Coach</p>
-          <h3>An AI that <span class="serif-italic">knows you</span>.</h3>
-          <p>
-            Nightly reflections that read your real day — moods, routines, and
-            streak — and write you an honest, warm note. Chat any time.
-          </p>
-          <div class="bubble">
-            "You skip meditation when stressed. Try the 2-minute version
-            tonight."
-          </div>
-        </div>
-        <div class="feature-visual" aria-hidden="true">
-          <div class="screen screen-tilt-r">
-            <div class="screen-glow"></div>
-            <div class="chat-line ai">
-              <span class="dot"></span><span>Walking 20+ min lifts your mood ~31%.</span>
+    <section class="features" id="features">
+        <div class="container">
+            <h2 class="section-title">Four features that change <em>everything</em></h2>
+            
+            <!-- Feature 1: AI Coach -->
+            <div class="feature">
+                <div class="feature-content">
+                    <span class="feature-tag">AI Coach</span>
+                    <h3>An AI that <em>knows you</em></h3>
+                    <p>Nightly reflections based on YOUR data. Chat anytime about your patterns, struggles, or wins. Like having a wise friend who's been paying attention.</p>
+                    <div class="quote-bubble">
+                        <p>"You tend to skip meditation when stressed. Try a 2-minute version on tough days."</p>
+                        <span class="quote-author">— Mood8 AI</span>
+                    </div>
+                </div>
+                <div class="feature-visual ai-visual">
+                    <div class="chat-mockup">
+                        <div class="chat-bubble user">How am I doing this week?</div>
+                        <div class="chat-bubble ai">Your focus is up 23% vs last week — especially after morning workouts. Want to make that a daily anchor?</div>
+                    </div>
+                </div>
             </div>
-            <div class="chat-line you">
-              <span>What should I focus on tomorrow?</span>
+            
+            <!-- Feature 2: Insights -->
+            <div class="feature reverse">
+                <div class="feature-content">
+                    <span class="feature-tag">Insights</span>
+                    <h3>Discover your <em>hidden patterns</em></h3>
+                    <p>Mood8 uses statistics + AI to find what actually works for YOU. Not generic advice — your personal scientific truth.</p>
+                    <div class="insight-example">
+                        <div class="insight-stat">+31%</div>
+                        <div class="insight-text">
+                            <strong>Mood boost on walking days</strong>
+                            <span>Based on 15 days of your data</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="feature-visual insights-visual">
+                    <div class="insight-card-mock">
+                        <span class="tag">★ STRONGEST</span>
+                        <h4>Walking 20+ min</h4>
+                        <p>+31% better mood next day</p>
+                        <div class="bar"><div class="bar-fill" style="width: 78%"></div></div>
+                    </div>
+                </div>
             </div>
-            <div class="chat-line ai">
-              <span class="dot"></span><span>One deep-work block before noon.</span>
+            
+            <!-- Feature 3: Identity Habits -->
+            <div class="feature">
+                <div class="feature-content">
+                    <span class="feature-tag">Identity Habits</span>
+                    <h3>Become someone, <em>not do something</em></h3>
+                    <p>Inspired by Atomic Habits. Every check-in is a vote for who you want to become. Athlete? Creator? Scholar? Each habit reinforces your identity.</p>
+                </div>
+                <div class="feature-visual identity-visual">
+                    <div class="identity-cards">
+                        <div class="id-card">💪 Athlete<br><small>78%</small></div>
+                        <div class="id-card">🎨 Creator<br><small>56%</small></div>
+                        <div class="id-card">🧘 Mindful<br><small>32%</small></div>
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="feature reverse reveal">
-        <div class="feature-visual" aria-hidden="true">
-          <div class="screen screen-tilt-l">
-            <div class="screen-glow"></div>
-            <div class="insight">
-              <p class="insight-eyebrow">★ STRONGEST PATTERN</p>
-              <p class="insight-title">
-                Walking 20+ min → <span>+31% better mood</span>
-              </p>
-              <div class="insight-bar"><span></span></div>
-              <p class="insight-meta">Based on 24 days · very strong</p>
+            
+            <!-- Feature 4: Progress -->
+            <div class="feature reverse">
+                <div class="feature-content">
+                    <span class="feature-tag">Progress</span>
+                    <h3>See yourself <em>transform</em></h3>
+                    <p>Charts, heatmaps, identity bars. Watch your discipline score climb. See exactly who you're becoming, day by day.</p>
+                </div>
+                <div class="feature-visual progress-visual">
+                    <div class="heatmap">
+                        <div class="heatmap-grid"></div>
+                        <p class="streak">🔥 12 day streak</p>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
-        <div class="feature-text">
-          <p class="feature-tag">Insights</p>
-          <h3>Discover your <span class="serif-italic">hidden patterns</span>.</h3>
-          <p>
-            Mood8 mines correlations in your own data and surfaces what
-            actually works — for you, scientifically. Not generic advice.
-          </p>
-        </div>
-      </div>
-
-      <div class="feature reveal">
-        <div class="feature-text">
-          <p class="feature-tag">Habits</p>
-          <h3>Become someone, <span class="serif-italic">not do something.</span></h3>
-          <p>
-            Inspired by <em>Atomic Habits</em>. Each habit is a vote for who
-            you're becoming. Athlete, Creator, Mindful — choose your identity,
-            grow into it.
-          </p>
-        </div>
-        <div class="feature-visual" aria-hidden="true">
-          <div class="screen screen-tilt-r">
-            <div class="screen-glow"></div>
-            <div class="habit-row">
-              <span class="habit-emoji">💪</span>
-              <div class="habit-meta">
-                <strong>Workout</strong>
-                <small>ATHLETE</small>
-              </div>
-              <span class="habit-tick">✓</span>
-            </div>
-            <div class="habit-row">
-              <span class="habit-emoji">📚</span>
-              <div class="habit-meta">
-                <strong>Read 30 min</strong>
-                <small>SCHOLAR</small>
-              </div>
-              <span class="habit-tick">✓</span>
-            </div>
-            <div class="habit-row dim">
-              <span class="habit-emoji">🧘</span>
-              <div class="habit-meta">
-                <strong>Meditate 10 min</strong>
-                <small>MINDFUL</small>
-              </div>
-              <span class="habit-tick muted">○</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="feature reverse reveal">
-        <div class="feature-visual" aria-hidden="true">
-          <div class="screen screen-tilt-l">
-            <div class="screen-glow"></div>
-            <div class="bars">
-              <div class="bar"><span style="height: 30%"></span></div>
-              <div class="bar"><span style="height: 55%"></span></div>
-              <div class="bar"><span style="height: 70%"></span></div>
-              <div class="bar"><span style="height: 65%"></span></div>
-              <div class="bar"><span style="height: 80%"></span></div>
-              <div class="bar"><span style="height: 88%"></span></div>
-              <div class="bar"><span style="height: 92%"></span></div>
-            </div>
-            <p class="bars-caption">
-              <em>Discipline score</em> · last 7 days
-            </p>
-          </div>
-        </div>
-        <div class="feature-text">
-          <p class="feature-tag">Progress</p>
-          <h3>See yourself <span class="serif-italic">transform.</span></h3>
-          <p>
-            Charts, heatmaps, identity bars. Your growth, beautifully
-            visualized. Screenshots that feel earned.
-          </p>
-        </div>
-      </div>
     </section>
-
+    
     <!-- HOW IT WORKS -->
-    <section class="section" id="how">
-      <p class="eyebrow center reveal">How it works</p>
-      <h2 class="section-title center reveal">
-        Four small steps. <span class="serif-italic">Big difference.</span>
-      </h2>
-      <ol class="steps">
-        <li class="step reveal">
-          <span class="step-num">01</span>
-          <h4>Quick onboarding</h4>
-          <p>60 seconds. Pick who you're becoming and what matters.</p>
-        </li>
-        <li class="step reveal">
-          <span class="step-num">02</span>
-          <h4>10-second check-ins</h4>
-          <p>Mood, energy, focus. Three sliders. Done.</p>
-        </li>
-        <li class="step reveal">
-          <span class="step-num">03</span>
-          <h4>AI discovers patterns</h4>
-          <p>After a week, Mood8 surfaces what actually works for you.</p>
-        </li>
-        <li class="step reveal">
-          <span class="step-num">04</span>
-          <h4>Become who you want to be</h4>
-          <p>Routines adapt. Habits compound. Identity solidifies.</p>
-        </li>
-      </ol>
+    <section class="how-it-works" id="how-it-works">
+        <div class="container">
+            <h2 class="section-title">How it <em>works</em></h2>
+            <p class="section-subtitle">From signup to insights in under 2 minutes.</p>
+            
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Quick onboarding</h3>
+                    <p>Choose who you want to become. 60 seconds.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Daily check-ins</h3>
+                    <p>10-second mood, energy, focus log.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>AI discovers patterns</h3>
+                    <p>Mood8 finds what makes YOU better.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h3>Become more</h3>
+                    <p>Each day, a step closer to your identity.</p>
+                </div>
+            </div>
+        </div>
     </section>
-
+    
     <!-- WHO IT'S FOR -->
-    <section class="section section-narrow">
-      <p class="eyebrow center reveal">For whoever you're becoming</p>
-      <h2 class="section-title center reveal">
-        Pick an identity. <span class="serif-italic">Grow into it.</span>
-      </h2>
-      <div class="who-grid">
-        <div class="who-card reveal"><span>🎨</span><h5>Creators</h5><p>Build with focus.</p></div>
-        <div class="who-card reveal"><span>💪</span><h5>Athletes</h5><p>Train smarter.</p></div>
-        <div class="who-card reveal"><span>🧘</span><h5>Mindful</h5><p>Stay present.</p></div>
-        <div class="who-card reveal"><span>📚</span><h5>Scholars</h5><p>Learn faster.</p></div>
-        <div class="who-card reveal"><span>🌟</span><h5>Leaders</h5><p>Lead by example.</p></div>
-        <div class="who-card reveal"><span>❤️</span><h5>Parents</h5><p>Be present.</p></div>
-      </div>
+    <section class="audience">
+        <div class="container">
+            <h2 class="section-title">Built for <em>becoming</em></h2>
+            <div class="audience-grid">
+                <div class="audience-card">
+                    <span class="emoji">🎨</span>
+                    <h3>Creators</h3>
+                    <p>Build with deeper focus</p>
+                </div>
+                <div class="audience-card">
+                    <span class="emoji">💪</span>
+                    <h3>Athletes</h3>
+                    <p>Train smarter, recover better</p>
+                </div>
+                <div class="audience-card">
+                    <span class="emoji">🧘</span>
+                    <h3>Mindful souls</h3>
+                    <p>Stay present, grow inward</p>
+                </div>
+                <div class="audience-card">
+                    <span class="emoji">📚</span>
+                    <h3>Scholars</h3>
+                    <p>Learn faster, retain longer</p>
+                </div>
+                <div class="audience-card">
+                    <span class="emoji">🌟</span>
+                    <h3>Leaders</h3>
+                    <p>Lead by example daily</p>
+                </div>
+                <div class="audience-card">
+                    <span class="emoji">❤️</span>
+                    <h3>Parents</h3>
+                    <p>Be present and patient</p>
+                </div>
+            </div>
+        </div>
     </section>
-
+    
     <!-- PRICING -->
-    <section class="section section-narrow" id="pricing">
-      <p class="eyebrow center reveal">Pricing</p>
-      <h2 class="section-title center reveal">
-        Free <span class="serif-italic">to start.</span>
-      </h2>
-      <div class="pricing">
-        <div class="plan reveal">
-          <p class="plan-tag">Free</p>
-          <p class="plan-price">$0<span>/forever</span></p>
-          <ul>
-            <li>All core features</li>
-            <li>AI Coach (daily limits)</li>
-            <li>Your data, forever</li>
-            <li>Web + watchOS</li>
-          </ul>
-          <a class="btn btn-primary plan-cta" href="/">Start free →</a>
+    <section class="pricing" id="pricing">
+        <div class="container">
+            <h2 class="section-title">Simple <em>pricing</em></h2>
+            <p class="section-subtitle">All features free, forever. Premium coming soon.</p>
+            
+            <div class="pricing-cards">
+                <div class="pricing-card featured">
+                    <span class="pricing-tag">FREE FOREVER</span>
+                    <h3>Free</h3>
+                    <div class="price">$0<span>/forever</span></div>
+                    <ul>
+                        <li>✓ All core features</li>
+                        <li>✓ AI Coach (50 reflections/month)</li>
+                        <li>✓ Insights & correlations</li>
+                        <li>✓ Web + Wear OS</li>
+                        <li>✓ Your data forever</li>
+                        <li>✓ Export anytime</li>
+                    </ul>
+                    <a href="/" class="btn btn-primary btn-large">Start free →</a>
+                </div>
+                
+                <div class="pricing-card">
+                    <span class="pricing-tag">COMING SOON</span>
+                    <h3>Premium</h3>
+                    <div class="price">$5<span>/month</span></div>
+                    <ul>
+                        <li>✓ Everything in Free</li>
+                        <li>✓ Unlimited AI Coach</li>
+                        <li>✓ Multi-device sync</li>
+                        <li>✓ Advanced insights</li>
+                        <li>✓ Priority support</li>
+                        <li>✓ Early access features</li>
+                    </ul>
+                    <a href="mailto:hello@mood8.app?subject=Mood8%20Premium%20waitlist" class="btn btn-secondary btn-large">Get notified</a>
+                </div>
+            </div>
         </div>
-        <div class="plan plan-soon reveal">
-          <p class="plan-tag">Premium</p>
-          <p class="plan-price">soon</p>
-          <ul>
-            <li>Unlimited AI coach</li>
-            <li>Multi-device sync</li>
-            <li>Deeper insights</li>
-            <li>Priority support</li>
-          </ul>
-          <a class="btn btn-ghost plan-cta" href="mailto:hello@mood8.app?subject=Mood8%20Premium%20waitlist">
-            Get notified
-          </a>
-        </div>
-      </div>
     </section>
-
+    
     <!-- FAQ -->
-    <section class="section section-narrow" id="faq">
-      <p class="eyebrow center reveal">FAQ</p>
-      <h2 class="section-title center reveal">
-        The <span class="serif-italic">short answers.</span>
-      </h2>
-      <div class="faq reveal">
-        <details>
-          <summary>Is my data private?</summary>
-          <p>
-            Everything is stored locally on your device via Hive. The AI Coach
-            sends only the snapshot it needs to generate a reflection, and the
-            backend doesn't retain those requests. See
-            <a href="/privacy.html">Privacy Policy</a>.
-          </p>
-        </details>
-        <details>
-          <summary>Does it work offline?</summary>
-          <p>
-            Yes — check-ins, routines, habits, and insights all work offline.
-            The AI Coach needs a connection.
-          </p>
-        </details>
-        <details>
-          <summary>Can I export my data?</summary>
-          <p>
-            One tap in Settings → Data &amp; Privacy gives you a JSON or CSV
-            export of everything.
-          </p>
-        </details>
-        <details>
-          <summary>Does it really use AI?</summary>
-          <p>
-            Yes — Mood8 uses a large language model server-side to generate
-            reflections, chat replies, and insight explanations from your own
-            data.
-          </p>
-        </details>
-        <details>
-          <summary>What about Apple Watch?</summary>
-          <p>
-            A watchOS companion is in active development. The Wear OS build
-            already ships.
-          </p>
-        </details>
-        <details>
-          <summary>Why "Mood8"?</summary>
-          <p>
-            Mood × 8 dimensions of who you're becoming. Also it just sounds
-            nice.
-          </p>
-        </details>
-      </div>
+    <section class="faq" id="faq">
+        <div class="container">
+            <h2 class="section-title">Frequently asked</h2>
+            
+            <div class="faq-list">
+                <details class="faq-item">
+                    <summary>Is my data private?</summary>
+                    <p>Yes. All your data is stored locally in your browser. We only send anonymized requests to OpenAI when you use AI features (you can disable this). We don't sell data. Ever.</p>
+                </details>
+                
+                <details class="faq-item">
+                    <summary>Does it work offline?</summary>
+                    <p>Most features work offline since data is stored locally. AI Coach requires internet (OpenAI API). You can check in, track habits, and view progress completely offline.</p>
+                </details>
+                
+                <details class="faq-item">
+                    <summary>Can I export my data?</summary>
+                    <p>Yes! Settings → Data & Privacy → Export. Choose JSON (full backup) or CSV (spreadsheet-friendly). Your data, your control.</p>
+                </details>
+                
+                <details class="faq-item">
+                    <summary>Does it really use AI?</summary>
+                    <p>Yes. We use ChatGPT (gpt-4o-mini) for reflections and chat. Statistical analysis for insights runs locally — no AI needed for pattern detection.</p>
+                </details>
+                
+                <details class="faq-item">
+                    <summary>Is it open source?</summary>
+                    <p>Coming soon. We're considering open-sourcing the client. Backend stays closed for API key protection.</p>
+                </details>
+                
+                <details class="faq-item">
+                    <summary>What about Apple Watch?</summary>
+                    <p>Wear OS (Samsung, Pixel) is supported now. Apple Watch is in development — requires Apple Developer account.</p>
+                </details>
+                
+                <details class="faq-item">
+                    <summary>Why "Mood8"?</summary>
+                    <p>8 is infinity sideways — endless growth. Also represents the 8 dimensions we track: mood, energy, focus, routine, habits, identity, time, and self.</p>
+                </details>
+            </div>
+        </div>
     </section>
-
-    <!-- QUOTE -->
-    <section class="section section-narrow">
-      <blockquote class="quote reveal">
-        <p>"Mood8 understood me better than I understand myself."</p>
-        <cite>— beta tester, week 3</cite>
-      </blockquote>
-    </section>
-
+    
     <!-- FINAL CTA -->
-    <section class="section section-narrow final-cta">
-      <h2 class="section-title center reveal">
-        Ready to <span class="serif-italic">become more?</span>
-      </h2>
-      <a class="btn btn-primary btn-xl reveal" href="/">Start free now →</a>
-      <p class="reveal final-fineprint">
-        Free forever for everything that matters.
-      </p>
+    <section class="final-cta">
+        <div class="container">
+            <h2>Ready to <em>become more?</em></h2>
+            <p>Join your journey today.</p>
+            <a href="/" class="btn btn-primary btn-large">Start free now →</a>
+            <p class="cta-note">60-second setup. No credit card.</p>
+        </div>
     </section>
-
+    
     <!-- FOOTER -->
     <footer class="footer">
-      <div class="footer-grid">
-        <div>
-          <p class="brand">
-            <span class="brand-dot"></span>
-            <span class="brand-word">Mood8</span>
-          </p>
-          <p class="footer-tag">Become more of yourself.</p>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <h4>Mood8</h4>
+                    <p>Become more of yourself.</p>
+                </div>
+                <div class="footer-col">
+                    <h5>Product</h5>
+                    <ul>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#how-it-works">How it works</a></li>
+                        <li><a href="#pricing">Pricing</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h5>Resources</h5>
+                    <ul>
+                        <li><a href="/privacy.html">Privacy</a></li>
+                        <li><a href="/terms.html">Terms</a></li>
+                        <li><a href="mailto:hello@mood8.app">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h5>Connect</h5>
+                    <ul>
+                        <li><a href="https://github.com/Overover1400/mood8" target="_blank" rel="noopener">GitHub</a></li>
+                        <li><a href="mailto:hello@mood8.app">Email</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 Mood8. Built with 💜 by <a href="https://github.com/Overover1400" target="_blank" rel="noopener">Hamed</a>.</p>
+            </div>
         </div>
-        <div>
-          <h6>Product</h6>
-          <a href="#features">Features</a>
-          <a href="#how">How it works</a>
-          <a href="#pricing">Pricing</a>
-        </div>
-        <div>
-          <h6>Resources</h6>
-          <a href="/privacy.html">Privacy</a>
-          <a href="/terms.html">Terms</a>
-          <a href="/">Open app</a>
-        </div>
-        <div>
-          <h6>Connect</h6>
-          <a href="mailto:hello@mood8.app">hello@mood8.app</a>
-          <a href="https://github.com/Overover1400" target="_blank" rel="noopener">GitHub</a>
-        </div>
-      </div>
-      <p class="footer-copy">
-        © 2026 Mood8 · Built with 💜 by Hamed
-      </p>
     </footer>
-
-    <script src="main.js" defer></script>
-  </body>
+    
+    <script src="main.js"></script>
+</body>
 </html>
