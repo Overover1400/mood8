@@ -21,6 +21,8 @@ class RoutineScreen extends StatefulWidget {
 
 class _RoutineScreenState extends State<RoutineScreen> {
   final RoutineRepository _repo = RoutineRepository();
+  late final ValueListenable<Box<RoutineItem>> _listenable =
+      _repo.watchRoutines();
   _DayTab _tab = _DayTab.today;
 
   DateTime get _targetDate {
@@ -42,14 +44,21 @@ class _RoutineScreenState extends State<RoutineScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),
                 child: ValueListenableBuilder<Box<RoutineItem>>(
-                  valueListenable: _repo.watchRoutines(),
-                  builder: (context, _, _) {
+                  valueListenable: _listenable,
+                  builder: (context, box, _) {
                     final items = _repo.getRoutinesForDate(_targetDate);
                     final percent =
                         _repo.getCompletionPercentage(_targetDate);
                     final currentId =
                         _tab == _DayTab.today ? _repo.getCurrentRoutine()?.id : null;
+                    assert(() {
+                      debugPrint(
+                          'RoutineScreen: box=${box.length} visible=${items.length} tab=$_tab');
+                      return true;
+                    }());
                     return CustomScrollView(
+                      key: const PageStorageKey('routine_scroll'),
+                      physics: const AlwaysScrollableScrollPhysics(),
                       slivers: [
                         SliverToBoxAdapter(
                           child: Padding(
@@ -59,7 +68,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
                               crossAxisAlignment:
                                   CrossAxisAlignment.start,
                               children: [
-                                _HeaderBar()
+                                const _HeaderBar()
                                     .animate()
                                     .fadeIn(duration: 400.ms)
                                     .slideY(
