@@ -4,6 +4,7 @@ import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
+import '../models/adaptive_suggestion.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/mood_entry.dart';
@@ -11,12 +12,14 @@ import '../models/reflection.dart';
 import '../models/routine_item.dart';
 import '../models/sfx_type.dart';
 import '../models/user_profile.dart';
+import '../services/adaptive_routine_service.dart';
 import '../services/habit_repository.dart';
 import '../services/haptic_service.dart';
 import '../services/mood_repository.dart';
 import '../services/onboarding_service.dart';
 import '../services/reflection_repository.dart';
 import '../services/routine_repository.dart';
+import '../services/score_service.dart';
 import '../services/sfx_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
@@ -25,6 +28,7 @@ import '../widgets/cards.dart';
 import '../widgets/glow_slider.dart';
 import '../widgets/habit_log_button.dart';
 import '../widgets/mood_orb.dart';
+import '../widgets/adaptive_suggestion_card.dart';
 import '../widgets/reflection_card.dart';
 import '../widgets/responsive_container.dart';
 import '../widgets/settings/color_avatar.dart';
@@ -45,6 +49,66 @@ class _HomeScreenState extends State<HomeScreen> {
   final UserRepository _users = UserRepository();
   final ReflectionRepository _reflections = ReflectionRepository();
   final HabitRepository _habits = HabitRepository();
+  final ScoreService _score = ScoreService();
+  final AdaptiveRoutineService _adaptive = AdaptiveRoutineService();
+
+  AdaptiveSuggestion? _suggestion;
+  bool _applyingSuggestion = false;
+  bool _suggestionLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSuggestion();
+  }
+
+  Future<void> _loadSuggestion() async {
+    try {
+      final s = await _adaptive.topSuggestion();
+      if (!mounted) return;
+      setState(() {
+        _suggestion = s;
+        _suggestionLoaded = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _suggestionLoaded = true);
+    }
+  }
+
+  Future<void> _applySuggestion() async {
+    final s = _suggestion;
+    if (s == null || _applyingSuggestion) return;
+    setState(() => _applyingSuggestion = true);
+    try {
+      final msg = await _adaptive.apply(s);
+      await _adaptive.dismiss(s);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg ?? 'Got it — taking a look.'),
+          backgroundColor: AppColors.bgCard,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      );
+      setState(() {
+        _suggestion = null;
+        _applyingSuggestion = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _applyingSuggestion = false);
+    }
+  }
+
+  Future<void> _dismissSuggestion() async {
+    final s = _suggestion;
+    if (s == null) return;
+    await _adaptive.dismiss(s);
+    if (!mounted) return;
+    setState(() => _suggestion = null);
+  }
 
   double _mood = 0.72;
   double _energy = 0.58;
@@ -162,17 +226,22 @@ class _HomeScreenState extends State<HomeScreen> {
                         builder: (context, _, _) {
                           return ValueListenableBuilder<Box<RoutineItem>>(
                             valueListenable: _routines.watchRoutines(),
-                            builder: (context, _, _) => _StatsRow(
-                              streak: _moods.calculateStreak(),
-                              todayCheckIns:
-                                  _moods.getEntriesForDate(DateTime.now()).length,
-                              completedToday: _routines
-                                  .getTodayRoutines()
-                                  .where((r) => r.isCompleted)
-                                  .length,
-                              totalToday:
-                                  _routines.getTodayRoutines().length,
-                              score: _todayScore(),
+                            builder: (context, _, _) =>
+                                ValueListenableBuilder<Box<HabitLog>>(
+                              valueListenable: _habits.watchLogs(),
+                              builder: (context, _, _) => _StatsRow(
+                                streak: _moods.calculateStreak(),
+                                completedToday: _routines
+                                    .getTodayRoutines()
+                                    .where((r) => r.isCompleted)
+                                    .length,
+                                totalToday:
+                                    _routines.getTodayRoutines().length,
+                                disciplineScore: _score.getDisciplineScore(),
+                                onTapDiscipline: () =>
+                                    MainNavigation.goToTab(
+                                        context, kProgressTabIndex),
+                              ),
                             ),
                           );
                         },
@@ -181,6 +250,21 @@ class _HomeScreenState extends State<HomeScreen> {
                           .fadeIn(delay: 350.ms, duration: 500.ms)
                           .slideY(
                               begin: 0.1, end: 0, curve: Curves.easeOutCubic),
+                      if (_suggestionLoaded && _suggestion != null) ...[
+                        const SizedBox(height: 18),
+                        AdaptiveSuggestionCard(
+                          suggestion: _suggestion!,
+                          applying: _applyingSuggestion,
+                          onApply: _applySuggestion,
+                          onDismiss: _dismissSuggestion,
+                        )
+                            .animate()
+                            .fadeIn(delay: 380.ms, duration: 500.ms)
+                            .slideY(
+                                begin: 0.05,
+                                end: 0,
+                                curve: Curves.easeOut),
+                      ],
                       const SizedBox(height: 28),
                       ValueListenableBuilder<Box<Habit>>(
                         valueListenable: _habits.watchHabits(),
@@ -225,15 +309,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  int _todayScore() {
-    final today = _moods.getEntriesForDate(DateTime.now());
-    if (today.isEmpty) return 0;
-    final avg = today
-            .map((e) => e.averageScore)
-            .fold<double>(0, (a, b) => a + b) /
-        today.length;
-    return (avg * 100).round();
-  }
 
   Future<void> _confirmReset(BuildContext context) async {
     final ok = await showDialog<bool>(
@@ -608,17 +683,17 @@ class _SaveButton extends StatelessWidget {
 class _StatsRow extends StatelessWidget {
   const _StatsRow({
     required this.streak,
-    required this.todayCheckIns,
     required this.completedToday,
     required this.totalToday,
-    required this.score,
+    required this.disciplineScore,
+    required this.onTapDiscipline,
   });
 
   final int streak;
-  final int todayCheckIns;
   final int completedToday;
   final int totalToday;
-  final int score;
+  final int disciplineScore;
+  final VoidCallback onTapDiscipline;
 
   @override
   Widget build(BuildContext context) {
@@ -643,11 +718,14 @@ class _StatsRow extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: StatCard(
-            label: 'Score',
-            value: score == 0 && todayCheckIns == 0 ? '—' : '$score',
-            emoji: '✨',
-            accent: AppColors.purpleLight,
+          child: GestureDetector(
+            onTap: onTapDiscipline,
+            child: StatCard(
+              label: 'Discipline',
+              value: disciplineScore == 0 ? '—' : '$disciplineScore',
+              emoji: '🏆',
+              accent: AppColors.purpleLight,
+            ),
           ),
         ),
       ],

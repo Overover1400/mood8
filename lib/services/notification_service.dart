@@ -1,0 +1,48 @@
+import 'notification_service_stub.dart'
+    if (dart.library.html) 'notification_service_web.dart';
+
+/// Cross-platform notification facade. On web it backs onto the browser's
+/// `Notification` API (see `notification_service_web.dart`). On all other
+/// platforms it's a no-op stub today — wire `flutter_local_notifications`
+/// in `notification_service_stub.dart` when you're ready to ship mobile
+/// reminders.
+class NotificationService {
+  NotificationService._() : _impl = createNotificationServiceImpl();
+  static final NotificationService _instance = NotificationService._();
+  factory NotificationService() => _instance;
+
+  final NotificationServiceImpl _impl;
+
+  bool get isSupported => _impl.isSupported;
+  bool get isGranted => _impl.isGranted;
+
+  Future<bool> requestPermission() => _impl.requestPermission();
+
+  Future<void> scheduleMorningCheckIn({
+    required String name,
+    required int hour,
+    required int minute,
+  }) =>
+      _impl.scheduleMorningCheckIn(name: name, hour: hour, minute: minute);
+
+  Future<void> scheduleEveningReflection({
+    required int hour,
+    required int minute,
+  }) =>
+      _impl.scheduleEveningReflection(hour: hour, minute: minute);
+
+  Future<void> scheduleStreakWarning({required int hoursLeft}) =>
+      _impl.scheduleStreakWarning(hoursLeft: hoursLeft);
+
+  Future<void> scheduleHabitReminder({
+    required String habitTitle,
+    required int hour,
+    required int minute,
+  }) =>
+      _impl.scheduleHabitReminder(
+          habitTitle: habitTitle, hour: hour, minute: minute);
+
+  Future<void> testNotification() => _impl.testNotification();
+
+  Future<void> cancelAll() => _impl.cancelAll();
+}

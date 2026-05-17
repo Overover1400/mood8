@@ -9,6 +9,7 @@ import '../models/sfx_type.dart';
 import '../models/user_profile.dart';
 import '../services/analytics_service.dart';
 import '../services/haptic_service.dart';
+import '../services/notification_service.dart';
 import '../services/onboarding_service.dart';
 import '../services/preferences_service.dart';
 import '../services/sfx_service.dart';
@@ -193,35 +194,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     SettingsSection(
                       title: 'Notifications',
-                      subtitle: 'coming soon',
+                      subtitle: NotificationService().isSupported
+                          ? (NotificationService().isGranted
+                              ? 'enabled'
+                              : 'tap to allow')
+                          : 'web only',
                       children: [
-                        SettingsToggle(
+                        SettingsTile(
+                          icon: Icons.notifications_active_rounded,
+                          title: NotificationService().isGranted
+                              ? 'Send a test notification'
+                              : 'Enable notifications',
+                          subtitle: NotificationService().isSupported
+                              ? 'Browser permission · web'
+                              : 'Coming to mobile soon',
+                          onTap: NotificationService().isSupported
+                              ? _onTestNotification
+                              : null,
+                        ),
+                        SettingsTile(
                           icon: Icons.wb_twilight_rounded,
-                          title: 'Morning check-in reminder',
-                          value: false,
-                          disabled: true,
-                          onChanged: null,
+                          title: 'Schedule morning check-in',
+                          subtitle: NotificationService().isGranted
+                              ? 'Tap to schedule for 09:00'
+                              : 'Allow notifications first',
+                          onTap: NotificationService().isGranted
+                              ? _scheduleMorning
+                              : null,
                         ),
-                        SettingsToggle(
+                        SettingsTile(
                           icon: Icons.nightlight_round,
-                          title: 'Evening reflection reminder',
-                          value: false,
-                          disabled: true,
-                          onChanged: null,
-                        ),
-                        SettingsToggle(
-                          icon: Icons.local_fire_department_rounded,
-                          title: 'Streak warnings',
-                          value: false,
-                          disabled: true,
-                          onChanged: null,
-                        ),
-                        SettingsToggle(
-                          icon: Icons.emoji_events_rounded,
-                          title: 'Achievement notifications',
-                          value: false,
-                          disabled: true,
-                          onChanged: null,
+                          title: 'Schedule evening reflection',
+                          subtitle: NotificationService().isGranted
+                              ? 'Tap to schedule for 21:00'
+                              : 'Allow notifications first',
+                          onTap: NotificationService().isGranted
+                              ? _scheduleEvening
+                              : null,
                         ),
                       ],
                     ),
@@ -528,6 +537,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$label is coming soon.'),
+        backgroundColor: AppColors.bgCard,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onTestNotification() async {
+    final ok = await NotificationService().requestPermission();
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+              'Notification permission denied. Enable it in browser settings.'),
+          backgroundColor: AppColors.bgCard,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      );
+      return;
+    }
+    await NotificationService().testNotification();
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Future<void> _scheduleMorning() async {
+    final user = _users.getCurrentUser();
+    await NotificationService().scheduleMorningCheckIn(
+      name: user?.name ?? 'friend',
+      hour: 9,
+      minute: 0,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Morning reminder scheduled for 09:00.'),
+        backgroundColor: AppColors.bgCard,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _scheduleEvening() async {
+    await NotificationService().scheduleEveningReflection(
+      hour: 21,
+      minute: 0,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Evening reflection scheduled for 21:00.'),
         backgroundColor: AppColors.bgCard,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
