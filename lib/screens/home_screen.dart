@@ -6,8 +6,11 @@ import 'package:intl/intl.dart';
 
 import '../models/mood_entry.dart';
 import '../models/routine_item.dart';
+import '../models/user_profile.dart';
 import '../services/mood_repository.dart';
+import '../services/onboarding_service.dart';
 import '../services/routine_repository.dart';
+import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/cards.dart';
 import '../widgets/glow_slider.dart';
@@ -23,6 +26,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final MoodRepository _moods = MoodRepository();
   final RoutineRepository _routines = RoutineRepository();
+  final UserRepository _users = UserRepository();
 
   double _mood = 0.72;
   double _energy = 0.58;
@@ -47,8 +51,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       ValueListenableBuilder<Box<MoodEntry>>(
                         valueListenable: _moods.watchEntries(),
-                        builder: (context, _, _) => _Header(
-                          streak: _moods.calculateStreak(),
+                        builder: (context, _, _) =>
+                            ValueListenableBuilder<Box<UserProfile>>(
+                          valueListenable: _users.watchUser(),
+                          builder: (context, userBox, _) {
+                            final user =
+                                userBox.get(UserRepository.userKey);
+                            return _Header(
+                              name: user?.name ?? 'friend',
+                              streak: _moods.calculateStreak(),
+                              onLongPressName: () =>
+                                  _confirmReset(context),
+                            );
+                          },
                         ),
                       )
                           .animate()
@@ -136,6 +151,35 @@ class _HomeScreenState extends State<HomeScreen> {
             .fold<double>(0, (a, b) => a + b) /
         today.length;
     return (avg * 100).round();
+  }
+
+  Future<void> _confirmReset(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgCard,
+        title: const Text('Reset onboarding?',
+            style: TextStyle(color: AppColors.ink)),
+        content: const Text(
+          'This clears your profile and routines so you can run onboarding again.',
+          style: TextStyle(color: AppColors.inkSoft),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Reset',
+                style: TextStyle(color: Color(0xFFFF6B81))),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await OnboardingService().reset();
+    }
   }
 
   Future<void> _handleSave() async {
@@ -228,9 +272,15 @@ class _BackgroundGlow extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.streak});
+  const _Header({
+    required this.name,
+    required this.streak,
+    required this.onLongPressName,
+  });
 
+  final String name;
   final int streak;
+  final VoidCallback onLongPressName;
 
   @override
   Widget build(BuildContext context) {
@@ -255,26 +305,30 @@ class _Header extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 6),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '$greeting,\n',
-                      style: Theme.of(context).textTheme.headlineLarge,
-                    ),
-                    TextSpan(
-                      text: 'Hamed',
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineLarge
-                          ?.copyWith(
-                            foreground: Paint()
-                              ..shader = AppColors.primaryGradient
-                                  .createShader(
-                                      const Rect.fromLTWH(0, 0, 220, 50)),
-                          ),
-                    ),
-                  ],
+              GestureDetector(
+                onLongPress: onLongPressName,
+                behavior: HitTestBehavior.opaque,
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '$greeting,\n',
+                        style: Theme.of(context).textTheme.headlineLarge,
+                      ),
+                      TextSpan(
+                        text: name,
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineLarge
+                            ?.copyWith(
+                              foreground: Paint()
+                                ..shader = AppColors.primaryGradient
+                                    .createShader(const Rect.fromLTWH(
+                                        0, 0, 220, 50)),
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
