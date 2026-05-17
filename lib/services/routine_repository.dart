@@ -118,6 +118,26 @@ class RoutineRepository {
 
   ValueListenable<Box<RoutineItem>> watchRoutines() => _box.listenable();
 
+  List<RoutineItem> getRoutinesForDate(DateTime date) {
+    return getAllRoutines()..sort((a, b) => a.time.compareTo(b.time));
+  }
+
+  double getCompletionPercentage(DateTime date) {
+    final items = getRoutinesForDate(date);
+    if (items.isEmpty) return 0;
+    final isToday = _sameDay(date, DateTime.now());
+    if (!isToday) return 0;
+    final done = items.where((r) => r.isCompleted).length;
+    return done / items.length;
+  }
+
+  List<RoutineItem> filterByCategory(RoutineCategory category) {
+    return getAllRoutines().where((r) => r.category == category).toList();
+  }
+
+  static bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
   Future<void> seedDefaultRoutines() async {
     if (_box.isNotEmpty) return;
     final now = DateTime.now();

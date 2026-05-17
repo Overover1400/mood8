@@ -9,7 +9,6 @@ import '../models/routine_item.dart';
 import '../services/mood_repository.dart';
 import '../services/routine_repository.dart';
 import '../theme/app_theme.dart';
-import '../widgets/bottom_nav.dart';
 import '../widgets/cards.dart';
 import '../widgets/glow_slider.dart';
 import '../widgets/mood_orb.dart';
@@ -28,7 +27,6 @@ class _HomeScreenState extends State<HomeScreen> {
   double _mood = 0.72;
   double _energy = 0.58;
   double _focus = 0.65;
-  int _navIndex = 0;
   bool _saving = false;
 
   @override
@@ -124,16 +122,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: MoodBottomNav(
-              currentIndex: _navIndex,
-              onTap: (i) => setState(() => _navIndex = i),
-            )
-                .animate()
-                .fadeIn(delay: 550.ms, duration: 500.ms)
-                .slideY(begin: 0.4, end: 0, curve: Curves.easeOutCubic),
           ),
         ],
       ),
