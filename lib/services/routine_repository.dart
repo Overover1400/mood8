@@ -32,10 +32,13 @@ class RoutineRepository {
       meta: meta,
       sortOrder: sortOrder ?? _box.length,
     );
+    debugPrint('==> addRoutine called: "${item.title}" (id=${item.id})');
+    debugPrint('==> Box length before: ${_box.length}');
     try {
       await _box.put(item.id, item);
+      debugPrint('==> Box length after: ${_box.length}');
       debugPrint(
-          'RoutineRepository.addRoutine: "${item.title}" stored; box.length=${_box.length}');
+          '==> All items: ${_box.values.map((e) => e.title).toList()}');
     } catch (e, st) {
       debugPrint('RoutineRepository.addRoutine failed: $e\n$st');
       rethrow;

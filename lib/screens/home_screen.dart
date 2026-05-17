@@ -5,16 +5,21 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
 import '../models/mood_entry.dart';
+import '../models/reflection.dart';
 import '../models/routine_item.dart';
 import '../models/user_profile.dart';
 import '../services/mood_repository.dart';
 import '../services/onboarding_service.dart';
+import '../services/reflection_repository.dart';
 import '../services/routine_repository.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
+import '../widgets/bottom_nav.dart';
 import '../widgets/cards.dart';
 import '../widgets/glow_slider.dart';
 import '../widgets/mood_orb.dart';
+import '../widgets/reflection_card.dart';
+import 'main_navigation.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final MoodRepository _moods = MoodRepository();
   final RoutineRepository _routines = RoutineRepository();
   final UserRepository _users = UserRepository();
+  final ReflectionRepository _reflections = ReflectionRepository();
 
   double _mood = 0.72;
   double _energy = 0.58;
@@ -72,6 +78,46 @@ class _HomeScreenState extends State<HomeScreen> {
                               begin: -0.15,
                               end: 0,
                               curve: Curves.easeOutCubic),
+                      ValueListenableBuilder<Box<Reflection>>(
+                        valueListenable: _reflections.watchReflections(),
+                        builder: (context, _, _) {
+                          final today = _reflections.getTodayReflection();
+                          final hour = DateTime.now().hour;
+                          if (today != null) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 18),
+                              child: ReflectionCard(
+                                reflection: today,
+                                compact: true,
+                                onTap: () => MainNavigation.goToTab(
+                                    context, kCoachTabIndex),
+                              )
+                                  .animate()
+                                  .fadeIn(delay: 60.ms, duration: 500.ms)
+                                  .slideY(
+                                      begin: 0.06,
+                                      end: 0,
+                                      curve: Curves.easeOutCubic),
+                            );
+                          }
+                          if (hour >= 18) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 18),
+                              child: _ReflectionNudge(
+                                onTap: () => MainNavigation.goToTab(
+                                    context, kCoachTabIndex),
+                              )
+                                  .animate()
+                                  .fadeIn(delay: 60.ms, duration: 500.ms)
+                                  .slideY(
+                                      begin: 0.06,
+                                      end: 0,
+                                      curve: Curves.easeOutCubic),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
                       const SizedBox(height: 24),
                       _MoodHeroCard(
                         mood: _mood,
@@ -606,6 +652,83 @@ class _UpNextSection extends StatelessWidget {
             if (i < visible.length - 1) const SizedBox(height: 12),
           ],
       ],
+    );
+  }
+}
+
+class _ReflectionNudge extends StatelessWidget {
+  const _ReflectionNudge({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.purple.withValues(alpha: 0.18),
+                AppColors.pink.withValues(alpha: 0.10),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppColors.pinkLight.withValues(alpha: 0.30),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppColors.orbGradient,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.pink.withValues(alpha: 0.40),
+                      blurRadius: 12,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Tonight's reflection is ready",
+                      style: TextStyle(
+                        color: AppColors.ink,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Mood8 will read your day and write you a note.',
+                      style: TextStyle(
+                        color: AppColors.inkDim,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_rounded,
+                  color: AppColors.pinkLight, size: 18),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

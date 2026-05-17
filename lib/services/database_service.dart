@@ -1,7 +1,9 @@
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../models/chat_message.dart';
 import '../models/focus_area.dart';
 import '../models/mood_entry.dart';
+import '../models/reflection.dart';
 import '../models/routine_category.dart';
 import '../models/routine_item.dart';
 import '../models/user_profile.dart';
@@ -13,15 +15,21 @@ class DatabaseService {
   static const String moodBoxName = 'mood_entries';
   static const String routineBoxName = 'routines';
   static const String userBoxName = 'users';
+  static const String reflectionBoxName = 'reflections';
+  static const String chatBoxName = 'chat_messages';
 
   bool _initialized = false;
   late Box<MoodEntry> _moodBox;
   late Box<RoutineItem> _routineBox;
   late Box<UserProfile> _userBox;
+  late Box<Reflection> _reflectionBox;
+  late Box<ChatMessage> _chatBox;
 
   Box<MoodEntry> get moodBox => _moodBox;
   Box<RoutineItem> get routineBox => _routineBox;
   Box<UserProfile> get userBox => _userBox;
+  Box<Reflection> get reflectionBox => _reflectionBox;
+  Box<ChatMessage> get chatBox => _chatBox;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -45,10 +53,18 @@ class DatabaseService {
     if (!Hive.isAdapterRegistered(5)) {
       Hive.registerAdapter(ChronotypeAdapter());
     }
+    if (!Hive.isAdapterRegistered(6)) {
+      Hive.registerAdapter(ReflectionAdapter());
+    }
+    if (!Hive.isAdapterRegistered(7)) {
+      Hive.registerAdapter(ChatMessageAdapter());
+    }
 
     _moodBox = await Hive.openBox<MoodEntry>(moodBoxName);
     _routineBox = await Hive.openBox<RoutineItem>(routineBoxName);
     _userBox = await Hive.openBox<UserProfile>(userBoxName);
+    _reflectionBox = await Hive.openBox<Reflection>(reflectionBoxName);
+    _chatBox = await Hive.openBox<ChatMessage>(chatBoxName);
     _initialized = true;
   }
 
@@ -57,6 +73,8 @@ class DatabaseService {
     await _moodBox.close();
     await _routineBox.close();
     await _userBox.close();
+    await _reflectionBox.close();
+    await _chatBox.close();
     _initialized = false;
   }
 }

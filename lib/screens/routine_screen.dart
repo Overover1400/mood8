@@ -41,113 +41,98 @@ class _RoutineScreenState extends State<RoutineScreen> {
         children: [
           const _BackgroundGlow(),
           SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 520),
-                child: ValueListenableBuilder<Box<RoutineItem>>(
-                  valueListenable: _listenable,
-                  builder: (context, box, _) {
-                    final items = _repo.getRoutinesForDate(_targetDate);
-                    final percent =
-                        _repo.getCompletionPercentage(_targetDate);
-                    final currentId =
-                        _tab == _DayTab.today ? _repo.getCurrentRoutine()?.id : null;
-                    assert(() {
-                      debugPrint(
-                          'RoutineScreen: box=${box.length} visible=${items.length} tab=$_tab');
-                      return true;
-                    }());
-                    return CustomScrollView(
+            child: ValueListenableBuilder<Box<RoutineItem>>(
+              valueListenable: _listenable,
+              builder: (context, box, _) {
+                final items = _repo.getRoutinesForDate(_targetDate);
+                final percent = _repo.getCompletionPercentage(_targetDate);
+                final currentId = _tab == _DayTab.today
+                    ? _repo.getCurrentRoutine()?.id
+                    : null;
+                debugPrint(
+                    '==> Building routine list (box.values=${box.values.length}, '
+                    'filtered=${items.length}, tab=$_tab)');
+                debugPrint(
+                    '==> Filtered routines: ${items.map((r) => '${r.title}@${r.time}').toList()}');
+
+                return Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: SingleChildScrollView(
                       key: const PageStorageKey('routine_scroll'),
                       physics: const AlwaysScrollableScrollPhysics(),
-                      slivers: [
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                            child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                              children: [
-                                const _HeaderBar()
-                                    .animate()
-                                    .fadeIn(duration: 400.ms)
-                                    .slideY(
-                                        begin: -0.1,
-                                        end: 0,
-                                        curve: Curves.easeOut),
-                                const SizedBox(height: 20),
-                                _TabToggle(
-                                  value: _tab,
-                                  onChanged: (t) =>
-                                      setState(() => _tab = t),
-                                )
-                                    .animate()
-                                    .fadeIn(delay: 60.ms, duration: 400.ms),
-                                const SizedBox(height: 18),
-                                _ProgressCard(
-                                  completed: items
-                                      .where((r) => r.isCompleted)
-                                      .length,
-                                  total: items.length,
-                                  percent: percent,
-                                  isFuture: _tab == _DayTab.tomorrow,
-                                )
-                                    .animate()
-                                    .fadeIn(
-                                        delay: 120.ms, duration: 450.ms)
-                                    .slideY(
-                                        begin: 0.06,
-                                        end: 0,
-                                        curve: Curves.easeOut),
-                                const SizedBox(height: 22),
-                              ],
-                            ),
-                          ),
-                        ),
-                        if (items.isEmpty)
-                          SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: EmptyState(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 180),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _HeaderBar()
+                              .animate()
+                              .fadeIn(duration: 400.ms)
+                              .slideY(
+                                  begin: -0.1,
+                                  end: 0,
+                                  curve: Curves.easeOut),
+                          const SizedBox(height: 20),
+                          _TabToggle(
+                            value: _tab,
+                            onChanged: (t) => setState(() => _tab = t),
+                          )
+                              .animate()
+                              .fadeIn(delay: 60.ms, duration: 400.ms),
+                          const SizedBox(height: 18),
+                          _ProgressCard(
+                            completed:
+                                items.where((r) => r.isCompleted).length,
+                            total: items.length,
+                            percent: percent,
+                            isFuture: _tab == _DayTab.tomorrow,
+                          )
+                              .animate()
+                              .fadeIn(delay: 120.ms, duration: 450.ms)
+                              .slideY(
+                                  begin: 0.06,
+                                  end: 0,
+                                  curve: Curves.easeOut),
+                          const SizedBox(height: 22),
+                          if (items.isEmpty)
+                            EmptyState(
                               icon: Icons.event_note_rounded,
                               title: 'No routines yet',
                               subtitle:
                                   'Tap the + button to add your first one.',
                               ctaLabel: 'Add routine',
                               onCta: () => _openSheet(context),
+                            )
+                          else
+                            _Timeline(
+                              items: items,
+                              currentId: currentId,
+                              completable: _tab == _DayTab.today,
+                              onTapItem: (it) =>
+                                  _openSheet(context, editing: it),
+                              onToggle: (it) async {
+                                if (it.isCompleted) {
+                                  it.isCompleted = false;
+                                  it.completedAt = null;
+                                  await _repo.updateRoutine(it);
+                                } else {
+                                  await _repo.markComplete(it.id);
+                                }
+                              },
+                              onReorder: (oldIndex, newIndex) =>
+                                  _repo.reorder(oldIndex, newIndex),
+                              onDelete: (it) async {
+                                HapticFeedback.mediumImpact();
+                                await _repo.deleteRoutine(it.id);
+                              },
                             ),
-                          )
-                        else
-                          _Timeline(
-                            items: items,
-                            currentId: currentId,
-                            completable: _tab == _DayTab.today,
-                            onTapItem: (it) =>
-                                _openSheet(context, editing: it),
-                            onToggle: (it) async {
-                              if (it.isCompleted) {
-                                it.isCompleted = false;
-                                it.completedAt = null;
-                                await _repo.updateRoutine(it);
-                              } else {
-                                await _repo.markComplete(it.id);
-                              }
-                            },
-                            onReorder: (oldIndex, newIndex) =>
-                                _repo.reorder(oldIndex, newIndex),
-                            onDelete: (it) async {
-                              HapticFeedback.mediumImpact();
-                              await _repo.deleteRoutine(it.id);
-                            },
-                          ),
-                        const SliverToBoxAdapter(
-                          child: SizedBox(height: 180),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
           Positioned(
@@ -471,79 +456,81 @@ class _Timeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      sliver: SliverReorderableList(
-        itemCount: items.length,
-        onReorder: (oldIndex, newIndex) async {
-          HapticFeedback.lightImpact();
-          await onReorder(oldIndex, newIndex);
-        },
-        itemBuilder: (context, index) {
-          final item = items[index];
-          final showHeader = index == 0 ||
-              _groupFor(items[index - 1].time).label !=
-                  _groupFor(item.time).label;
-          return Padding(
-            key: ValueKey(item.id),
-            padding: EdgeInsets.only(top: showHeader ? 6 : 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (showHeader) ...[
-                  _GroupHeader(label: _groupFor(item.time).label),
-                  const SizedBox(height: 10),
-                ],
-                ReorderableDelayedDragStartListener(
-                  index: index,
-                  child: Dismissible(
-                    key: ValueKey('dis-${item.id}'),
-                    direction: DismissDirection.endToStart,
-                    background: Container(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF6B81)
-                            .withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.delete_outline_rounded,
-                              color: Color(0xFFFF6B81)),
-                          SizedBox(width: 8),
-                          Text(
-                            'Delete',
-                            style: TextStyle(
-                              color: Color(0xFFFF6B81),
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
+    debugPrint('==> _Timeline build itemCount=${items.length}');
+    return ReorderableListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      buildDefaultDragHandles: false,
+      itemCount: items.length,
+      onReorder: (oldIndex, newIndex) async {
+        HapticFeedback.lightImpact();
+        await onReorder(oldIndex, newIndex);
+      },
+      proxyDecorator: (child, _, _) => Material(
+        color: Colors.transparent,
+        child: child,
+      ),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        final showHeader = index == 0 ||
+            _groupFor(items[index - 1].time).label !=
+                _groupFor(item.time).label;
+        return Padding(
+          key: ValueKey(item.id),
+          padding: EdgeInsets.only(top: showHeader ? 6 : 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (showHeader) ...[
+                _GroupHeader(label: _groupFor(item.time).label),
+                const SizedBox(height: 10),
+              ],
+              ReorderableDelayedDragStartListener(
+                index: index,
+                child: Dismissible(
+                  key: ValueKey('dis-${item.id}'),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF6B81)
+                          .withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    confirmDismiss: (_) async {
-                      await onDelete(item);
-                      return false;
-                    },
-                    child: RoutineCardV2(
-                      item: item,
-                      isCurrent: item.id == currentId,
-                      completable: completable,
-                      onTap: () => onTapItem(item),
-                      onToggleComplete: () => onToggle(item),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.delete_outline_rounded,
+                            color: Color(0xFFFF6B81)),
+                        SizedBox(width: 8),
+                        Text(
+                          'Delete',
+                          style: TextStyle(
+                            color: Color(0xFFFF6B81),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  confirmDismiss: (_) async {
+                    await onDelete(item);
+                    return false;
+                  },
+                  child: RoutineCardV2(
+                    item: item,
+                    isCurrent: item.id == currentId,
+                    completable: completable,
+                    onTap: () => onTapItem(item),
+                    onToggleComplete: () => onToggle(item),
+                  ),
                 ),
-              ],
-            ),
-          )
-              .animate(delay: (40 * index).ms)
-              .fadeIn(duration: 350.ms)
-              .slideY(begin: 0.06, end: 0, curve: Curves.easeOut);
-        },
-      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

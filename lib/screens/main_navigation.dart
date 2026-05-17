@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/bottom_nav.dart';
+import 'coach_screen.dart';
 import 'home_screen.dart';
 import 'routine_screen.dart';
 
@@ -11,6 +12,11 @@ const String _kTabPrefKey = 'mood8.currentTab';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
+
+  static void goToTab(BuildContext context, int index) {
+    final state = context.findAncestorStateOfType<_MainNavigationState>();
+    state?._onTab(index);
+  }
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
@@ -63,8 +69,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 HomeScreen(),
                 _PlaceholderScreen(title: 'Habits', subtitle: 'Coming soon'),
                 RoutineScreen(),
-                _PlaceholderScreen(
-                    title: 'Insights', subtitle: 'Coming soon'),
+                CoachScreen(),
                 _PlaceholderScreen(
                     title: 'Progress', subtitle: 'Coming soon'),
               ],

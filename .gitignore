@@ -17,3 +17,5 @@ ios/.symlinks/
 .claude/
 *.env
 *.log
+.env
+*.env

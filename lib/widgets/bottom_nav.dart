@@ -11,9 +11,11 @@ const List<NavItem> kNavItems = [
   NavItem('Today', Icons.today_rounded),
   NavItem('Habits', Icons.check_circle_outline_rounded),
   NavItem('Routine', Icons.schedule_rounded),
-  NavItem('Insights', Icons.auto_awesome_rounded),
+  NavItem('Coach', Icons.auto_awesome_rounded),
   NavItem('Progress', Icons.trending_up_rounded),
 ];
+
+const int kCoachTabIndex = 3;
 
 class MoodBottomNav extends StatelessWidget {
   const MoodBottomNav({

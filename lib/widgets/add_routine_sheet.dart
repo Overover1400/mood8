@@ -80,8 +80,14 @@ class _AddRoutineSheetState extends State<AddRoutineSheet> {
   }
 
   Future<void> _onSave() async {
+    debugPrint('==> SAVE PRESSED');
     final title = _titleCtrl.text.trim();
+    debugPrint('==> Title: $title');
+    debugPrint('==> Time: $_time');
+    debugPrint('==> Duration: $_duration');
+    debugPrint('==> Category: $_category');
     if (title.isEmpty) {
+      debugPrint('==> Validation failed: empty title');
       setState(() => _titleError = 'Give this routine a name.');
       return;
     }
@@ -91,6 +97,7 @@ class _AddRoutineSheetState extends State<AddRoutineSheet> {
     });
 
     try {
+      debugPrint('==> Awaiting save...');
       if (_isEditing) {
         final item = widget.editing!;
         item.title = title;
@@ -99,7 +106,7 @@ class _AddRoutineSheetState extends State<AddRoutineSheet> {
         item.category = _category;
         item.meta = _metaCtrl.text.trim();
         await _repo.updateRoutine(item);
-        debugPrint('AddRoutineSheet: updated "${item.title}" id=${item.id}');
+        debugPrint('==> UPDATED! id=${item.id}');
       } else {
         final saved = await _repo.addRoutine(
           title: title,
@@ -109,9 +116,10 @@ class _AddRoutineSheetState extends State<AddRoutineSheet> {
           meta: _metaCtrl.text.trim(),
         );
         debugPrint(
-            'AddRoutineSheet: saved "${saved.title}" id=${saved.id} at ${saved.time}');
+            '==> SAVED! id=${saved.id} title="${saved.title}" time=${saved.time}');
       }
       HapticFeedback.lightImpact();
+      debugPrint('==> Closing sheet');
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       setState(() => _saving = false);
