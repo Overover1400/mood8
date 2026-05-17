@@ -67,13 +67,13 @@ class _MoodOrbState extends State<MoodOrb>
                       boxShadow: [
                         BoxShadow(
                           color: AppColors.pink.withValues(alpha: 0.55),
-                          blurRadius: 40,
-                          spreadRadius: 4,
+                          blurRadius: 24,
+                          spreadRadius: 2,
                         ),
                         BoxShadow(
                           color: AppColors.purple.withValues(alpha: 0.45),
-                          blurRadius: 80,
-                          spreadRadius: 10,
+                          blurRadius: 36,
+                          spreadRadius: 4,
                         ),
                       ],
                     ),

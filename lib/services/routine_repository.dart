@@ -34,6 +34,8 @@ class RoutineRepository {
     );
     try {
       await _box.put(item.id, item);
+      debugPrint(
+          'RoutineRepository.addRoutine: "${item.title}" stored; box.length=${_box.length}');
     } catch (e, st) {
       debugPrint('RoutineRepository.addRoutine failed: $e\n$st');
       rethrow;

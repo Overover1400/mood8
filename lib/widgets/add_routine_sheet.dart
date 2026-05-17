@@ -99,14 +99,17 @@ class _AddRoutineSheetState extends State<AddRoutineSheet> {
         item.category = _category;
         item.meta = _metaCtrl.text.trim();
         await _repo.updateRoutine(item);
+        debugPrint('AddRoutineSheet: updated "${item.title}" id=${item.id}');
       } else {
-        await _repo.addRoutine(
+        final saved = await _repo.addRoutine(
           title: title,
           time: _time,
           durationMinutes: _duration,
           category: _category,
           meta: _metaCtrl.text.trim(),
         );
+        debugPrint(
+            'AddRoutineSheet: saved "${saved.title}" id=${saved.id} at ${saved.time}');
       }
       HapticFeedback.lightImpact();
       if (mounted) Navigator.of(context).pop();

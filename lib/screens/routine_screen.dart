@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -140,7 +141,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
                             },
                           ),
                         const SliverToBoxAdapter(
-                          child: SizedBox(height: 140),
+                          child: SizedBox(height: 180),
                         ),
                       ],
                     );
@@ -219,6 +220,8 @@ class _BackgroundGlow extends StatelessWidget {
 }
 
 class _HeaderBar extends StatelessWidget {
+  const _HeaderBar();
+
   @override
   Widget build(BuildContext context) {
     return Column(
