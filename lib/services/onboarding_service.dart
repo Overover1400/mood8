@@ -1,9 +1,12 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/focus_area.dart';
+import '../models/frequency.dart';
+import '../models/habit_type.dart';
 import '../models/routine_category.dart';
 import '../models/user_profile.dart';
 import 'database_service.dart';
+import 'habit_repository.dart';
 import 'mood_repository.dart';
 import 'routine_repository.dart';
 import 'user_repository.dart';
@@ -47,15 +50,18 @@ class OnboardingService {
     UserRepository? users,
     RoutineRepository? routines,
     MoodRepository? moods,
+    HabitRepository? habits,
   })  : _db = db ?? DatabaseService.instance,
         _users = users ?? UserRepository(),
         _routines = routines ?? RoutineRepository(),
-        _moods = moods ?? MoodRepository();
+        _moods = moods ?? MoodRepository(),
+        _habits = habits ?? HabitRepository();
 
   final DatabaseService _db;
   final UserRepository _users;
   final RoutineRepository _routines;
   final MoodRepository _moods;
+  final HabitRepository _habits;
 
   Future<UserProfile> complete({
     required String name,
@@ -89,6 +95,22 @@ class OnboardingService {
       );
     }
 
+    await _db.habitBox.clear();
+    await _db.habitLogBox.clear();
+    final habitSeeds = generateStarterHabits(profile);
+    for (final seed in habitSeeds) {
+      await _habits.addHabit(
+        title: seed.title,
+        icon: seed.icon,
+        habitType: seed.type,
+        identity: seed.identity,
+        category: seed.category,
+        frequency: seed.frequency,
+        targetValue: seed.target,
+        targetUnit: seed.unit,
+      );
+    }
+
     if (mood != null && energy != null && focus != null) {
       await _moods.addEntry(
         mood: mood * 10,
@@ -104,10 +126,41 @@ class OnboardingService {
     try {
       await _users.clear();
       await _db.routineBox.clear();
+      await _db.habitBox.clear();
+      await _db.habitLogBox.clear();
     } catch (e, st) {
       debugPrint('OnboardingService.reset failed: $e\n$st');
       rethrow;
     }
+  }
+
+  List<StarterHabit> generateStarterHabits(UserProfile p) {
+    final picks = <StarterHabit>[];
+    final seen = <String>{};
+    void add(StarterHabit h) {
+      final key = '${h.identity}|${h.title}';
+      if (seen.add(key)) picks.add(h);
+    }
+
+    for (final id in p.identities) {
+      for (final h in _habitsByIdentity[id] ?? const <StarterHabit>[]) {
+        add(h);
+      }
+    }
+    if (p.focusAreas.contains(FocusArea.health)) {
+      add(const StarterHabit(
+        title: 'Drink water',
+        icon: '💧',
+        type: HabitType.counter,
+        identity: 'General',
+        category: RoutineCategory.health,
+        frequency: Frequency.daily,
+        target: 8,
+        unit: 'glasses',
+      ));
+    }
+    if (picks.isEmpty) picks.addAll(_defaultHabitPack);
+    return picks.take(6).toList();
   }
 
   List<StarterRoutine> generateStarterRoutines(UserProfile p) {
@@ -267,4 +320,148 @@ class OnboardingService {
     _walk,
     _eveningReset,
   ];
+
+  static const Map<String, List<StarterHabit>> _habitsByIdentity = {
+    'Athlete': [
+      StarterHabit(
+        title: 'Workout',
+        icon: '💪',
+        type: HabitType.duration,
+        identity: 'Athlete',
+        category: RoutineCategory.health,
+        frequency: Frequency.daily,
+        target: 30,
+        unit: 'minutes',
+      ),
+    ],
+    'Creator': [
+      StarterHabit(
+        title: 'Make something',
+        icon: '🎨',
+        type: HabitType.yesNo,
+        identity: 'Creator',
+        category: RoutineCategory.creative,
+        frequency: Frequency.daily,
+        target: 1,
+        unit: null,
+      ),
+    ],
+    'Mindful': [
+      StarterHabit(
+        title: 'Meditate',
+        icon: '🧘',
+        type: HabitType.duration,
+        identity: 'Mindful',
+        category: RoutineCategory.mindful,
+        frequency: Frequency.daily,
+        target: 10,
+        unit: 'minutes',
+      ),
+    ],
+    'Scholar': [
+      StarterHabit(
+        title: 'Read',
+        icon: '📚',
+        type: HabitType.duration,
+        identity: 'Scholar',
+        category: RoutineCategory.mindful,
+        frequency: Frequency.daily,
+        target: 30,
+        unit: 'minutes',
+      ),
+    ],
+    'Connector': [
+      StarterHabit(
+        title: 'Reach out to someone',
+        icon: '❤️',
+        type: HabitType.yesNo,
+        identity: 'Connector',
+        category: RoutineCategory.creative,
+        frequency: Frequency.daily,
+        target: 1,
+        unit: null,
+      ),
+    ],
+    'Leader': [
+      StarterHabit(
+        title: 'Plan tomorrow',
+        icon: '🌟',
+        type: HabitType.yesNo,
+        identity: 'Leader',
+        category: RoutineCategory.work,
+        frequency: Frequency.daily,
+        target: 1,
+        unit: null,
+      ),
+    ],
+    'Entrepreneur': [
+      StarterHabit(
+        title: 'Ship something',
+        icon: '🚀',
+        type: HabitType.yesNo,
+        identity: 'Entrepreneur',
+        category: RoutineCategory.work,
+        frequency: Frequency.weekdays,
+        target: 1,
+        unit: null,
+      ),
+    ],
+    'Parent': [
+      StarterHabit(
+        title: 'Quality time',
+        icon: '👨‍👩‍👧',
+        type: HabitType.duration,
+        identity: 'Parent',
+        category: RoutineCategory.creative,
+        frequency: Frequency.daily,
+        target: 30,
+        unit: 'minutes',
+      ),
+    ],
+  };
+
+  static const _defaultHabitPack = [
+    StarterHabit(
+      title: 'Drink water',
+      icon: '💧',
+      type: HabitType.counter,
+      identity: 'General',
+      category: RoutineCategory.health,
+      frequency: Frequency.daily,
+      target: 8,
+      unit: 'glasses',
+    ),
+    StarterHabit(
+      title: 'Move',
+      icon: '🚶',
+      type: HabitType.duration,
+      identity: 'General',
+      category: RoutineCategory.health,
+      frequency: Frequency.daily,
+      target: 20,
+      unit: 'minutes',
+    ),
+  ];
+}
+
+class StarterHabit {
+  const StarterHabit({
+    required this.title,
+    required this.icon,
+    required this.type,
+    required this.identity,
+    required this.category,
+    required this.frequency,
+    required this.target,
+    required this.unit,
+  });
+
+  final String title;
+  final String icon;
+  final HabitType type;
+  final String identity;
+  final RoutineCategory category;
+  final Frequency frequency;
+  final int target;
+  final String? unit;
 }

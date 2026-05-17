@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bottom_nav.dart';
 import 'coach_screen.dart';
+import 'habits_screen.dart';
 import 'home_screen.dart';
 import 'routine_screen.dart';
 
@@ -67,7 +68,7 @@ class _MainNavigationState extends State<MainNavigation> {
               index: _index,
               children: const [
                 HomeScreen(),
-                _PlaceholderScreen(title: 'Habits', subtitle: 'Coming soon'),
+                HabitsScreen(),
                 RoutineScreen(),
                 CoachScreen(),
                 _PlaceholderScreen(

@@ -4,10 +4,13 @@ import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
+import '../models/habit.dart';
+import '../models/habit_log.dart';
 import '../models/mood_entry.dart';
 import '../models/reflection.dart';
 import '../models/routine_item.dart';
 import '../models/user_profile.dart';
+import '../services/habit_repository.dart';
 import '../services/mood_repository.dart';
 import '../services/onboarding_service.dart';
 import '../services/reflection_repository.dart';
@@ -17,8 +20,10 @@ import '../theme/app_theme.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/cards.dart';
 import '../widgets/glow_slider.dart';
+import '../widgets/habit_log_button.dart';
 import '../widgets/mood_orb.dart';
 import '../widgets/reflection_card.dart';
+import 'habit_detail_screen.dart';
 import 'main_navigation.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -33,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final RoutineRepository _routines = RoutineRepository();
   final UserRepository _users = UserRepository();
   final ReflectionRepository _reflections = ReflectionRepository();
+  final HabitRepository _habits = HabitRepository();
 
   double _mood = 0.72;
   double _energy = 0.58;
@@ -163,6 +169,27 @@ class _HomeScreenState extends State<HomeScreen> {
                       )
                           .animate()
                           .fadeIn(delay: 350.ms, duration: 500.ms)
+                          .slideY(
+                              begin: 0.1, end: 0, curve: Curves.easeOutCubic),
+                      const SizedBox(height: 28),
+                      ValueListenableBuilder<Box<Habit>>(
+                        valueListenable: _habits.watchHabits(),
+                        builder: (context, _, _) =>
+                            ValueListenableBuilder<Box<HabitLog>>(
+                          valueListenable: _habits.watchLogs(),
+                          builder: (context, _, _) => _TodayHabits(
+                            habits: _habits
+                                .getHabitsForDate(DateTime.now())
+                                .take(3)
+                                .toList(),
+                            repo: _habits,
+                            onSeeAll: () => MainNavigation.goToTab(
+                                context, kHabitsTabIndex),
+                          ),
+                        ),
+                      )
+                          .animate()
+                          .fadeIn(delay: 400.ms, duration: 500.ms)
                           .slideY(
                               begin: 0.1, end: 0, curve: Curves.easeOutCubic),
                       const SizedBox(height: 28),
@@ -652,6 +679,146 @@ class _UpNextSection extends StatelessWidget {
             if (i < visible.length - 1) const SizedBox(height: 12),
           ],
       ],
+    );
+  }
+}
+
+class _TodayHabits extends StatelessWidget {
+  const _TodayHabits({
+    required this.habits,
+    required this.repo,
+    required this.onSeeAll,
+  });
+
+  final List<Habit> habits;
+  final HabitRepository repo;
+  final VoidCallback onSeeAll;
+
+  @override
+  Widget build(BuildContext context) {
+    if (habits.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, right: 4, bottom: 12),
+          child: Row(
+            children: [
+              Text(
+                "Today's habits",
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: onSeeAll,
+                child: Text(
+                  'See all',
+                  style: TextStyle(
+                    color: AppColors.purpleLight,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        for (var i = 0; i < habits.length; i++) ...[
+          _MiniHabitRow(habit: habits[i], repo: repo),
+          if (i < habits.length - 1) const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+}
+
+class _MiniHabitRow extends StatelessWidget {
+  const _MiniHabitRow({required this.habit, required this.repo});
+  final Habit habit;
+  final HabitRepository repo;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Color(habit.color);
+    final todayValue = repo.getLogForDate(habit.id, DateTime.now())?.value ?? 0;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => HabitDetailScreen(habitId: habit.id),
+          ),
+        ),
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+          decoration: BoxDecoration(
+            color: AppColors.bgCard.withValues(alpha: 0.75),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: color.withValues(alpha: 0.20),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      color.withValues(alpha: 0.55),
+                      color.withValues(alpha: 0.12),
+                    ],
+                  ),
+                ),
+                child: Text(habit.icon,
+                    style: const TextStyle(fontSize: 18)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  habit.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              HabitLogButton(
+                habit: habit,
+                value: todayValue,
+                compact: true,
+                onIncrement: () {
+                  final step = habit.targetUnit
+                              ?.toLowerCase()
+                              .contains('minute') ==
+                          true
+                      ? 5
+                      : 1;
+                  repo.incrementLog(habitId: habit.id, by: step);
+                },
+                onDecrement: () {
+                  final step = habit.targetUnit
+                              ?.toLowerCase()
+                              .contains('minute') ==
+                          true
+                      ? 5
+                      : 1;
+                  repo.incrementLog(habitId: habit.id, by: -step);
+                },
+                onToggle: () => repo.toggleYesNoLog(habitId: habit.id),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

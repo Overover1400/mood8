@@ -2,6 +2,10 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/chat_message.dart';
 import '../models/focus_area.dart';
+import '../models/frequency.dart';
+import '../models/habit.dart';
+import '../models/habit_log.dart';
+import '../models/habit_type.dart';
 import '../models/mood_entry.dart';
 import '../models/reflection.dart';
 import '../models/routine_category.dart';
@@ -17,6 +21,8 @@ class DatabaseService {
   static const String userBoxName = 'users';
   static const String reflectionBoxName = 'reflections';
   static const String chatBoxName = 'chat_messages';
+  static const String habitBoxName = 'habits';
+  static const String habitLogBoxName = 'habit_logs';
 
   bool _initialized = false;
   late Box<MoodEntry> _moodBox;
@@ -24,12 +30,16 @@ class DatabaseService {
   late Box<UserProfile> _userBox;
   late Box<Reflection> _reflectionBox;
   late Box<ChatMessage> _chatBox;
+  late Box<Habit> _habitBox;
+  late Box<HabitLog> _habitLogBox;
 
   Box<MoodEntry> get moodBox => _moodBox;
   Box<RoutineItem> get routineBox => _routineBox;
   Box<UserProfile> get userBox => _userBox;
   Box<Reflection> get reflectionBox => _reflectionBox;
   Box<ChatMessage> get chatBox => _chatBox;
+  Box<Habit> get habitBox => _habitBox;
+  Box<HabitLog> get habitLogBox => _habitLogBox;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -59,12 +69,26 @@ class DatabaseService {
     if (!Hive.isAdapterRegistered(7)) {
       Hive.registerAdapter(ChatMessageAdapter());
     }
+    if (!Hive.isAdapterRegistered(8)) {
+      Hive.registerAdapter(HabitAdapter());
+    }
+    if (!Hive.isAdapterRegistered(9)) {
+      Hive.registerAdapter(HabitTypeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(10)) {
+      Hive.registerAdapter(FrequencyAdapter());
+    }
+    if (!Hive.isAdapterRegistered(11)) {
+      Hive.registerAdapter(HabitLogAdapter());
+    }
 
     _moodBox = await Hive.openBox<MoodEntry>(moodBoxName);
     _routineBox = await Hive.openBox<RoutineItem>(routineBoxName);
     _userBox = await Hive.openBox<UserProfile>(userBoxName);
     _reflectionBox = await Hive.openBox<Reflection>(reflectionBoxName);
     _chatBox = await Hive.openBox<ChatMessage>(chatBoxName);
+    _habitBox = await Hive.openBox<Habit>(habitBoxName);
+    _habitLogBox = await Hive.openBox<HabitLog>(habitLogBoxName);
     _initialized = true;
   }
 
@@ -75,6 +99,8 @@ class DatabaseService {
     await _userBox.close();
     await _reflectionBox.close();
     await _chatBox.close();
+    await _habitBox.close();
+    await _habitLogBox.close();
     _initialized = false;
   }
 }

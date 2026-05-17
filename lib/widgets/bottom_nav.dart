@@ -15,6 +15,7 @@ const List<NavItem> kNavItems = [
   NavItem('Progress', Icons.trending_up_rounded),
 ];
 
+const int kHabitsTabIndex = 1;
 const int kCoachTabIndex = 3;
 
 class MoodBottomNav extends StatelessWidget {
