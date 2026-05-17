@@ -9,6 +9,7 @@ import '../services/routine_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_routine_sheet.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/responsive_container.dart';
 import '../widgets/routine_card_v2.dart';
 
 enum _DayTab { today, tomorrow }
@@ -55,11 +56,9 @@ class _RoutineScreenState extends State<RoutineScreen> {
                 debugPrint(
                     '==> Filtered routines: ${items.map((r) => '${r.title}@${r.time}').toList()}');
 
-                return Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 520),
-                    child: SingleChildScrollView(
+                return ResponsiveContainer(
+                  maxWidth: 520,
+                  child: SingleChildScrollView(
                       key: const PageStorageKey('routine_scroll'),
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 180),
@@ -130,8 +129,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
                         ],
                       ),
                     ),
-                  ),
-                );
+                  );
               },
             ),
           ),

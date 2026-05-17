@@ -12,6 +12,7 @@ import '../theme/app_theme.dart';
 import '../widgets/add_habit_sheet.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/habit_card.dart';
+import '../widgets/responsive_container.dart';
 import 'habit_detail_screen.dart';
 
 const String _kAllFilter = '__all__';
@@ -41,11 +42,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
         children: [
           const _BackgroundGlow(),
           SafeArea(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 560),
-                child: ValueListenableBuilder<Box<Habit>>(
+            child: ResponsiveContainer(
+              maxWidth: 560,
+              child: ValueListenableBuilder<Box<Habit>>(
                   valueListenable: _habitListenable,
                   builder: (context, habitBox, _) =>
                       ValueListenableBuilder<Box<HabitLog>>(
@@ -159,7 +158,6 @@ class _HabitsScreenState extends State<HabitsScreen> {
                 ),
               ),
             ),
-          ),
           Positioned(
             right: 24,
             bottom: 110,

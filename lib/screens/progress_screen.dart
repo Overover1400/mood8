@@ -21,6 +21,7 @@ import '../widgets/charts/streak_heatmap.dart';
 import '../widgets/charts/time_of_day_chart.dart';
 import '../widgets/highlight_card.dart';
 import '../widgets/period_comparison.dart';
+import '../widgets/responsive_container.dart';
 import 'habit_detail_screen.dart';
 
 class ProgressScreen extends StatefulWidget {
@@ -58,11 +59,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
         children: [
           const _BackgroundGlow(),
           SafeArea(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 580),
-                child: _Multilistener(
+            child: ResponsiveContainer(
+              maxWidth: 580,
+              child: _Multilistener(
                   moods: _moodListenable,
                   habits: _habitListenable,
                   logs: _logListenable,
@@ -71,7 +70,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

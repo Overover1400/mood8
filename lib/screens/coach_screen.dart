@@ -14,6 +14,7 @@ import '../theme/app_theme.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/loading_orb.dart';
 import '../widgets/reflection_card.dart';
+import '../widgets/responsive_container.dart';
 import '../widgets/typing_indicator.dart';
 
 enum _CoachTab { reflection, chat }
@@ -84,11 +85,9 @@ class _CoachScreenState extends State<CoachScreen> {
         children: [
           const _BackgroundGlow(),
           SafeArea(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 560),
-                child: Column(
+            child: ResponsiveContainer(
+              maxWidth: 560,
+              child: Column(
                   children: [
                     const _CoachHeader(),
                     const SizedBox(height: 12),
@@ -128,7 +127,6 @@ class _CoachScreenState extends State<CoachScreen> {
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

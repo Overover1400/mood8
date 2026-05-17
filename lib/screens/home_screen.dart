@@ -23,8 +23,11 @@ import '../widgets/glow_slider.dart';
 import '../widgets/habit_log_button.dart';
 import '../widgets/mood_orb.dart';
 import '../widgets/reflection_card.dart';
+import '../widgets/responsive_container.dart';
+import '../widgets/settings/color_avatar.dart';
 import 'habit_detail_screen.dart';
 import 'main_navigation.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -55,10 +58,9 @@ class _HomeScreenState extends State<HomeScreen> {
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 480),
-                  child: Column(
+              child: ResponsiveContainer(
+                maxWidth: 480,
+                child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       ValueListenableBuilder<Box<MoodEntry>>(
@@ -74,6 +76,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               streak: _moods.calculateStreak(),
                               onLongPressName: () =>
                                   _confirmReset(context),
+                              onOpenSettings: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const SettingsScreen(),
+                                ),
+                              ),
                             );
                           },
                         ),
@@ -210,7 +217,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -349,11 +355,13 @@ class _Header extends StatelessWidget {
     required this.name,
     required this.streak,
     required this.onLongPressName,
+    required this.onOpenSettings,
   });
 
   final String name;
   final int streak;
   final VoidCallback onLongPressName;
+  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -430,6 +438,12 @@ class _Header extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        const SizedBox(width: 10),
+        ColorAvatar(
+          name: name,
+          size: 38,
+          onTap: onOpenSettings,
         ),
       ],
     );

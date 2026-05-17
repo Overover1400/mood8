@@ -15,6 +15,7 @@ import '../widgets/ai_summary_card.dart';
 import '../widgets/featured_insight_card.dart';
 import '../widgets/insight_card.dart';
 import '../widgets/insights_empty_state.dart';
+import '../widgets/responsive_container.dart';
 
 enum _InsightFilter { strong, all, warnings, discoveries, actions }
 
@@ -126,11 +127,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
         children: [
           const _BackgroundGlow(),
           SafeArea(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 580),
-                child: ValueListenableBuilder<Box<Insight>>(
+            child: ResponsiveContainer(
+              maxWidth: 580,
+              child: ValueListenableBuilder<Box<Insight>>(
                   valueListenable: _listenable,
                   builder: (context, _, _) {
                     final all = _repo.getActiveInsights();
@@ -263,7 +262,6 @@ class _InsightsScreenState extends State<InsightsScreen> {
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
