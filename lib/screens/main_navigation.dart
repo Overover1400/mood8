@@ -7,6 +7,7 @@ import '../widgets/bottom_nav.dart';
 import 'coach_screen.dart';
 import 'habits_screen.dart';
 import 'home_screen.dart';
+import 'progress_screen.dart';
 import 'routine_screen.dart';
 
 const String _kTabPrefKey = 'mood8.currentTab';
@@ -71,8 +72,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 HabitsScreen(),
                 RoutineScreen(),
                 CoachScreen(),
-                _PlaceholderScreen(
-                    title: 'Progress', subtitle: 'Coming soon'),
+                ProgressScreen(),
               ],
             ),
           Align(
@@ -91,45 +91,3 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 }
 
-class _PlaceholderScreen extends StatelessWidget {
-  const _PlaceholderScreen({required this.title, required this.subtitle});
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bgDeep,
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ShaderMask(
-                shaderCallback: (r) =>
-                    AppColors.primaryGradient.createShader(r),
-                child: Text(
-                  title,
-                  style: Theme.of(context)
-                      .textTheme
-                      .displaySmall
-                      ?.copyWith(color: Colors.white),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: AppColors.inkDim,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

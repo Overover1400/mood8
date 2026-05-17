@@ -12,7 +12,7 @@ const List<NavItem> kNavItems = [
   NavItem('Habits', Icons.check_circle_outline_rounded),
   NavItem('Routine', Icons.schedule_rounded),
   NavItem('Coach', Icons.auto_awesome_rounded),
-  NavItem('Progress', Icons.trending_up_rounded),
+  NavItem('Progress', Icons.bar_chart_rounded),
 ];
 
 const int kHabitsTabIndex = 1;
