@@ -578,7 +578,7 @@ class _Section extends StatelessWidget {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
               ),
-              ?trailing,
+              if (trailing != null) trailing as Widget,
             ],
           ),
         ),

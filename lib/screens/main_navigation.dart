@@ -7,6 +7,7 @@ import '../widgets/bottom_nav.dart';
 import 'coach_screen.dart';
 import 'habits_screen.dart';
 import 'home_screen.dart';
+import 'insights_screen.dart';
 import 'progress_screen.dart';
 import 'routine_screen.dart';
 
@@ -72,6 +73,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 HabitsScreen(),
                 RoutineScreen(),
                 CoachScreen(),
+                InsightsScreen(),
                 ProgressScreen(),
               ],
             ),

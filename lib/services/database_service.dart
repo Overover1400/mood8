@@ -6,6 +6,8 @@ import '../models/frequency.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/habit_type.dart';
+import '../models/insight.dart';
+import '../models/insight_type.dart';
 import '../models/mood_entry.dart';
 import '../models/reflection.dart';
 import '../models/routine_category.dart';
@@ -23,6 +25,7 @@ class DatabaseService {
   static const String chatBoxName = 'chat_messages';
   static const String habitBoxName = 'habits';
   static const String habitLogBoxName = 'habit_logs';
+  static const String insightBoxName = 'insights';
 
   bool _initialized = false;
   late Box<MoodEntry> _moodBox;
@@ -32,6 +35,7 @@ class DatabaseService {
   late Box<ChatMessage> _chatBox;
   late Box<Habit> _habitBox;
   late Box<HabitLog> _habitLogBox;
+  late Box<Insight> _insightBox;
 
   Box<MoodEntry> get moodBox => _moodBox;
   Box<RoutineItem> get routineBox => _routineBox;
@@ -40,6 +44,7 @@ class DatabaseService {
   Box<ChatMessage> get chatBox => _chatBox;
   Box<Habit> get habitBox => _habitBox;
   Box<HabitLog> get habitLogBox => _habitLogBox;
+  Box<Insight> get insightBox => _insightBox;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -81,6 +86,12 @@ class DatabaseService {
     if (!Hive.isAdapterRegistered(11)) {
       Hive.registerAdapter(HabitLogAdapter());
     }
+    if (!Hive.isAdapterRegistered(12)) {
+      Hive.registerAdapter(InsightAdapter());
+    }
+    if (!Hive.isAdapterRegistered(13)) {
+      Hive.registerAdapter(InsightTypeAdapter());
+    }
 
     _moodBox = await Hive.openBox<MoodEntry>(moodBoxName);
     _routineBox = await Hive.openBox<RoutineItem>(routineBoxName);
@@ -89,6 +100,7 @@ class DatabaseService {
     _chatBox = await Hive.openBox<ChatMessage>(chatBoxName);
     _habitBox = await Hive.openBox<Habit>(habitBoxName);
     _habitLogBox = await Hive.openBox<HabitLog>(habitLogBoxName);
+    _insightBox = await Hive.openBox<Insight>(insightBoxName);
     _initialized = true;
   }
 
@@ -101,6 +113,7 @@ class DatabaseService {
     await _chatBox.close();
     await _habitBox.close();
     await _habitLogBox.close();
+    await _insightBox.close();
     _initialized = false;
   }
 }

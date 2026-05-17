@@ -11,12 +11,15 @@ const List<NavItem> kNavItems = [
   NavItem('Today', Icons.today_rounded),
   NavItem('Habits', Icons.check_circle_outline_rounded),
   NavItem('Routine', Icons.schedule_rounded),
-  NavItem('Coach', Icons.auto_awesome_rounded),
+  NavItem('Coach', Icons.chat_bubble_outline_rounded),
+  NavItem('Insights', Icons.auto_awesome_rounded),
   NavItem('Progress', Icons.bar_chart_rounded),
 ];
 
 const int kHabitsTabIndex = 1;
 const int kCoachTabIndex = 3;
+const int kInsightsTabIndex = 4;
+const int kProgressTabIndex = 5;
 
 class MoodBottomNav extends StatelessWidget {
   const MoodBottomNav({
@@ -31,9 +34,9 @@ class MoodBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       child: Container(
-        height: 68,
+        height: 66,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -97,7 +100,7 @@ class _NavButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        margin: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
         decoration: BoxDecoration(
           gradient: selected
               ? LinearGradient(

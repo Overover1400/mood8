@@ -100,13 +100,13 @@ class Highlights {
   final HighlightItem? improvedMost;
   final HighlightItem? bestTime;
 
-  List<HighlightItem> get nonNull => [
-        ?bestDay,
-        ?bestWeek,
-        ?topHabit,
-        ?longestStreak,
-        ?improvedMost,
-        ?bestTime,
+  List<HighlightItem> get nonNull => <HighlightItem>[
+        if (bestDay != null) bestDay as HighlightItem,
+        if (bestWeek != null) bestWeek as HighlightItem,
+        if (topHabit != null) topHabit as HighlightItem,
+        if (longestStreak != null) longestStreak as HighlightItem,
+        if (improvedMost != null) improvedMost as HighlightItem,
+        if (bestTime != null) bestTime as HighlightItem,
       ];
 }
 

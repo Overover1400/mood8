@@ -100,6 +100,52 @@ class AiService {
     return text;
   }
 
+  Future<String> explainInsight({
+    required String title,
+    String? description,
+  }) async {
+    final body = await _postJson('/chat', {
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are Mood8 coach. Given a discovered personal pattern, '
+                  'explain in 2 short, warm sentences why it likely matters '
+                  'and one concrete next action. No emoji, no preamble.',
+        },
+        {
+          'role': 'user',
+          'content': description == null ? title : '$title\n\n$description',
+        },
+      ],
+    });
+    return _pickString(
+            body, const ['message', 'response', 'reply', 'content']) ??
+        '';
+  }
+
+  Future<String> weeklyNarrative({
+    required String summary,
+    DailyData? context,
+  }) async {
+    final body = await _postJson('/chat', {
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are Mood8 coach. Write 3-5 sentences of an honest, '
+                  'warm narrative about the user\'s week using only the '
+                  'facts provided. No bullet points, no emoji.',
+        },
+        {'role': 'user', 'content': summary},
+      ],
+      if (context != null) 'context': context.toJson(),
+    });
+    return _pickString(
+            body, const ['message', 'response', 'reply', 'content']) ??
+        '';
+  }
+
   Future<RoutineSuggestion?> getSuggestion(DailyData data) async {
     final body = await _postJson('/suggest', data.toJson());
     final suggestion = body['suggestion'] is Map<String, dynamic>
