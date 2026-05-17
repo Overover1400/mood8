@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
+import '../models/mood_entry.dart';
+import '../models/routine_item.dart';
+import '../services/mood_repository.dart';
+import '../services/routine_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/cards.dart';
@@ -16,10 +22,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final MoodRepository _moods = MoodRepository();
+  final RoutineRepository _routines = RoutineRepository();
+
   double _mood = 0.72;
   double _energy = 0.58;
   double _focus = 0.65;
   int _navIndex = 0;
+  bool _saving = false;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +47,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const _Header()
+                      ValueListenableBuilder<Box<MoodEntry>>(
+                        valueListenable: _moods.watchEntries(),
+                        builder: (context, _, _) => _Header(
+                          streak: _moods.calculateStreak(),
+                        ),
+                      )
                           .animate()
                           .fadeIn(duration: 500.ms)
                           .slideY(
@@ -58,19 +73,47 @@ class _HomeScreenState extends State<HomeScreen> {
                           .slideY(
                               begin: 0.1, end: 0, curve: Curves.easeOutCubic),
                       const SizedBox(height: 18),
-                      const _SaveButton()
+                      _SaveButton(
+                        saving: _saving,
+                        onTap: _handleSave,
+                      )
                           .animate()
                           .fadeIn(delay: 250.ms, duration: 500.ms)
                           .slideY(
                               begin: 0.1, end: 0, curve: Curves.easeOutCubic),
                       const SizedBox(height: 28),
-                      const _StatsRow()
+                      ValueListenableBuilder<Box<MoodEntry>>(
+                        valueListenable: _moods.watchEntries(),
+                        builder: (context, _, _) {
+                          return ValueListenableBuilder<Box<RoutineItem>>(
+                            valueListenable: _routines.watchRoutines(),
+                            builder: (context, _, _) => _StatsRow(
+                              streak: _moods.calculateStreak(),
+                              todayCheckIns:
+                                  _moods.getEntriesForDate(DateTime.now()).length,
+                              completedToday: _routines
+                                  .getTodayRoutines()
+                                  .where((r) => r.isCompleted)
+                                  .length,
+                              totalToday:
+                                  _routines.getTodayRoutines().length,
+                              score: _todayScore(),
+                            ),
+                          );
+                        },
+                      )
                           .animate()
                           .fadeIn(delay: 350.ms, duration: 500.ms)
                           .slideY(
                               begin: 0.1, end: 0, curve: Curves.easeOutCubic),
                       const SizedBox(height: 28),
-                      const _UpNextSection()
+                      ValueListenableBuilder<Box<RoutineItem>>(
+                        valueListenable: _routines.watchRoutines(),
+                        builder: (context, _, _) => _UpNextSection(
+                          routines: _routines.getTodayRoutines(),
+                          currentId: _routines.getCurrentRoutine()?.id,
+                        ),
+                      )
                           .animate()
                           .fadeIn(delay: 450.ms, duration: 500.ms)
                           .slideY(
@@ -95,6 +138,54 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  int _todayScore() {
+    final today = _moods.getEntriesForDate(DateTime.now());
+    if (today.isEmpty) return 0;
+    final avg = today
+            .map((e) => e.averageScore)
+            .fold<double>(0, (a, b) => a + b) /
+        today.length;
+    return (avg * 100).round();
+  }
+
+  Future<void> _handleSave() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _moods.addEntry(
+        mood: _mood * 10,
+        energy: _energy * 10,
+        focus: _focus * 10,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Check-in saved'),
+          backgroundColor: AppColors.bgCard,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not save check-in: $e'),
+          backgroundColor: AppColors.bgCard,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 }
 
@@ -149,7 +240,9 @@ class _BackgroundGlow extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header();
+  const _Header({required this.streak});
+
+  final int streak;
 
   @override
   Widget build(BuildContext context) {
@@ -213,7 +306,7 @@ class _Header extends StatelessWidget {
               const Text('🔥', style: TextStyle(fontSize: 16)),
               const SizedBox(width: 6),
               Text(
-                '12 day streak',
+                '$streak day streak',
                 style: TextStyle(
                   color: AppColors.inkSoft,
                   fontWeight: FontWeight.w600,
@@ -307,59 +400,58 @@ class _MoodHeroCard extends StatelessWidget {
 }
 
 class _SaveButton extends StatelessWidget {
-  const _SaveButton();
+  const _SaveButton({required this.saving, required this.onTap});
+
+  final bool saving;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Check-in saved'),
-            backgroundColor: AppColors.bgCard,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      },
-      child: Container(
-        height: 56,
-        decoration: BoxDecoration(
-          gradient: AppColors.buttonGradient,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.pink.withValues(alpha: 0.45),
-              blurRadius: 24,
-              offset: const Offset(0, 10),
-            ),
-            BoxShadow(
-              color: AppColors.purple.withValues(alpha: 0.40),
-              blurRadius: 30,
-              spreadRadius: -4,
-            ),
-          ],
-        ),
-        alignment: Alignment.center,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.check_circle_outline_rounded,
-                color: Colors.white, size: 20),
-            SizedBox(width: 10),
-            Text(
-              'Save check-in',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
+      onTap: saving ? null : onTap,
+      child: Opacity(
+        opacity: saving ? 0.7 : 1.0,
+        child: Container(
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: AppColors.buttonGradient,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.pink.withValues(alpha: 0.45),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
               ),
-            ),
-          ],
+              BoxShadow(
+                color: AppColors.purple.withValues(alpha: 0.40),
+                blurRadius: 30,
+                spreadRadius: -4,
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                saving
+                    ? Icons.hourglass_top_rounded
+                    : Icons.check_circle_outline_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                saving ? 'Saving…' : 'Save check-in',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -367,7 +459,19 @@ class _SaveButton extends StatelessWidget {
 }
 
 class _StatsRow extends StatelessWidget {
-  const _StatsRow();
+  const _StatsRow({
+    required this.streak,
+    required this.todayCheckIns,
+    required this.completedToday,
+    required this.totalToday,
+    required this.score,
+  });
+
+  final int streak;
+  final int todayCheckIns;
+  final int completedToday;
+  final int totalToday;
+  final int score;
 
   @override
   Widget build(BuildContext context) {
@@ -376,7 +480,7 @@ class _StatsRow extends StatelessWidget {
         Expanded(
           child: StatCard(
             label: 'Streak',
-            value: '12',
+            value: '$streak',
             emoji: '🔥',
             accent: AppColors.pinkLight,
           ),
@@ -385,7 +489,7 @@ class _StatsRow extends StatelessWidget {
         Expanded(
           child: StatCard(
             label: 'Today',
-            value: '4 / 6',
+            value: '$completedToday / $totalToday',
             emoji: '⚡',
             accent: AppColors.blueAccent,
           ),
@@ -394,7 +498,7 @@ class _StatsRow extends StatelessWidget {
         Expanded(
           child: StatCard(
             label: 'Score',
-            value: '82',
+            value: score == 0 && todayCheckIns == 0 ? '—' : '$score',
             emoji: '✨',
             accent: AppColors.purpleLight,
           ),
@@ -405,10 +509,18 @@ class _StatsRow extends StatelessWidget {
 }
 
 class _UpNextSection extends StatelessWidget {
-  const _UpNextSection();
+  const _UpNextSection({
+    required this.routines,
+    required this.currentId,
+  });
+
+  final List<RoutineItem> routines;
+  final String? currentId;
 
   @override
   Widget build(BuildContext context) {
+    final visible = routines.take(3).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -432,27 +544,25 @@ class _UpNextSection extends StatelessWidget {
             ],
           ),
         ),
-        const RoutineCard(
-          time: '14:30',
-          title: 'Deep work block',
-          subtitle: 'Mood8 — design system',
-          icon: Icons.psychology_alt_rounded,
-          isNow: true,
-        ),
-        const SizedBox(height: 12),
-        const RoutineCard(
-          time: '16:00',
-          title: 'Walk & sunlight',
-          subtitle: '20 min · zone 2',
-          icon: Icons.directions_walk_rounded,
-        ),
-        const SizedBox(height: 12),
-        const RoutineCard(
-          time: '19:00',
-          title: 'Evening reset',
-          subtitle: 'Journal · stretch · plan',
-          icon: Icons.nightlight_round,
-        ),
+        if (visible.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Text(
+              'No routines yet.',
+              style: TextStyle(color: AppColors.inkDim, fontSize: 13),
+            ),
+          )
+        else
+          for (var i = 0; i < visible.length; i++) ...[
+            RoutineCard(
+              time: DateFormat('HH:mm').format(visible[i].time),
+              title: visible[i].title,
+              subtitle: visible[i].meta,
+              icon: visible[i].category.icon,
+              isNow: visible[i].id == currentId,
+            ),
+            if (i < visible.length - 1) const SizedBox(height: 12),
+          ],
       ],
     );
   }

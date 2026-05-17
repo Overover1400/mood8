@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
 import 'screens/home_screen.dart';
+import 'services/database_service.dart';
+import 'services/routine_repository.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await DatabaseService.instance.init();
+  await RoutineRepository().seedDefaultRoutines();
   runApp(const Mood8App());
 }
 
