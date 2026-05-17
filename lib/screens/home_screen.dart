@@ -102,6 +102,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _toggleRoutine(RoutineItem item) async {
+    if (item.isCompleted) {
+      item.isCompleted = false;
+      item.completedAt = null;
+      await _routines.updateRoutine(item);
+      HapticService().light();
+    } else {
+      await _routines.markComplete(item.id);
+      SfxService().fire(SfxType.routineDone);
+      HapticService().medium();
+    }
+  }
+
   Future<void> _dismissSuggestion() async {
     final s = _suggestion;
     if (s == null) return;
@@ -292,6 +305,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         builder: (context, _, _) => _UpNextSection(
                           routines: _routines.getTodayRoutines(),
                           currentId: _routines.getCurrentRoutine()?.id,
+                          onToggle: _toggleRoutine,
+                          onSeeAll: () => MainNavigation.goToTab(
+                              context, kRoutineTabIndex),
                         ),
                       )
                           .animate()
@@ -737,10 +753,16 @@ class _UpNextSection extends StatelessWidget {
   const _UpNextSection({
     required this.routines,
     required this.currentId,
+    required this.onToggle,
+    required this.onSeeAll,
   });
 
   final List<RoutineItem> routines;
   final String? currentId;
+  final void Function(RoutineItem) onToggle;
+  final VoidCallback onSeeAll;
+
+  static final DateFormat _timeFmt = DateFormat('HH:mm');
 
   @override
   Widget build(BuildContext context) {
@@ -758,12 +780,20 @@ class _UpNextSection extends StatelessWidget {
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const Spacer(),
-              Text(
-                'See all',
-                style: TextStyle(
-                  color: AppColors.purpleLight,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+              GestureDetector(
+                onTap: onSeeAll,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 4, vertical: 4),
+                  child: Text(
+                    'See all',
+                    style: TextStyle(
+                      color: AppColors.purpleLight,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -780,11 +810,13 @@ class _UpNextSection extends StatelessWidget {
         else
           for (var i = 0; i < visible.length; i++) ...[
             RoutineCard(
-              time: DateFormat('HH:mm').format(visible[i].time),
+              time: _timeFmt.format(visible[i].time),
               title: visible[i].title,
               subtitle: visible[i].meta,
               icon: visible[i].category.icon,
               isNow: visible[i].id == currentId,
+              isCompleted: visible[i].isCompleted,
+              onTap: () => onToggle(visible[i]),
             ),
             if (i < visible.length - 1) const SizedBox(height: 12),
           ],

@@ -13,15 +13,17 @@ class ReflectionCard extends StatelessWidget {
     this.onTap,
   });
 
+  static final DateFormat _kDateFmt = DateFormat('EEEE, MMM d');
+  static final DateFormat _kTimeFmt = DateFormat('h:mm a');
+
   final Reflection reflection;
   final bool compact;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final dateLabel =
-        DateFormat('EEEE, MMM d').format(reflection.date).toUpperCase();
-    final timeLabel = DateFormat('h:mm a').format(reflection.generatedAt);
+    final dateLabel = _kDateFmt.format(reflection.date).toUpperCase();
+    final timeLabel = _kTimeFmt.format(reflection.generatedAt);
     final body = compact
         ? _shorten(reflection.reflection)
         : reflection.reflection;

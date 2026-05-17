@@ -18,6 +18,8 @@ class RoutineCardV2 extends StatelessWidget {
     this.completable = true,
   });
 
+  static final DateFormat _kTimeFmt = DateFormat('HH:mm');
+
   final RoutineItem item;
   final bool isCurrent;
   final VoidCallback onTap;
@@ -98,7 +100,7 @@ class RoutineCardV2 extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          DateFormat('HH:mm').format(item.time),
+                          _kTimeFmt.format(item.time),
                           style: GoogleFonts.instrumentSerif(
                             color: AppColors.ink,
                             fontStyle: FontStyle.italic,

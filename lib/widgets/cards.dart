@@ -120,6 +120,8 @@ class RoutineCard extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     this.isNow = false,
+    this.isCompleted = false,
+    this.onTap,
   });
 
   final String time;
@@ -127,10 +129,12 @@ class RoutineCard extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final bool isNow;
+  final bool isCompleted;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
+    final card = GlassCard(
       padding: const EdgeInsets.all(16),
       gradient: isNow
           ? LinearGradient(
@@ -210,10 +214,15 @@ class RoutineCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.ink,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
+                    decoration: isCompleted
+                        ? TextDecoration.lineThrough
+                        : null,
+                    decorationColor:
+                        AppColors.inkDim.withValues(alpha: 0.7),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -227,8 +236,25 @@ class RoutineCard extends StatelessWidget {
               ],
             ),
           ),
-          Icon(Icons.chevron_right, color: AppColors.inkDim, size: 22),
+          Icon(
+            isCompleted
+                ? Icons.check_circle_rounded
+                : Icons.chevron_right,
+            color: isCompleted ? AppColors.pinkLight : AppColors.inkDim,
+            size: 22,
+          ),
         ],
+      ),
+    );
+    if (onTap == null) return card;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        splashColor: AppColors.purple.withValues(alpha: 0.18),
+        highlightColor: AppColors.pink.withValues(alpha: 0.08),
+        child: card,
       ),
     );
   }

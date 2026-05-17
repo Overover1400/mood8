@@ -680,6 +680,7 @@ class _ChatTabState extends State<_ChatTab> {
                         controller: _scroll,
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.only(top: 4, bottom: 8),
+                        cacheExtent: 500,
                         itemCount: list.length + (_sending ? 1 : 0),
                         separatorBuilder: (_, _) =>
                             const SizedBox(height: 14),

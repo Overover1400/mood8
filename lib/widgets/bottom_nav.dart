@@ -21,6 +21,7 @@ const List<NavItem> kNavItems = [
 ];
 
 const int kHabitsTabIndex = 1;
+const int kRoutineTabIndex = 2;
 const int kCoachTabIndex = 3;
 const int kInsightsTabIndex = 4;
 const int kProgressTabIndex = 5;

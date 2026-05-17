@@ -464,6 +464,7 @@ class _Timeline extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       buildDefaultDragHandles: false,
+      cacheExtent: 500,
       itemCount: items.length,
       onReorder: (oldIndex, newIndex) async {
         HapticService().light();

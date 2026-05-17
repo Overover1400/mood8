@@ -26,9 +26,10 @@ class _MoodOrbState extends State<MoodOrb>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
         final t = _controller.value * 2 * math.pi;
         final float = math.sin(t) * 6;
         final pulse = 1.0 + math.sin(t) * 0.04;
@@ -100,7 +101,8 @@ class _MoodOrbState extends State<MoodOrb>
             ),
           ),
         );
-      },
+        },
+      ),
     );
   }
 }

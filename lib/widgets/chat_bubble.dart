@@ -8,12 +8,14 @@ import '../theme/app_theme.dart';
 class ChatBubble extends StatelessWidget {
   const ChatBubble({super.key, required this.message});
 
+  static final DateFormat _kTimeFmt = DateFormat('HH:mm');
+
   final ChatMessage message;
 
   @override
   Widget build(BuildContext context) {
     final isUser = message.isUser;
-    final time = DateFormat('HH:mm').format(message.timestamp);
+    final time = _kTimeFmt.format(message.timestamp);
 
     final bubble = Container(
       constraints: BoxConstraints(
