@@ -6,7 +6,9 @@ import '../models/frequency.dart';
 import '../models/habit.dart';
 import '../models/habit_type.dart';
 import '../models/routine_category.dart';
+import '../screens/premium_screen.dart';
 import '../services/habit_repository.dart';
+import '../services/subscription_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
 import 'category_chip.dart';
@@ -114,6 +116,17 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
       setState(() => _titleError = 'Pick at least one day for custom.');
       return;
     }
+    if (!_isEditing) {
+      final subs = SubscriptionService();
+      if (!subs.isPremium) {
+        final active = _repo.getActiveHabits().length;
+        if (subs.habitLimitReached(active)) {
+          final tookAction = await _showHabitLimitDialog();
+          if (!mounted) return;
+          if (tookAction != true) return;
+        }
+      }
+    }
     setState(() {
       _titleError = null;
       _saving = true;
@@ -163,6 +176,40 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
         ),
       );
     }
+  }
+
+  Future<bool?> _showHabitLimitDialog() {
+    final cap = SubscriptionService().maxHabits;
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgCard,
+        title: const Text('Habit limit reached',
+            style: TextStyle(color: AppColors.ink)),
+        content: Text(
+          'Free plan supports up to $cap habits.\n\n'
+          'Premium gives you unlimited habits, routines, and AI Coach.',
+          style: const TextStyle(color: AppColors.inkSoft),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Maybe later'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop(false);
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const PremiumScreen(),
+                ),
+              );
+            },
+            child: const Text('See Premium'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _onDelete() async {

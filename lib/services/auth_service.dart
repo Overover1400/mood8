@@ -1,0 +1,293 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+
+import '../models/auth_user.dart';
+
+/// Outcome of an auth call. Either successful with optional [user] / [token],
+/// or failed with a friendly [message] for the UI.
+class AuthResult {
+  const AuthResult({
+    required this.success,
+    required this.message,
+    this.user,
+    this.token,
+  });
+
+  factory AuthResult.ok({String message = '', AuthUser? user, String? token}) =>
+      AuthResult(success: true, message: message, user: user, token: token);
+
+  factory AuthResult.fail(String message) =>
+      AuthResult(success: false, message: message);
+
+  final bool success;
+  final String message;
+  final AuthUser? user;
+  final String? token;
+}
+
+class AuthService {
+  AuthService._();
+  static final AuthService _instance = AuthService._();
+  factory AuthService() => _instance;
+
+  static const String _baseUrl = 'https://mood8.app/api';
+  static const String _tokenKey = 'mood8.authToken';
+  static const String _userKey = 'mood8.authUser';
+  static const Duration _timeout = Duration(seconds: 30);
+
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final http.Client _client = http.Client();
+
+  final ValueNotifier<AuthUser?> currentUserNotifier =
+      ValueNotifier<AuthUser?>(null);
+
+  String? _token;
+  bool _initialized = false;
+
+  bool get isAuthenticated => _token != null && currentUserNotifier.value != null;
+  AuthUser? get currentUser => currentUserNotifier.value;
+  String? get token => _token;
+  String? get authHeader => _token == null ? null : 'Bearer $_token';
+
+  Future<void> initialize() async {
+    if (_initialized) return;
+    _initialized = true;
+    try {
+      _token = await _storage.read(key: _tokenKey);
+      final userRaw = await _storage.read(key: _userKey);
+      if (userRaw != null && userRaw.isNotEmpty) {
+        try {
+          currentUserNotifier.value = AuthUser.fromJson(
+            jsonDecode(userRaw) as Map<String, dynamic>,
+          );
+        } catch (e) {
+          debugPrint('AuthService: cached user parse failed: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('AuthService.initialize failed: $e');
+    }
+  }
+
+  Future<AuthResult> register({
+    required String email,
+    required String password,
+    required String name,
+  }) async {
+    return _post(
+      path: '/auth/register',
+      body: {'email': email.trim(), 'password': password, 'name': name.trim()},
+      onSuccess: (json) => AuthResult.ok(
+        message: (json['message'] as String?) ??
+            'Check your email for a verification code.',
+      ),
+      fallbackError: "Couldn't create your account. Try again.",
+    );
+  }
+
+  Future<AuthResult> verify({
+    required String email,
+    required String code,
+  }) async {
+    return _post(
+      path: '/auth/verify',
+      body: {'email': email.trim(), 'code': code.trim()},
+      onSuccess: (json) => _persistFromAuthBody(json,
+          fallbackMessage: 'Email verified — welcome.'),
+      fallbackError: 'That code is incorrect or expired.',
+    );
+  }
+
+  Future<AuthResult> login({
+    required String email,
+    required String password,
+  }) async {
+    return _post(
+      path: '/auth/login',
+      body: {'email': email.trim(), 'password': password},
+      onSuccess: (json) => _persistFromAuthBody(json,
+          fallbackMessage: 'Welcome back.'),
+      fallbackError: 'Email or password is incorrect.',
+    );
+  }
+
+  Future<AuthResult> forgotPassword({required String email}) async {
+    return _post(
+      path: '/auth/forgot-password',
+      body: {'email': email.trim()},
+      onSuccess: (json) => AuthResult.ok(
+        message: (json['message'] as String?) ??
+            'If that email exists, a reset code is on its way.',
+      ),
+      fallbackError: "Couldn't send the reset code. Try again.",
+    );
+  }
+
+  Future<AuthResult> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    return _post(
+      path: '/auth/reset-password',
+      body: {
+        'email': email.trim(),
+        'code': code.trim(),
+        'new_password': newPassword,
+      },
+      onSuccess: (json) => AuthResult.ok(
+        message: (json['message'] as String?) ??
+            'Password updated. Sign in with your new password.',
+      ),
+      fallbackError: "Couldn't reset your password. Try again.",
+    );
+  }
+
+  Future<AuthResult> refreshMe() async {
+    final t = _token;
+    if (t == null) return AuthResult.fail('Not signed in.');
+    try {
+      final res = await _client
+          .get(
+            Uri.parse('$_baseUrl/auth/me'),
+            headers: {'authorization': 'Bearer $t'},
+          )
+          .timeout(_timeout);
+      if (res.statusCode == 401) {
+        await logout();
+        return AuthResult.fail('Session expired. Sign in again.');
+      }
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final body = _decode(res.body);
+        final user = AuthUser.fromJson(_extractUser(body));
+        await _saveUser(user);
+        currentUserNotifier.value = user;
+        return AuthResult.ok(user: user);
+      }
+      return AuthResult.fail(_friendlyError(res));
+    } catch (e) {
+      return AuthResult.fail(_networkError(e));
+    }
+  }
+
+  Future<void> logout() async {
+    _token = null;
+    currentUserNotifier.value = null;
+    try {
+      await _storage.delete(key: _tokenKey);
+      await _storage.delete(key: _userKey);
+    } catch (e) {
+      debugPrint('AuthService.logout storage clear failed: $e');
+    }
+  }
+
+  // ─── internals ────────────────────────────────────────────────────────
+
+  Future<AuthResult> _post({
+    required String path,
+    required Map<String, dynamic> body,
+    required FutureOr<AuthResult> Function(Map<String, dynamic>) onSuccess,
+    required String fallbackError,
+  }) async {
+    try {
+      final res = await _client
+          .post(
+            Uri.parse('$_baseUrl$path'),
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(_timeout);
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        return await onSuccess(_decode(res.body));
+      }
+      return AuthResult.fail(_friendlyError(res, fallback: fallbackError));
+    } on TimeoutException {
+      return AuthResult.fail("Mood8 didn't reply in time. Try again.");
+    } catch (e) {
+      return AuthResult.fail(_networkError(e));
+    }
+  }
+
+  Future<AuthResult> _persistFromAuthBody(
+    Map<String, dynamic> json, {
+    required String fallbackMessage,
+  }) async {
+    final token = (json['token'] ??
+            json['access_token'] ??
+            json['jwt'] ??
+            json['data']?['token']) as String?;
+    if (token == null || token.isEmpty) {
+      return AuthResult.fail('Server response missing token.');
+    }
+    final user = AuthUser.fromJson(_extractUser(json));
+    _token = token;
+    currentUserNotifier.value = user;
+    try {
+      await _storage.write(key: _tokenKey, value: token);
+      await _saveUser(user);
+    } catch (e) {
+      debugPrint('AuthService persist failed: $e');
+    }
+    return AuthResult.ok(
+      message: (json['message'] as String?) ?? fallbackMessage,
+      user: user,
+      token: token,
+    );
+  }
+
+  Future<void> _saveUser(AuthUser user) async {
+    try {
+      await _storage.write(key: _userKey, value: jsonEncode(user.toJson()));
+    } catch (e) {
+      debugPrint('AuthService._saveUser failed: $e');
+    }
+  }
+
+  Map<String, dynamic> _extractUser(Map<String, dynamic> json) {
+    if (json['user'] is Map<String, dynamic>) {
+      return json['user'] as Map<String, dynamic>;
+    }
+    if (json['data']?['user'] is Map<String, dynamic>) {
+      return json['data']['user'] as Map<String, dynamic>;
+    }
+    return json;
+  }
+
+  Map<String, dynamic> _decode(String raw) {
+    if (raw.isEmpty) return const {};
+    final decoded = jsonDecode(raw);
+    if (decoded is Map<String, dynamic>) return decoded;
+    return {'data': decoded};
+  }
+
+  String _friendlyError(http.Response res, {String? fallback}) {
+    try {
+      final body = _decode(res.body);
+      final msg = (body['message'] ?? body['error'] ?? body['detail'])
+          ?.toString();
+      if (msg != null && msg.isNotEmpty) return msg;
+    } catch (_) {}
+    if (res.statusCode == 401) return 'Email or password is incorrect.';
+    if (res.statusCode == 403) return "You don't have access to that.";
+    if (res.statusCode == 404) return 'Account not found.';
+    if (res.statusCode == 409) {
+      return 'An account with this email already exists.';
+    }
+    if (res.statusCode == 429) {
+      return 'Too many attempts. Wait a moment, then try again.';
+    }
+    if (res.statusCode >= 500) {
+      return 'Mood8 is having a moment. Try again shortly.';
+    }
+    return fallback ?? 'Something went wrong (${res.statusCode}).';
+  }
+
+  String _networkError(Object e) {
+    debugPrint('AuthService network: $e');
+    return "Couldn't reach Mood8. Check your connection.";
+  }
+}

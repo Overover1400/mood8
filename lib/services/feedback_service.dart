@@ -38,7 +38,7 @@ class FeedbackService {
   static final FeedbackService _instance = FeedbackService._();
   factory FeedbackService() => _instance;
 
-  static const String supportEmail = 'hello@mood8.app';
+  static const String supportEmail = 'feedback@mood8.app';
   static const String appVersion = '0.1.0';
 
   /// Builds an opaque mailto: link with subject + prefilled body and copies
@@ -79,7 +79,13 @@ class FeedbackService {
         ..writeln(const JsonEncoder.withIndent('  ').convert(snapshot));
     }
 
-    final subject = '${kind.prefix} Mood8 feedback';
+    final preview = message.trim().replaceAll(RegExp(r'\s+'), ' ');
+    final truncated = preview.length > 50
+        ? '${preview.substring(0, 50)}…'
+        : preview;
+    final subject = truncated.isEmpty
+        ? '[Mood8 Feedback] ${kind.label}'
+        : '[Mood8 Feedback] ${kind.label}: $truncated';
     final mailto =
         'mailto:$supportEmail?subject=${Uri.encodeComponent(subject)}'
         '&body=${Uri.encodeComponent(body.toString())}';

@@ -5,9 +5,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
+import '../main.dart' show AuthGate;
+import '../models/auth_user.dart';
 import '../models/sfx_type.dart';
 import '../models/user_profile.dart';
 import '../services/analytics_service.dart';
+import '../services/auth_service.dart';
 import '../services/feedback_service.dart';
 import '../services/haptic_service.dart';
 import '../services/notification_service.dart';
@@ -368,11 +371,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     SettingsSection(
                       title: 'Account',
                       children: [
-                        SettingsTile(
-                          icon: Icons.login_rounded,
-                          title: 'Sign in',
-                          subtitle: 'Coming soon',
-                          onTap: () => _comingSoon('Sign in'),
+                        ValueListenableBuilder<AuthUser?>(
+                          valueListenable:
+                              AuthService().currentUserNotifier,
+                          builder: (context, authUser, _) {
+                            if (authUser != null) {
+                              return SettingsTile(
+                                icon: Icons.verified_user_outlined,
+                                title: authUser.name.isEmpty
+                                    ? authUser.email
+                                    : authUser.name,
+                                subtitle: 'Signed in · ${authUser.email}',
+                                onTap: _confirmSignOut,
+                              );
+                            }
+                            return SettingsTile(
+                              icon: Icons.login_rounded,
+                              title: 'Sign in',
+                              subtitle:
+                                  'Or create an account to sync later',
+                              onTap: _goToWelcome,
+                            );
+                          },
                         ),
                         SettingsTile(
                           icon: Icons.sync_rounded,
@@ -660,6 +680,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _goToWelcome() async {
+    HapticService().selection();
+    await AuthGate.resetAuth();
+    if (!mounted) return;
+    Navigator.of(context).popUntil((r) => r.isFirst);
+  }
+
+  Future<void> _confirmSignOut() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgCard,
+        title: const Text('Sign out?',
+            style: TextStyle(color: AppColors.ink)),
+        content: const Text(
+          "Your local data stays on this device.",
+          style: TextStyle(color: AppColors.inkSoft),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await AuthGate.resetAuth();
+    if (!mounted) return;
+    Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   Future<void> _confirmDeleteAccount() async {
