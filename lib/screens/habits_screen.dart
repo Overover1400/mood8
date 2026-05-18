@@ -5,7 +5,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/habit.dart';
 import '../models/habit_log.dart';
-import '../models/effects_intensity.dart';
 import '../models/sfx_type.dart';
 import '../services/effects_service.dart';
 import '../services/habit_repository.dart';
@@ -245,19 +244,14 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
   void _celebrateHabit(Habit h) {
     if (!mounted) return;
-    EffectsService().celebrate(
-      context: context,
-      level: CelebrationLevel.subtle,
-    );
-    // Streak milestone follow-up.
+    EffectsService().celebrateHabitComplete(context: context);
+    // Streak milestone follow-up — Phoenix Rise for thresholds.
     final streak = _repo.getStreakForHabit(h.id);
     MilestoneService().checkStreak(streak).then((milestone) {
       if (milestone == null || !mounted) return;
-      EffectsService().celebrate(
+      EffectsService().celebrateStreakMilestone(
         context: context,
-        level: CelebrationLevel.milestone,
-        message: '${milestone.title()} · ${milestone.message()}',
-        milestone: milestone,
+        days: streak,
       );
     });
   }

@@ -5,7 +5,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
 import '../models/adaptive_suggestion.dart';
-import '../models/effects_intensity.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/mood_entry.dart';
@@ -117,18 +116,19 @@ class _HomeScreenState extends State<HomeScreen> {
     SfxService().fire(SfxType.routineDone);
     HapticService().medium();
     if (!mounted) return;
-    EffectsService().celebrate(
-      context: context,
-      level: CelebrationLevel.subtle,
-    );
-    // If everything for today is now done, escalate.
+    // If everything for today is now done, fire the cosmic celebration;
+    // otherwise the smaller PremiumBloom.
     final todays = _routines.getTodayRoutines();
-    if (todays.isNotEmpty && todays.every((r) => r.isCompleted)) {
-      EffectsService().celebrate(
+    if (todays.isNotEmpty &&
+        todays.every((r) => r.isCompleted) &&
+        todays.length >= 3) {
+      final user = _users.getCurrentUser();
+      EffectsService().celebrateRoutinesComplete(
         context: context,
-        level: CelebrationLevel.notable,
-        message: 'Day complete — every routine done.',
+        userName: user?.name,
       );
+    } else {
+      EffectsService().celebrateHabitComplete(context: context);
     }
   }
 
@@ -406,21 +406,20 @@ class _HomeScreenState extends State<HomeScreen> {
           duration: Duration(seconds: hitMilestone ? 3 : 2),
         ),
       );
-      // Sparkles in either case; bigger for milestone days.
-      EffectsService().celebrate(
-        context: context,
-        level: hitMilestone
-            ? CelebrationLevel.milestone
-            : CelebrationLevel.subtle,
-      );
-      // First-ever milestone for this streak length surfaces a richer toast.
-      final earned = await MilestoneService().checkStreak(streak);
-      if (earned != null && mounted) {
-        EffectsService().celebrate(
+      if (hitMilestone) {
+        EffectsService().celebrateStreakMilestone(
           context: context,
-          level: CelebrationLevel.milestone,
-          message: '${earned.title()} · ${earned.message()}',
-          milestone: earned,
+          days: streak,
+        );
+      } else {
+        EffectsService().celebrateHabitComplete(context: context);
+      }
+      // First-ever milestone surfaces the Phoenix once.
+      final earned = await MilestoneService().checkStreak(streak);
+      if (earned != null && mounted && !hitMilestone) {
+        EffectsService().celebrateStreakMilestone(
+          context: context,
+          days: streak,
         );
       }
     } catch (e) {

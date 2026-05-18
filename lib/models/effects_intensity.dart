@@ -1,19 +1,47 @@
 enum EffectsIntensity {
   off,
-  minimal,
+  subtle,
   normal,
-  full;
+  cinematic;
+
+  /// Multiplier applied to per-effect duration. `normal` is the reference.
+  double get durationScale {
+    switch (this) {
+      case EffectsIntensity.off:
+        return 0.0;
+      case EffectsIntensity.subtle:
+        return 0.55;
+      case EffectsIntensity.normal:
+        return 1.0;
+      case EffectsIntensity.cinematic:
+        return 1.5;
+    }
+  }
+
+  /// Multiplier applied to particle counts. Subtle halves; cinematic ~+25%.
+  double get particleScale {
+    switch (this) {
+      case EffectsIntensity.off:
+        return 0.0;
+      case EffectsIntensity.subtle:
+        return 0.55;
+      case EffectsIntensity.normal:
+        return 1.0;
+      case EffectsIntensity.cinematic:
+        return 1.25;
+    }
+  }
 
   String get label {
     switch (this) {
       case EffectsIntensity.off:
         return 'Off';
-      case EffectsIntensity.minimal:
-        return 'Minimal';
+      case EffectsIntensity.subtle:
+        return 'Subtle';
       case EffectsIntensity.normal:
         return 'Normal';
-      case EffectsIntensity.full:
-        return 'Full';
+      case EffectsIntensity.cinematic:
+        return 'Cinematic';
     }
   }
 
@@ -21,24 +49,22 @@ enum EffectsIntensity {
     switch (this) {
       case EffectsIntensity.off:
         return 'No animations at all';
-      case EffectsIntensity.minimal:
-        return 'Just the essentials';
+      case EffectsIntensity.subtle:
+        return 'Quick, low-key versions';
       case EffectsIntensity.normal:
-        return 'Balanced, default';
-      case EffectsIntensity.full:
-        return 'All celebrations on';
+        return 'Full premium effects · default';
+      case EffectsIntensity.cinematic:
+        return 'Extra-long, extra-premium';
     }
   }
 }
 
+/// Legacy level retained so existing call sites don't need a rewrite.
+/// `subtle` and `notable` map to [EffectsService.celebrateHabitComplete];
+/// `milestone` and `identity` map to the larger celebrations.
 enum CelebrationLevel {
-  /// Habit complete, small wins. Tiny sparkle, no toast.
   subtle,
-  /// Streak maintained, routine done. More sparkles + a brief glow.
   notable,
-  /// 7/30/100/365 day streak. Big sparkles, toast, longer duration.
   milestone,
-  /// Identity crossed a meaningful threshold. Same as milestone +
-  /// identity-themed copy.
   identity,
 }

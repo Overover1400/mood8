@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/effects_intensity.dart';
-import '../models/milestone.dart';
-import '../theme/app_theme.dart';
-import '../widgets/effects/sparkle_overlay.dart';
+import '../widgets/effects/cosmic_bloom.dart';
+import '../widgets/effects/identity_constellation.dart';
+import '../widgets/effects/phoenix_rise.dart';
+import '../widgets/effects/premium_bloom.dart';
 
-/// Central facade for celebratory effects. The service decides how big the
-/// effect should be based on [EffectsIntensity], whether the user has the
-/// `Celebrate milestones` toggle on, and whether the system has reduce-motion
-/// enabled.
+/// Central celebration facade. Each method spawns the right premium widget
+/// in the root [Overlay], handles its own queueing, and degrades gracefully
+/// to no-op when effects are off / system reduce-motion is on / we've hit
+/// the concurrency cap.
 class EffectsService extends ChangeNotifier {
   EffectsService._();
   static final EffectsService _instance = EffectsService._();
@@ -18,7 +19,7 @@ class EffectsService extends ChangeNotifier {
   static const _kIntensityKey = 'mood8.effects.intensity';
   static const _kMilestonesKey = 'mood8.effects.celebrateMilestones';
   static const _kBatterySaverKey = 'mood8.effects.batterySaverAware';
-  static const int _maxConcurrent = 3;
+  static const int _maxConcurrent = 2;
 
   EffectsIntensity _intensity = EffectsIntensity.normal;
   bool _celebrateMilestones = true;
@@ -31,6 +32,8 @@ class EffectsService extends ChangeNotifier {
   bool get batterySaverAware => _batterySaverAware;
   bool get isLoaded => _loaded;
 
+  // ─── lifecycle ────────────────────────────────────────────────────────
+
   Future<void> initialize() async {
     if (_loaded) return;
     try {
@@ -42,8 +45,8 @@ class EffectsService extends ChangeNotifier {
       );
       _celebrateMilestones = prefs.getBool(_kMilestonesKey) ?? true;
       _batterySaverAware = prefs.getBool(_kBatterySaverKey) ?? true;
-    } catch (e) {
-      debugPrint('EffectsService.initialize failed: $e');
+    } catch (_) {
+      // best-effort
     } finally {
       _loaded = true;
       notifyListeners();
@@ -54,177 +57,165 @@ class EffectsService extends ChangeNotifier {
     if (i == _intensity) return;
     _intensity = i;
     notifyListeners();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kIntensityKey, i.name);
-    } catch (e) {
-      debugPrint('EffectsService.setIntensity persist failed: $e');
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kIntensityKey, i.name);
+  }
+
+  Future<void> setCelebrateMilestones(bool v) async {
+    if (v == _celebrateMilestones) return;
+    _celebrateMilestones = v;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kMilestonesKey, v);
+  }
+
+  Future<void> setBatterySaverAware(bool v) async {
+    if (v == _batterySaverAware) return;
+    _batterySaverAware = v;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kBatterySaverKey, v);
+  }
+
+  // ─── celebrations ────────────────────────────────────────────────────
+
+  Future<void> celebrateHabitComplete({
+    required BuildContext context,
+    Offset? origin,
+  }) async {
+    if (!_canPlay(context)) return;
+    final media = MediaQuery.maybeOf(context);
+    final size = media?.size ?? const Size(360, 640);
+    final effectiveOrigin = origin ?? Offset(size.width / 2, size.height / 2);
+    await _insert(
+      context,
+      (entry) => PremiumBloom(
+        origin: effectiveOrigin,
+        intensity: _intensity,
+        onComplete: () => _remove(entry),
+      ),
+      fallbackTimeout:
+          _scaledDuration(const Duration(milliseconds: 2200)),
+    );
+  }
+
+  Future<void> celebrateRoutinesComplete({
+    required BuildContext context,
+    String? userName,
+  }) async {
+    if (!_canPlay(context)) return;
+    await _insert(
+      context,
+      (entry) => CosmicBloom(
+        intensity: _intensity,
+        userName: userName,
+        onComplete: () => _remove(entry),
+      ),
+      fallbackTimeout:
+          _scaledDuration(const Duration(milliseconds: 3400)),
+    );
+  }
+
+  Future<void> celebrateStreakMilestone({
+    required BuildContext context,
+    required int days,
+    Offset? flameOrigin,
+  }) async {
+    if (!_canPlay(context)) return;
+    if (!_celebrateMilestones) {
+      await celebrateHabitComplete(context: context, origin: flameOrigin);
+      return;
     }
+    await _insert(
+      context,
+      (entry) => PhoenixRise(
+        days: days,
+        intensity: _intensity,
+        flameOrigin: flameOrigin,
+        onComplete: () => _remove(entry),
+      ),
+      fallbackTimeout:
+          _scaledDuration(const Duration(milliseconds: 2900)),
+    );
   }
 
-  Future<void> setCelebrateMilestones(bool value) async {
-    if (value == _celebrateMilestones) return;
-    _celebrateMilestones = value;
-    notifyListeners();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_kMilestonesKey, value);
-    } catch (_) {}
+  Future<void> celebrateIdentityLevelUp({
+    required BuildContext context,
+    required String identity,
+    required double progress,
+  }) async {
+    if (!_canPlay(context)) return;
+    if (!_celebrateMilestones) {
+      await celebrateHabitComplete(context: context);
+      return;
+    }
+    await _insert(
+      context,
+      (entry) => IdentityConstellation(
+        identity: identity,
+        progress: progress,
+        intensity: _intensity,
+        onComplete: () => _remove(entry),
+      ),
+      fallbackTimeout:
+          _scaledDuration(const Duration(milliseconds: 3400)),
+    );
   }
 
-  Future<void> setBatterySaverAware(bool value) async {
-    if (value == _batterySaverAware) return;
-    _batterySaverAware = value;
-    notifyListeners();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_kBatterySaverKey, value);
-    } catch (_) {}
-  }
-
-  /// Trigger a celebration. Safe to call from anywhere — degrades to a no-op
-  /// when intensity is `off`, the OS has reduce-motion enabled, or we're
-  /// already at the concurrent-effect cap.
-  ///
-  /// [origin] is the screen-space point sparkles emit from. If null,
-  /// emission falls back to the centre of the [context]'s screen.
-  void celebrate({
+  /// Back-compat shim for the older [CelebrationLevel]-style API. Maps the
+  /// generic level to the closest specific method so existing call sites
+  /// keep compiling.
+  Future<void> celebrate({
     required BuildContext context,
     required CelebrationLevel level,
     Offset? origin,
     String? message,
-    Milestone? milestone,
-    String? identity,
   }) {
-    if (_intensity == EffectsIntensity.off) return;
-    final media = MediaQuery.maybeOf(context);
-    if (media?.disableAnimations ?? false) {
-      // Honor reduce-motion: only show toast (if any).
-      if (message != null) _showToast(context, message);
-      return;
-    }
-    if (_active >= _maxConcurrent) return;
-
-    // Map level → sparkle count + spread + duration, scaled by intensity.
-    final params = _paramsFor(level);
-    if (params.sparkleCount <= 0) {
-      if (message != null) _showToast(context, message);
-      return;
-    }
-
-    // Resolve origin in screen coordinates.
-    final size = media?.size ?? const Size(360, 640);
-    final effectiveOrigin = origin ?? Offset(size.width / 2, size.height / 2);
-
-    final overlay = Overlay.maybeOf(context, rootOverlay: true);
-    if (overlay == null) {
-      if (message != null) _showToast(context, message);
-      return;
-    }
-
-    final spread = params.spread;
-    final box = Rect.fromCenter(
-      center: effectiveOrigin,
-      width: spread * 2.4,
-      height: spread * 2.4,
-    );
-
-    late OverlayEntry entry;
-    entry = OverlayEntry(builder: (_) {
-      return Positioned(
-        left: box.left,
-        top: box.top,
-        width: box.width,
-        height: box.height,
-        child: SparkleOverlay(
-          sparkleCount: params.sparkleCount,
-          spread: spread,
-          duration: params.duration,
-          onComplete: () {
-            entry.remove();
-            _active = (_active - 1).clamp(0, _maxConcurrent);
-          },
-        ),
-      );
-    });
-
-    _active += 1;
-    overlay.insert(entry);
-
-    if (message != null) {
-      _showToast(context, message, important: level != CelebrationLevel.subtle);
-    }
-  }
-
-  _SparkleParams _paramsFor(CelebrationLevel level) {
-    // Intensity scales counts/spread/duration. `minimal` halves; `full`
-    // boosts a touch; `normal` is baseline.
-    final scale = switch (_intensity) {
-      EffectsIntensity.off => 0.0,
-      EffectsIntensity.minimal => 0.55,
-      EffectsIntensity.normal => 1.0,
-      EffectsIntensity.full => 1.25,
-    };
     switch (level) {
       case CelebrationLevel.subtle:
-        return _SparkleParams(
-          sparkleCount: (5 * scale).round(),
-          spread: 38 * scale,
-          duration: const Duration(milliseconds: 700),
-        );
       case CelebrationLevel.notable:
-        return _SparkleParams(
-          sparkleCount: (10 * scale).round(),
-          spread: 64 * scale,
-          duration: const Duration(milliseconds: 1100),
-        );
+        return celebrateHabitComplete(context: context, origin: origin);
       case CelebrationLevel.milestone:
       case CelebrationLevel.identity:
-        // Milestones still respect the toggle — degrade to subtle if off.
-        final base = _celebrateMilestones ? 22 : 8;
-        return _SparkleParams(
-          sparkleCount: (base * scale).round(),
-          spread: 110 * scale,
-          duration: const Duration(milliseconds: 1700),
-        );
+        return celebrateRoutinesComplete(context: context);
     }
   }
 
-  void _showToast(BuildContext context, String message,
-      {bool important = false}) {
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger == null) return;
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-            color: AppColors.ink,
-            fontWeight: important ? FontWeight.w800 : FontWeight.w600,
-          ),
-        ),
-        backgroundColor: AppColors.bgCard,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: BorderSide(
-            color: AppColors.purple.withValues(alpha: important ? 0.55 : 0.25),
-          ),
-        ),
-        duration: Duration(seconds: important ? 4 : 2),
-      ),
-    );
-  }
-}
+  // ─── internals ────────────────────────────────────────────────────────
 
-class _SparkleParams {
-  const _SparkleParams({
-    required this.sparkleCount,
-    required this.spread,
-    required this.duration,
-  });
-  final int sparkleCount;
-  final double spread;
-  final Duration duration;
+  bool _canPlay(BuildContext context) {
+    if (_intensity == EffectsIntensity.off) return false;
+    final media = MediaQuery.maybeOf(context);
+    if (media?.disableAnimations ?? false) return false;
+    if (_active >= _maxConcurrent) return false;
+    return true;
+  }
+
+  Duration _scaledDuration(Duration base) {
+    final ms = (base.inMilliseconds * _intensity.durationScale).round();
+    return Duration(milliseconds: ms.clamp(400, 8000));
+  }
+
+  Future<void> _insert(
+    BuildContext context,
+    Widget Function(OverlayEntry entry) builder, {
+    required Duration fallbackTimeout,
+  }) async {
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) return;
+    late OverlayEntry entry;
+    entry = OverlayEntry(builder: (_) => builder(entry));
+    _active += 1;
+    overlay.insert(entry);
+    // Safety net for paused / background tabs.
+    Future<void>.delayed(fallbackTimeout, () => _remove(entry));
+  }
+
+  void _remove(OverlayEntry entry) {
+    if (!entry.mounted) return;
+    try {
+      entry.remove();
+    } catch (_) {}
+    _active = (_active - 1).clamp(0, _maxConcurrent);
+  }
 }
