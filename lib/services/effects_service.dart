@@ -116,6 +116,14 @@ class EffectsService extends ChangeNotifier {
     );
   }
 
+  /// Alias that matches the spec's preferred name. Same as
+  /// [celebrateRoutinesComplete].
+  Future<void> celebrateAllRoutinesComplete({
+    required BuildContext context,
+    String? userName,
+  }) =>
+      celebrateRoutinesComplete(context: context, userName: userName);
+
   Future<void> celebrateStreakMilestone({
     required BuildContext context,
     required int days,

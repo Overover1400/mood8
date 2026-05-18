@@ -10,7 +10,9 @@ import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/mood_entry.dart';
 import '../services/analytics_service.dart';
+import '../services/effects_service.dart';
 import '../services/habit_repository.dart';
+import '../services/milestone_service.dart';
 import '../services/mood_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/animated_number.dart';
@@ -44,11 +46,49 @@ class _ProgressScreenState extends State<ProgressScreen> {
       _habits.watchLogs();
 
   int _range = 30;
+  // Tracks the last-seen progress per identity so we can detect crossings
+  // (25/50/75/100%) between rebuilds and fire the constellation once.
+  final Map<String, double> _identityHistory = {};
 
   void _onRangeChanged(int days) {
     HapticFeedback.selectionClick();
     setState(() => _range = days);
     _analytics.invalidate();
+    // Range change is a snapshot swap, not a real progress event — reset the
+    // history baseline so we don't fire from a stale comparison.
+    _identityHistory.clear();
+  }
+
+  void _maybeCelebrateIdentity(Map<String, double> latest) {
+    if (_identityHistory.isEmpty) {
+      _identityHistory.addAll(latest);
+      return;
+    }
+    for (final entry in latest.entries) {
+      final prev = _identityHistory[entry.key];
+      _identityHistory[entry.key] = entry.value;
+      if (prev == null) continue;
+      for (final threshold in const [0.25, 0.50, 0.75, 1.0]) {
+        if (prev < threshold && entry.value >= threshold) {
+          // Fire once per cross, asynchronously so we don't interleave the
+          // build cycle. MilestoneService also persists the shown flag so a
+          // user revisiting the Progress tab doesn't re-celebrate.
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            final m = await MilestoneService().checkIdentityProgress(
+              identity: entry.key,
+              progress: entry.value,
+            );
+            if (m == null || !mounted) return;
+            EffectsService().celebrateIdentityLevelUp(
+              context: context,
+              identity: entry.key,
+              progress: entry.value,
+            );
+          });
+          break; // only fire the highest threshold crossed in this tick
+        }
+      }
+    }
   }
 
   @override
@@ -82,6 +122,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
     final series = _analytics.getMoodEnergyFocusOverTime(_range);
     final heatmap = _analytics.getStreakHeatmapData(_range);
     final identity = _analytics.getIdentityProgress(days: _range);
+    _maybeCelebrateIdentity(identity);
     final topHabits = _analytics.getTopHabits(5, days: _range);
     final highlights = _analytics.getHighlights(_range);
     final tod = _analytics.getTimeOfDayPatterns(days: _range);

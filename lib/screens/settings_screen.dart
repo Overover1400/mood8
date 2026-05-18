@@ -657,23 +657,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _testEffects() async {
     _haptic.light();
-    _effects.celebrate(
-      context: context,
-      level: CelebrationLevel.subtle,
-    );
-    await Future<void>.delayed(const Duration(milliseconds: 900));
+    final user = _users.getCurrentUser();
+    final size = MediaQuery.sizeOf(context);
+    final origin = Offset(size.width / 2, size.height * 0.45);
+
+    // 1. PremiumBloom — habit complete
+    await _effects.celebrateHabitComplete(context: context, origin: origin);
+    await Future<void>.delayed(
+        _effects.intensity.durationScale > 0.9
+            ? const Duration(milliseconds: 2400)
+            : const Duration(milliseconds: 1400));
     if (!mounted) return;
-    _effects.celebrate(
+
+    // 2. PhoenixRise — streak milestone
+    await _effects.celebrateStreakMilestone(
       context: context,
-      level: CelebrationLevel.notable,
-      message: 'Notable celebration · streak maintained',
+      days: 7,
+      flameOrigin: Offset(size.width / 2, size.height * 0.35),
     );
-    await Future<void>.delayed(const Duration(milliseconds: 1300));
+    await Future<void>.delayed(
+        _effects.intensity.durationScale > 0.9
+            ? const Duration(milliseconds: 3000)
+            : const Duration(milliseconds: 1800));
     if (!mounted) return;
-    _effects.celebrate(
+
+    // 3. IdentityConstellation — identity level-up
+    await _effects.celebrateIdentityLevelUp(
       context: context,
-      level: CelebrationLevel.milestone,
-      message: '🎉 Milestone preview',
+      identity: 'Athlete',
+      progress: 0.5,
+    );
+    await Future<void>.delayed(
+        _effects.intensity.durationScale > 0.9
+            ? const Duration(milliseconds: 3400)
+            : const Duration(milliseconds: 2000));
+    if (!mounted) return;
+
+    // 4. CosmicBloom — perfect day finale
+    await _effects.celebrateAllRoutinesComplete(
+      context: context,
+      userName: user?.name,
     );
   }
 
