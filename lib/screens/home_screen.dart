@@ -110,24 +110,39 @@ class _HomeScreenState extends State<HomeScreen> {
       item.completedAt = null;
       await _routines.updateRoutine(item);
       HapticService().light();
+      debugPrint('[Effects] Routine un-toggled · no celebration');
       return;
     }
     await _routines.markComplete(item.id);
-    SfxService().fire(SfxType.routineDone);
-    HapticService().medium();
-    if (!mounted) return;
-    // If everything for today is now done, fire the cosmic celebration;
-    // otherwise the smaller PremiumBloom.
+    // Re-fetch fresh after the put completes. Hive .save() returns once the
+    // box is mutated, so this list reflects the new state.
     final todays = _routines.getTodayRoutines();
-    if (todays.isNotEmpty &&
-        todays.every((r) => r.isCompleted) &&
-        todays.length >= 3) {
+    final completed = todays.where((r) => r.isCompleted).length;
+    final total = todays.length;
+    final allDone = total > 0 && completed == total;
+    debugPrint(
+        '[Effects] Routine completion (Home Up Next): $completed/$total · allDone=$allDone');
+
+    // Sound + haptic FIRST, sized by whether this is the perfect-day moment.
+    if (allDone) {
+      SfxService().fire(SfxType.streakMilestone);
+      HapticService().heavy();
+    } else {
+      SfxService().fire(SfxType.routineDone);
+      HapticService().medium();
+    }
+    if (!mounted) return;
+
+    if (allDone) {
       final user = _users.getCurrentUser();
-      EffectsService().celebrateRoutinesComplete(
+      debugPrint(
+          '[Effects] 🎉 ALL ROUTINES COMPLETE — triggering CosmicBloom (user=${user?.name})');
+      EffectsService().celebrateAllRoutinesComplete(
         context: context,
         userName: user?.name,
       );
     } else {
+      debugPrint('[Effects] Single routine complete — PremiumBloom');
       EffectsService().celebrateHabitComplete(context: context);
     }
   }

@@ -7,7 +7,9 @@ import '../models/routine_item.dart';
 import '../models/sfx_type.dart';
 import '../services/haptic_service.dart';
 import '../services/routine_repository.dart';
+import '../services/effects_service.dart';
 import '../services/sfx_service.dart';
+import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_routine_sheet.dart';
 import '../widgets/empty_state.dart';
@@ -117,10 +119,44 @@ class _RoutineScreenState extends State<RoutineScreen> {
                                   it.isCompleted = false;
                                   it.completedAt = null;
                                   await _repo.updateRoutine(it);
+                                  HapticService().light();
+                                  debugPrint(
+                                      '[Effects] Routine un-toggled (Routine tab) · no celebration');
+                                  return;
+                                }
+                                await _repo.markComplete(it.id);
+                                final all = _repo.getTodayRoutines();
+                                final done =
+                                    all.where((r) => r.isCompleted).length;
+                                final total = all.length;
+                                final allDone =
+                                    total > 0 && done == total;
+                                debugPrint(
+                                    '[Effects] Routine completion (Routine tab): $done/$total · allDone=$allDone');
+                                if (allDone) {
+                                  SfxService().fire(SfxType.streakMilestone);
+                                  HapticService().heavy();
                                 } else {
-                                  await _repo.markComplete(it.id);
                                   SfxService().fire(SfxType.routineDone);
                                   HapticService().medium();
+                                }
+                                if (!context.mounted) return;
+                                if (allDone) {
+                                  final user = UserRepository()
+                                      .getCurrentUser();
+                                  debugPrint(
+                                      '[Effects] 🎉 ALL ROUTINES COMPLETE — triggering CosmicBloom from Routine tab');
+                                  EffectsService()
+                                      .celebrateAllRoutinesComplete(
+                                    context: context,
+                                    userName: user?.name,
+                                  );
+                                } else {
+                                  debugPrint(
+                                      '[Effects] Single routine complete (Routine tab) — PremiumBloom');
+                                  EffectsService()
+                                      .celebrateHabitComplete(
+                                          context: context);
                                 }
                               },
                               onReorder: (oldIndex, newIndex) =>
