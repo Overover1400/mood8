@@ -7,10 +7,12 @@ import 'package:intl/intl.dart';
 
 import '../main.dart' show AuthGate;
 import '../models/auth_user.dart';
+import '../models/effects_intensity.dart';
 import '../models/sfx_type.dart';
 import '../models/user_profile.dart';
 import '../services/analytics_service.dart';
 import '../services/auth_service.dart';
+import '../services/effects_service.dart';
 import '../services/feedback_service.dart';
 import '../services/haptic_service.dart';
 import '../services/notification_service.dart';
@@ -52,6 +54,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   final SfxService _sfx = SfxService();
   final HapticService _haptic = HapticService();
+  final EffectsService _effects = EffectsService();
 
   @override
   void initState() {
@@ -59,6 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _prefs.addListener(_onPrefs);
     _sfx.addListener(_onPrefs);
     _haptic.addListener(_onPrefs);
+    _effects.addListener(_onPrefs);
     _prefs.load();
   }
 
@@ -67,6 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _prefs.removeListener(_onPrefs);
     _sfx.removeListener(_onPrefs);
     _haptic.removeListener(_onPrefs);
+    _effects.removeListener(_onPrefs);
     super.dispose();
   }
 
@@ -354,6 +359,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                     SettingsSection(
+                      title: 'Effects & animations',
+                      children: [
+                        SettingsDropdown<EffectsIntensity>(
+                          icon: Icons.auto_awesome_motion_rounded,
+                          title: 'Effects intensity',
+                          value: _effects.intensity,
+                          options: [
+                            for (final i in EffectsIntensity.values)
+                              DropdownOption(
+                                value: i,
+                                label: i.label,
+                                subtitle: i.description,
+                              ),
+                          ],
+                          onChanged: (v) => _effects.setIntensity(v),
+                        ),
+                        SettingsToggle(
+                          icon: Icons.celebration_rounded,
+                          title: 'Celebrate milestones',
+                          subtitle: '7, 30, 100, 365 days · identity unlocks',
+                          value: _effects.celebrateMilestones,
+                          onChanged: (v) =>
+                              _effects.setCelebrateMilestones(v),
+                        ),
+                        SettingsToggle(
+                          icon: Icons.battery_saver_rounded,
+                          title: 'Quiet on battery saver',
+                          subtitle: 'Reduce effects when battery is low',
+                          value: _effects.batterySaverAware,
+                          onChanged: (v) =>
+                              _effects.setBatterySaverAware(v),
+                        ),
+                        SettingsTile(
+                          icon: Icons.auto_awesome_rounded,
+                          title: 'Test effects',
+                          subtitle: 'Subtle · notable · milestone',
+                          onTap: _testEffects,
+                        ),
+                      ],
+                    ),
+                    SettingsSection(
                       title: 'Data & privacy',
                       children: [
                         SettingsTile(
@@ -607,6 +653,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (v == null) return;
     await _prefs.setReflectionTime(v.hour, v.minute);
+  }
+
+  Future<void> _testEffects() async {
+    _haptic.light();
+    _effects.celebrate(
+      context: context,
+      level: CelebrationLevel.subtle,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    if (!mounted) return;
+    _effects.celebrate(
+      context: context,
+      level: CelebrationLevel.notable,
+      message: 'Notable celebration · streak maintained',
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 1300));
+    if (!mounted) return;
+    _effects.celebrate(
+      context: context,
+      level: CelebrationLevel.milestone,
+      message: '🎉 Milestone preview',
+    );
   }
 
   void _comingSoon(String label) {

@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
 import '../models/adaptive_suggestion.dart';
+import '../models/effects_intensity.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/mood_entry.dart';
@@ -13,8 +14,10 @@ import '../models/routine_item.dart';
 import '../models/sfx_type.dart';
 import '../models/user_profile.dart';
 import '../services/adaptive_routine_service.dart';
+import '../services/effects_service.dart';
 import '../services/habit_repository.dart';
 import '../services/haptic_service.dart';
+import '../services/milestone_service.dart';
 import '../services/mood_repository.dart';
 import '../services/onboarding_service.dart';
 import '../services/reflection_repository.dart';
@@ -108,10 +111,24 @@ class _HomeScreenState extends State<HomeScreen> {
       item.completedAt = null;
       await _routines.updateRoutine(item);
       HapticService().light();
-    } else {
-      await _routines.markComplete(item.id);
-      SfxService().fire(SfxType.routineDone);
-      HapticService().medium();
+      return;
+    }
+    await _routines.markComplete(item.id);
+    SfxService().fire(SfxType.routineDone);
+    HapticService().medium();
+    if (!mounted) return;
+    EffectsService().celebrate(
+      context: context,
+      level: CelebrationLevel.subtle,
+    );
+    // If everything for today is now done, escalate.
+    final todays = _routines.getTodayRoutines();
+    if (todays.isNotEmpty && todays.every((r) => r.isCompleted)) {
+      EffectsService().celebrate(
+        context: context,
+        level: CelebrationLevel.notable,
+        message: 'Day complete — every routine done.',
+      );
     }
   }
 
@@ -389,6 +406,23 @@ class _HomeScreenState extends State<HomeScreen> {
           duration: Duration(seconds: hitMilestone ? 3 : 2),
         ),
       );
+      // Sparkles in either case; bigger for milestone days.
+      EffectsService().celebrate(
+        context: context,
+        level: hitMilestone
+            ? CelebrationLevel.milestone
+            : CelebrationLevel.subtle,
+      );
+      // First-ever milestone for this streak length surfaces a richer toast.
+      final earned = await MilestoneService().checkStreak(streak);
+      if (earned != null && mounted) {
+        EffectsService().celebrate(
+          context: context,
+          level: CelebrationLevel.milestone,
+          message: '${earned.title()} · ${earned.message()}',
+          milestone: earned,
+        );
+      }
     } catch (e) {
       SfxService().fire(SfxType.errorGentle);
       HapticService().heavy();

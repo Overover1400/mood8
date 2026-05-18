@@ -5,9 +5,12 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/habit.dart';
 import '../models/habit_log.dart';
+import '../models/effects_intensity.dart';
 import '../models/sfx_type.dart';
+import '../services/effects_service.dart';
 import '../services/habit_repository.dart';
 import '../services/haptic_service.dart';
+import '../services/milestone_service.dart';
 import '../services/sfx_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
@@ -220,8 +223,13 @@ class _HabitsScreenState extends State<HabitsScreen> {
         _repo.getLogForDate(h.id, DateTime.now())?.value ?? 0;
     final willComplete = currentValue == 0;
     HapticService().medium();
-    if (willComplete) SfxService().fire(SfxType.habitComplete);
+    if (willComplete) {
+      SfxService().fire(SfxType.habitComplete);
+    }
     await _repo.toggleYesNoLog(habitId: h.id);
+    if (willComplete) {
+      _celebrateHabit(h);
+    }
   }
 
   Future<void> _increment(Habit h) async {
@@ -231,7 +239,27 @@ class _HabitsScreenState extends State<HabitsScreen> {
     final after = _repo.getLogForDate(h.id, DateTime.now());
     if (after != null && after.isCompleted && after.value - step < after.targetValue) {
       SfxService().fire(SfxType.habitComplete);
+      _celebrateHabit(h);
     }
+  }
+
+  void _celebrateHabit(Habit h) {
+    if (!mounted) return;
+    EffectsService().celebrate(
+      context: context,
+      level: CelebrationLevel.subtle,
+    );
+    // Streak milestone follow-up.
+    final streak = _repo.getStreakForHabit(h.id);
+    MilestoneService().checkStreak(streak).then((milestone) {
+      if (milestone == null || !mounted) return;
+      EffectsService().celebrate(
+        context: context,
+        level: CelebrationLevel.milestone,
+        message: '${milestone.title()} · ${milestone.message()}',
+        milestone: milestone,
+      );
+    });
   }
 
   Future<void> _decrement(Habit h) async {
