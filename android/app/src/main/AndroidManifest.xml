@@ -1,9 +1,24 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-feature android:name="android.hardware.type.watch" />
+    <!-- Required for AI Coach, sign-in, and reflection generation. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Local notifications on Android 13+. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Haptic feedback through HapticService. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Keep the device awake long enough to deliver a scheduled
+         notification + run the foreground callback. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <application
-        android:label="mood8"
+        android:label="Mood8"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- Mood8 also runs as a standalone Wear OS app (built via the
+             wear-build workflow targeting lib/main_wear.dart). Keeping this
+             metadata is harmless on phones. -->
         <meta-data
             android:name="com.google.android.wearable.standalone"
             android:value="true" />
@@ -44,6 +59,19 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- share_plus uses an implicit Send intent. -->
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+        </intent>
+        <!-- url_launcher / mailto: lookups. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="mailto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
         </intent>
     </queries>
 </manifest>

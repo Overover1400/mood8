@@ -1,7 +1,7 @@
 name: mood8
-description: "Mood8 — AI-powered personal operating system."
+description: "Mood8 — Become more of yourself. AI-powered personal operating system."
 publish_to: 'none'
-version: 1.0.0+1
+version: 0.1.0+1
 
 environment:
   sdk: '>=3.11.0 <4.0.0'
