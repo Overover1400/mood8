@@ -8,18 +8,23 @@ import 'package:intl/intl.dart';
 import '../models/sfx_type.dart';
 import '../models/user_profile.dart';
 import '../services/analytics_service.dart';
+import '../services/feedback_service.dart';
 import '../services/haptic_service.dart';
 import '../services/notification_service.dart';
 import '../services/onboarding_service.dart';
 import '../services/preferences_service.dart';
 import '../services/sfx_service.dart';
+import '../services/subscription_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
+import '../widgets/feedback_dialog.dart';
+import '../widgets/premium_badge.dart';
 import '../widgets/responsive_container.dart';
 import '../widgets/settings/color_avatar.dart';
 import '../widgets/settings/settings_dropdown.dart';
 import '../widgets/settings/settings_section.dart';
 import '../widgets/settings/settings_tile.dart';
+import 'premium_screen.dart';
 import '../widgets/settings/settings_toggle.dart';
 import 'settings/about_screen.dart';
 import 'settings/data_privacy_screen.dart';
@@ -133,14 +138,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             DropdownOption(
                               value: AppThemeMode.light,
                               label: 'Light',
-                              subtitle: 'Coming soon',
-                              disabled: true,
+                              subtitle: 'Creamy lavender · early preview',
                             ),
                             DropdownOption(
                               value: AppThemeMode.system,
                               label: 'Auto',
-                              subtitle: 'Match system',
-                              disabled: true,
+                              subtitle: 'Follow device setting',
                             ),
                           ],
                           onChanged: (v) => _prefs.setThemeMode(v),
@@ -384,6 +387,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               'Removes all local data (account sync not enabled yet)',
                           destructive: true,
                           onTap: _confirmDeleteAccount,
+                        ),
+                      ],
+                    ),
+                    SettingsSection(
+                      title: 'Membership',
+                      children: [
+                        SettingsTile(
+                          icon: Icons.workspace_premium_rounded,
+                          title: 'Mood8 Premium',
+                          subtitle:
+                              SubscriptionService().isPremium
+                                  ? 'Active'
+                                  : 'Free tier · upgrade when ready',
+                          trailing: PremiumBadge(
+                            tier: SubscriptionService().tier,
+                            compact: true,
+                          ),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const PremiumScreen(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SettingsSection(
+                      title: 'Beta tester',
+                      subtitle: 'we read every word',
+                      children: [
+                        SettingsTile(
+                          icon: Icons.bug_report_outlined,
+                          title: 'Report a bug',
+                          onTap: () => showFeedbackDialog(
+                            context,
+                            initialKind: FeedbackKind.bug,
+                          ),
+                        ),
+                        SettingsTile(
+                          icon: Icons.lightbulb_outline_rounded,
+                          title: 'Suggest a feature',
+                          onTap: () => showFeedbackDialog(
+                            context,
+                            initialKind: FeedbackKind.feature,
+                          ),
+                        ),
+                        SettingsTile(
+                          icon: Icons.send_rounded,
+                          title: 'Send general feedback',
+                          subtitle: 'hello@mood8.app',
+                          onTap: () => showFeedbackDialog(
+                            context,
+                            initialKind: FeedbackKind.general,
+                          ),
                         ),
                       ],
                     ),

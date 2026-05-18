@@ -55,19 +55,25 @@ class _DataPrivacyScreenState extends State<DataPrivacyScreen> {
                 ),
                 SettingsSection(
                   title: 'Export',
-                  subtitle: 'copied to clipboard',
+                  subtitle: 'downloads to your device',
                   children: [
                     SettingsTile(
                       icon: Icons.data_object_rounded,
-                      title: 'Export as JSON',
+                      title: 'Download JSON backup',
                       subtitle: _export.suggestedFilename('json'),
-                      onTap: () => _doExport(json: true),
+                      onTap: () => _doDownload(json: true),
                     ),
                     SettingsTile(
                       icon: Icons.table_chart_outlined,
-                      title: 'Export as CSV',
-                      subtitle: _export.suggestedFilename('csv'),
-                      onTap: () => _doExport(json: false),
+                      title: 'Download CSV bundle (.zip)',
+                      subtitle: _export.suggestedFilename('zip'),
+                      onTap: () => _doDownload(json: false),
+                    ),
+                    SettingsTile(
+                      icon: Icons.copy_all_rounded,
+                      title: 'Copy JSON to clipboard',
+                      subtitle: 'Fallback if download is blocked',
+                      onTap: _doCopyJson,
                     ),
                   ],
                 ),
@@ -97,15 +103,58 @@ class _DataPrivacyScreenState extends State<DataPrivacyScreen> {
     );
   }
 
-  Future<void> _doExport({required bool json}) async {
+  Future<void> _doCopyJson() async {
     try {
-      final content = json ? _export.exportToJson() : _export.exportToCsv();
-      await _export.copyToClipboard(content);
+      await _export.copyToClipboard(_export.exportToJson());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
+          content: const Text('JSON copied — paste into a text file.'),
+          backgroundColor: AppColors.bgCard,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      );
+      HapticFeedback.lightImpact();
+    } catch (e) {
+      if (!mounted) return;
+      _toast('Copy failed: $e');
+    }
+  }
+
+  void _toast(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: AppColors.bgCard,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _doDownload({required bool json}) async {
+    try {
+      final ok = json
+          ? await _export.downloadJson()
+          : await _export.downloadCsvBundle();
+      if (!mounted) return;
+      if (!ok) {
+        _toast(
+            "Couldn't start the download. Try the clipboard fallback below.");
+        return;
+      }
+      HapticFeedback.lightImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text(
-            '${json ? 'JSON' : 'CSV'} export copied — paste into a text file.',
+            json
+                ? 'JSON backup downloading…'
+                : 'CSV bundle downloading…',
           ),
           backgroundColor: AppColors.bgCard,
           behavior: SnackBarBehavior.floating,

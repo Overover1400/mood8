@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -11,6 +12,7 @@ import '../models/reflection.dart';
 import '../models/routine_item.dart';
 import '../models/user_profile.dart';
 import 'database_service.dart';
+import 'export_downloader.dart';
 
 class ExportService {
   ExportService({DatabaseService? db})
@@ -175,6 +177,140 @@ class ExportService {
       ].join(','));
     }
 
+    return buf.toString();
+  }
+
+  /// Downloads (web) or shares (mobile) a JSON snapshot of the whole DB.
+  Future<bool> downloadJson() async {
+    try {
+      final content = exportToJson();
+      final bytes = Uint8List.fromList(utf8.encode(content));
+      return await ExportDownloader().downloadBytes(
+        bytes: bytes,
+        filename: suggestedFilename('json'),
+        mimeType: 'application/json',
+      );
+    } catch (e, st) {
+      debugPrint('ExportService.downloadJson failed: $e\n$st');
+      return false;
+    }
+  }
+
+  /// Downloads/shares a ZIP containing one CSV per Hive table.
+  Future<bool> downloadCsvBundle() async {
+    try {
+      final files = _csvFilesByTable();
+      final archive = Archive();
+      for (final entry in files.entries) {
+        final bytes = utf8.encode(entry.value);
+        archive.addFile(ArchiveFile(entry.key, bytes.length, bytes));
+      }
+      final zip = ZipEncoder().encode(archive);
+      if (zip == null) return false;
+      return await ExportDownloader().downloadBytes(
+        bytes: Uint8List.fromList(zip),
+        filename: suggestedFilename('zip'),
+        mimeType: 'application/zip',
+      );
+    } catch (e, st) {
+      debugPrint('ExportService.downloadCsvBundle failed: $e\n$st');
+      return false;
+    }
+  }
+
+  Map<String, String> _csvFilesByTable() {
+    final stamp = DateFormat('yyyyMMdd-HHmm').format(DateTime.now());
+    final root = 'mood8-$stamp';
+    return {
+      '$root/mood_entries.csv': _moodCsv(),
+      '$root/routines.csv': _routinesCsv(),
+      '$root/habits.csv': _habitsCsv(),
+      '$root/habit_logs.csv': _habitLogsCsv(),
+      '$root/reflections.csv': _reflectionsCsv(),
+    };
+  }
+
+  String _moodCsv() {
+    final buf = StringBuffer('id,timestamp,mood,energy,focus,note\n');
+    for (final e in _db.moodBox.values) {
+      buf.writeln([
+        e.id,
+        e.timestamp.toIso8601String(),
+        e.mood,
+        e.energy,
+        e.focus,
+        _csvCell(e.note ?? ''),
+      ].join(','));
+    }
+    return buf.toString();
+  }
+
+  String _routinesCsv() {
+    final buf = StringBuffer(
+        'id,title,time,durationMinutes,category,meta,isCompleted,completedAt\n');
+    for (final r in _db.routineBox.values) {
+      buf.writeln([
+        r.id,
+        _csvCell(r.title),
+        r.time.toIso8601String(),
+        r.durationMinutes,
+        r.category.name,
+        _csvCell(r.meta),
+        r.isCompleted,
+        r.completedAt?.toIso8601String() ?? '',
+      ].join(','));
+    }
+    return buf.toString();
+  }
+
+  String _habitsCsv() {
+    final buf = StringBuffer(
+        'id,title,type,identity,category,frequency,targetValue,targetUnit,createdAt,isArchived\n');
+    for (final h in _db.habitBox.values) {
+      buf.writeln([
+        h.id,
+        _csvCell(h.title),
+        h.habitType.name,
+        _csvCell(h.identity),
+        h.category.name,
+        h.frequency.name,
+        h.targetValue ?? '',
+        _csvCell(h.targetUnit ?? ''),
+        h.createdAt.toIso8601String(),
+        h.isArchived,
+      ].join(','));
+    }
+    return buf.toString();
+  }
+
+  String _habitLogsCsv() {
+    final buf =
+        StringBuffer('id,habitId,date,value,targetValue,timestamp\n');
+    for (final l in _db.habitLogBox.values) {
+      buf.writeln([
+        l.id,
+        l.habitId,
+        l.date.toIso8601String(),
+        l.value,
+        l.targetValue,
+        l.timestamp.toIso8601String(),
+      ].join(','));
+    }
+    return buf.toString();
+  }
+
+  String _reflectionsCsv() {
+    final buf =
+        StringBuffer('id,date,generatedAt,reflection,suggestion\n');
+    for (final r in _db.reflectionBox.values) {
+      buf.writeln([
+        r.id,
+        r.date.toIso8601String(),
+        r.generatedAt.toIso8601String(),
+        _csvCell(r.reflection),
+        _csvCell(r.suggestion ?? ''),
+      ].join(','));
+    }
     return buf.toString();
   }
 

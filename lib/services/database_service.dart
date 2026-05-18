@@ -12,6 +12,7 @@ import '../models/mood_entry.dart';
 import '../models/reflection.dart';
 import '../models/routine_category.dart';
 import '../models/routine_item.dart';
+import '../models/subscription.dart';
 import '../models/user_profile.dart';
 
 class DatabaseService {
@@ -91,6 +92,9 @@ class DatabaseService {
     }
     if (!Hive.isAdapterRegistered(13)) {
       Hive.registerAdapter(InsightTypeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(14)) {
+      Hive.registerAdapter(SubscriptionTierAdapter());
     }
 
     _moodBox = await Hive.openBox<MoodEntry>(moodBoxName);

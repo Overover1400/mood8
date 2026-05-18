@@ -1,7 +1,19 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum AppThemeMode { dark, light, system }
+
+ThemeMode appToFlutterThemeMode(AppThemeMode mode) {
+  switch (mode) {
+    case AppThemeMode.dark:
+      return ThemeMode.dark;
+    case AppThemeMode.light:
+      return ThemeMode.light;
+    case AppThemeMode.system:
+      return ThemeMode.system;
+  }
+}
 
 enum TimeFormat { twelveHour, twentyFourHour }
 
@@ -25,6 +37,10 @@ class PreferencesService extends ChangeNotifier {
 
   SharedPreferences? _prefs;
 
+  /// Reactive ThemeMode for `MaterialApp.themeMode`.
+  final ValueNotifier<ThemeMode> themeModeNotifier =
+      ValueNotifier<ThemeMode>(ThemeMode.dark);
+
   Future<SharedPreferences> _get() async =>
       _prefs ??= await SharedPreferences.getInstance();
 
@@ -38,6 +54,7 @@ class PreferencesService extends ChangeNotifier {
   Future<void> setThemeMode(AppThemeMode mode) async {
     final p = await _get();
     await p.setString(_kTheme, mode.name);
+    themeModeNotifier.value = appToFlutterThemeMode(mode);
     notifyListeners();
   }
 
@@ -133,6 +150,7 @@ class PreferencesService extends ChangeNotifier {
   Future<void> load() async {
     try {
       _prefs = await SharedPreferences.getInstance();
+      themeModeNotifier.value = appToFlutterThemeMode(themeMode);
       notifyListeners();
     } catch (e) {
       debugPrint('PreferencesService.load failed: $e');
