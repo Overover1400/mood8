@@ -1,3 +1,4 @@
+import '../services/gratitude_repository.dart';
 import '../services/intention_repository.dart';
 import '../services/mood_repository.dart';
 import '../services/routine_repository.dart';
@@ -17,6 +18,7 @@ class DailyData {
     required this.streak,
     required this.hasCheckin,
     this.morningIntention,
+    this.recentGratitude = const <String>[],
   });
 
   final String name;
@@ -36,6 +38,10 @@ class DailyData {
   /// with a "User's morning intention today was: …" line of context.
   final String? morningIntention;
 
+  /// Flattened list of recent gratitude items (last few days, max ~9).
+  /// Empty when the user hasn't logged any.
+  final List<String> recentGratitude;
+
   Map<String, dynamic> toJson() => {
         'name': name,
         'identities': identities,
@@ -50,6 +56,7 @@ class DailyData {
         'has_checkin': hasCheckin,
         if (morningIntention != null && morningIntention!.isNotEmpty)
           'morning_intention': morningIntention,
+        if (recentGratitude.isNotEmpty) 'recent_gratitude': recentGratitude,
       };
 
   static Future<DailyData> gather() async {
@@ -57,6 +64,7 @@ class DailyData {
     final moods = MoodRepository();
     final routines = RoutineRepository();
     final intentions = IntentionRepository();
+    final gratitude = GratitudeRepository();
 
     final today = moods.getTodayEntry();
     final todayRoutines = routines.getRoutinesForDate(DateTime.now());
@@ -69,6 +77,18 @@ class DailyData {
         intention != null && !intention.wasSkipped && intention.text.trim().isNotEmpty
             ? intention.text.trim()
             : null;
+
+    // Flatten gratitude items from the last 3 days, freshest first, deduped.
+    final recentEntries = await gratitude.getRecent(3);
+    final recentGratitude = <String>[];
+    for (final e in recentEntries) {
+      for (final item in e.nonEmptyItems) {
+        if (recentGratitude.length >= 9) break;
+        if (!recentGratitude.contains(item)) {
+          recentGratitude.add(item);
+        }
+      }
+    }
 
     return DailyData(
       name: user?.name ?? 'friend',
@@ -83,6 +103,7 @@ class DailyData {
       streak: moods.calculateStreak(),
       hasCheckin: today != null,
       morningIntention: intentionText,
+      recentGratitude: recentGratitude,
     );
   }
 }

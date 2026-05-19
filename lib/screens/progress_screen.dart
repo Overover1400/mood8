@@ -6,11 +6,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/analytics_models.dart';
+import '../models/gratitude_entry.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/mood_entry.dart';
 import '../services/analytics_service.dart';
 import '../services/effects_service.dart';
+import '../services/gratitude_repository.dart';
 import '../services/habit_repository.dart';
 import '../services/milestone_service.dart';
 import '../services/mood_repository.dart';
@@ -37,6 +39,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
   final AnalyticsService _analytics = AnalyticsService();
   final MoodRepository _moods = MoodRepository();
   final HabitRepository _habits = HabitRepository();
+  final GratitudeRepository _gratitude = GratitudeRepository();
 
   late final ValueListenable<Box<MoodEntry>> _moodListenable =
       _moods.watchEntries();
@@ -44,6 +47,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
       _habits.watchHabits();
   late final ValueListenable<Box<HabitLog>> _logListenable =
       _habits.watchLogs();
+  late final ValueListenable<Box<GratitudeEntry>> _gratitudeListenable =
+      _gratitude.watchEntries();
 
   int _range = 30;
   // Tracks the last-seen progress per identity so we can detect crossings
@@ -167,6 +172,24 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     ),
                   ),
             child: StreakHeatmap(days: heatmap),
+          ),
+          const SizedBox(height: 22),
+          ValueListenableBuilder<Box<GratitudeEntry>>(
+            valueListenable: _gratitudeListenable,
+            builder: (context, _, _) {
+              final streak = _gratitude.currentStreakSync();
+              final monthCount = _gratitude.countThisMonth();
+              if (streak == 0 && monthCount == 0) {
+                return const SizedBox.shrink();
+              }
+              return _GratitudeStat(
+                streak: streak,
+                monthCount: monthCount,
+              )
+                  .animate()
+                  .fadeIn(duration: 350.ms)
+                  .slideY(begin: 0.05, end: 0, curve: Curves.easeOut);
+            },
           ),
           const SizedBox(height: 28),
           _Section(
@@ -714,6 +737,129 @@ class _HabitRingCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _GratitudeStat extends StatelessWidget {
+  const _GratitudeStat({required this.streak, required this.monthCount});
+  final int streak;
+  final int monthCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.pink.withValues(alpha: 0.20),
+            AppColors.pinkLight.withValues(alpha: 0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.pinkLight.withValues(alpha: 0.40),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  AppColors.pinkLight.withValues(alpha: 0.85),
+                  AppColors.pink.withValues(alpha: 0.30),
+                  Colors.transparent,
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.pink.withValues(alpha: 0.45),
+                  blurRadius: 14,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.favorite_rounded,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'GRATITUDE',
+                  style: TextStyle(
+                    color: AppColors.inkDim,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.6,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      '$streak',
+                      style: GoogleFonts.instrumentSerif(
+                        color: AppColors.ink,
+                        fontStyle: FontStyle.italic,
+                        fontSize: 24,
+                        height: 1.0,
+                      ),
+                    ),
+                    Text(
+                      ' day streak',
+                      style: TextStyle(
+                        color: AppColors.inkSoft,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'THIS MONTH',
+                style: TextStyle(
+                  color: AppColors.inkFaint,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$monthCount',
+                style: GoogleFonts.instrumentSerif(
+                  color: AppColors.pinkLight,
+                  fontStyle: FontStyle.italic,
+                  fontSize: 22,
+                  height: 1.0,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

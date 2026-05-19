@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/chat_message.dart';
 import '../models/focus_area.dart';
 import '../models/frequency.dart';
+import '../models/gratitude_entry.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/habit_type.dart';
@@ -29,6 +30,7 @@ class DatabaseService {
   static const String habitLogBoxName = 'habit_logs';
   static const String insightBoxName = 'insights';
   static const String intentionBoxName = 'morning_intentions';
+  static const String gratitudeBoxName = 'gratitude_entries';
 
   bool _initialized = false;
   late Box<MoodEntry> _moodBox;
@@ -40,6 +42,7 @@ class DatabaseService {
   late Box<HabitLog> _habitLogBox;
   late Box<Insight> _insightBox;
   late Box<MorningIntention> _intentionBox;
+  late Box<GratitudeEntry> _gratitudeBox;
 
   Box<MoodEntry> get moodBox => _moodBox;
   Box<RoutineItem> get routineBox => _routineBox;
@@ -50,6 +53,7 @@ class DatabaseService {
   Box<HabitLog> get habitLogBox => _habitLogBox;
   Box<Insight> get insightBox => _insightBox;
   Box<MorningIntention> get intentionBox => _intentionBox;
+  Box<GratitudeEntry> get gratitudeBox => _gratitudeBox;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -103,6 +107,9 @@ class DatabaseService {
     if (!Hive.isAdapterRegistered(15)) {
       Hive.registerAdapter(MorningIntentionAdapter());
     }
+    if (!Hive.isAdapterRegistered(16)) {
+      Hive.registerAdapter(GratitudeEntryAdapter());
+    }
 
     _moodBox = await Hive.openBox<MoodEntry>(moodBoxName);
     _routineBox = await Hive.openBox<RoutineItem>(routineBoxName);
@@ -114,6 +121,8 @@ class DatabaseService {
     _insightBox = await Hive.openBox<Insight>(insightBoxName);
     _intentionBox =
         await Hive.openBox<MorningIntention>(intentionBoxName);
+    _gratitudeBox =
+        await Hive.openBox<GratitudeEntry>(gratitudeBoxName);
     _initialized = true;
   }
 
@@ -128,6 +137,7 @@ class DatabaseService {
     await _habitLogBox.close();
     await _insightBox.close();
     await _intentionBox.close();
+    await _gratitudeBox.close();
     _initialized = false;
   }
 }

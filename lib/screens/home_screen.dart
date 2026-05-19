@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
 import '../models/adaptive_suggestion.dart';
+import '../models/gratitude_entry.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/mood_entry.dart';
@@ -16,6 +17,7 @@ import '../models/sfx_type.dart';
 import '../models/user_profile.dart';
 import '../services/adaptive_routine_service.dart';
 import '../services/effects_service.dart';
+import '../services/gratitude_repository.dart';
 import '../services/habit_repository.dart';
 import '../services/haptic_service.dart';
 import '../services/intention_repository.dart';
@@ -33,6 +35,7 @@ import '../widgets/bottom_nav.dart';
 import '../widgets/cards.dart';
 import '../widgets/freeze_badge.dart';
 import '../widgets/glow_slider.dart';
+import '../widgets/gratitude_sheet.dart';
 import '../widgets/habit_log_button.dart';
 import '../widgets/intention_sheet.dart';
 import '../widgets/mood_orb.dart';
@@ -58,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ReflectionRepository _reflections = ReflectionRepository();
   final HabitRepository _habits = HabitRepository();
   final IntentionRepository _intentions = IntentionRepository();
+  final GratitudeRepository _gratitude = GratitudeRepository();
   final ScoreService _score = ScoreService();
   final AdaptiveRoutineService _adaptive = AdaptiveRoutineService();
 
@@ -90,6 +94,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openIntentionSheet({String? existing}) async {
     HapticService().light();
     await showIntentionSheet(context, existingText: existing);
+  }
+
+  Future<void> _openGratitudeSheet({GratitudeEntry? existing}) async {
+    HapticService().light();
+    await showGratitudeSheet(context, existing: existing);
   }
 
   Future<void> _loadSuggestion() async {
@@ -333,7 +342,38 @@ class _HomeScreenState extends State<HomeScreen> {
                           .fadeIn(delay: 250.ms, duration: 500.ms)
                           .slideY(
                               begin: 0.1, end: 0, curve: Curves.easeOutCubic),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 22),
+                      if (PreferencesService
+                          .instance.showGratitudeCard)
+                        ValueListenableBuilder<Box<GratitudeEntry>>(
+                          valueListenable:
+                              _gratitude.watchEntries(),
+                          builder: (context, _, _) {
+                            final entry =
+                                _gratitude.getTodaysEntry();
+                            final logged = entry != null &&
+                                entry.nonEmptyItems.isNotEmpty;
+                            return _GratitudeCard(
+                              logged: logged,
+                              previewItem: logged
+                                  ? entry.nonEmptyItems.first
+                                  : null,
+                              onTap: () => _openGratitudeSheet(
+                                  existing: entry),
+                            )
+                                .animate()
+                                .fadeIn(
+                                    delay: 320.ms,
+                                    duration: 500.ms)
+                                .slideY(
+                                    begin: 0.1,
+                                    end: 0,
+                                    curve: Curves.easeOutCubic);
+                          },
+                        ),
+                      if (PreferencesService
+                          .instance.showGratitudeCard)
+                        const SizedBox(height: 18),
                       ValueListenableBuilder<Box<MoodEntry>>(
                         valueListenable: _moods.watchEntries(),
                         builder: (context, _, _) {
@@ -1317,6 +1357,130 @@ class _IntentionNudge extends StatelessWidget {
                 Icons.arrow_forward_rounded,
                 color: AppColors.purpleLight,
                 size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GratitudeCard extends StatelessWidget {
+  const _GratitudeCard({
+    required this.logged,
+    required this.onTap,
+    this.previewItem,
+  });
+
+  final bool logged;
+  final String? previewItem;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.pink.withValues(alpha: 0.22),
+                AppColors.pinkLight.withValues(alpha: 0.10),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: AppColors.pinkLight.withValues(alpha: 0.45),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.pink.withValues(alpha: 0.20),
+                blurRadius: 22,
+                spreadRadius: -6,
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                margin: const EdgeInsets.only(top: 2),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.pinkLight.withValues(alpha: 0.85),
+                      AppColors.pink.withValues(alpha: 0.30),
+                      Colors.transparent,
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.pink.withValues(alpha: 0.45),
+                      blurRadius: 14,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.favorite_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      logged
+                          ? '✓  LOGGED TODAY'
+                          : 'GRATITUDE',
+                      style: TextStyle(
+                        color: logged
+                            ? AppColors.pinkLight
+                            : AppColors.inkDim,
+                        fontSize: 10,
+                        letterSpacing: 1.6,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      logged
+                          ? (previewItem ?? '')
+                          : "Add today's gratitude",
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.instrumentSerif(
+                        color: AppColors.ink,
+                        fontStyle: FontStyle.italic,
+                        fontSize: logged ? 17 : 19,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 6, top: 4),
+                child: Icon(
+                  logged
+                      ? Icons.edit_outlined
+                      : Icons.arrow_forward_rounded,
+                  color: AppColors.pinkLight.withValues(alpha: 0.85),
+                  size: 16,
+                ),
               ),
             ],
           ),

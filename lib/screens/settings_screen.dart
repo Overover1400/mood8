@@ -210,6 +210,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onChanged: (v) =>
                               _prefs.setShowMorningIntention(v),
                         ),
+                        SettingsToggle(
+                          icon: Icons.favorite_rounded,
+                          title: 'Gratitude card on home',
+                          subtitle:
+                              'Quick access to log three things each day',
+                          value: _prefs.showGratitudeCard,
+                          onChanged: (v) =>
+                              _prefs.setShowGratitudeCard(v),
+                        ),
                       ],
                     ),
                     SettingsSection(

@@ -35,6 +35,7 @@ class PreferencesService extends ChangeNotifier {
   static const _kCheckinHour = 'mood8.checkinHour';
   static const _kCheckinMinute = 'mood8.checkinMinute';
   static const _kShowMorningIntention = 'show_morning_intention';
+  static const _kShowGratitudeCard = 'show_gratitude_card';
 
   SharedPreferences? _prefs;
 
@@ -154,6 +155,17 @@ class PreferencesService extends ChangeNotifier {
   Future<void> setShowMorningIntention(bool value) async {
     final p = await _get();
     await p.setBool(_kShowMorningIntention, value);
+    notifyListeners();
+  }
+
+  // ─── Gratitude card on home ───────────────────────────────────────────
+
+  bool get showGratitudeCard =>
+      _prefs?.getBool(_kShowGratitudeCard) ?? true;
+
+  Future<void> setShowGratitudeCard(bool value) async {
+    final p = await _get();
+    await p.setBool(_kShowGratitudeCard, value);
     notifyListeners();
   }
 
