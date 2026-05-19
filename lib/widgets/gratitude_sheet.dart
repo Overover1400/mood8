@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../models/gratitude_entry.dart';
+import '../services/badge_service.dart';
 import '../services/gratitude_repository.dart';
 import '../services/haptic_service.dart';
 import '../theme/app_theme.dart';
+import 'badge_unlock_modal.dart';
 
 const int _kMaxItemChars = 80;
 
@@ -81,7 +83,18 @@ class _GratitudeSheetState extends State<GratitudeSheet> {
       final entry = await _repo.saveEntry(_ctrls.map((c) => c.text).toList());
       HapticService().medium();
       if (!mounted) return;
+      // Capture parent context BEFORE popping — after pop, the sheet's
+      // context is gone but its presenting screen is still alive.
+      final parentContext = Navigator.of(context).context;
       Navigator.of(context).pop(entry);
+      // Schedule the badge check post-pop so the modal stacks cleanly above
+      // the screen that opened the sheet, not above the (now-popping) sheet.
+      Future<void>.microtask(() async {
+        final awarded = await BadgeService().checkAndAwardBadges();
+        if (awarded.isNotEmpty && parentContext.mounted) {
+          await showBadgeUnlockQueue(parentContext, awarded);
+        }
+      });
     } catch (_) {
       if (mounted) setState(() => _saving = false);
     }

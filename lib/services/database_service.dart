@@ -1,6 +1,8 @@
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../models/badge_category.dart';
 import '../models/chat_message.dart';
+import '../models/earned_badge.dart';
 import '../models/focus_area.dart';
 import '../models/frequency.dart';
 import '../models/gratitude_entry.dart';
@@ -31,6 +33,7 @@ class DatabaseService {
   static const String insightBoxName = 'insights';
   static const String intentionBoxName = 'morning_intentions';
   static const String gratitudeBoxName = 'gratitude_entries';
+  static const String badgeBoxName = 'earned_badges';
 
   bool _initialized = false;
   late Box<MoodEntry> _moodBox;
@@ -43,6 +46,7 @@ class DatabaseService {
   late Box<Insight> _insightBox;
   late Box<MorningIntention> _intentionBox;
   late Box<GratitudeEntry> _gratitudeBox;
+  late Box<EarnedBadge> _badgeBox;
 
   Box<MoodEntry> get moodBox => _moodBox;
   Box<RoutineItem> get routineBox => _routineBox;
@@ -54,6 +58,7 @@ class DatabaseService {
   Box<Insight> get insightBox => _insightBox;
   Box<MorningIntention> get intentionBox => _intentionBox;
   Box<GratitudeEntry> get gratitudeBox => _gratitudeBox;
+  Box<EarnedBadge> get badgeBox => _badgeBox;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -110,6 +115,12 @@ class DatabaseService {
     if (!Hive.isAdapterRegistered(16)) {
       Hive.registerAdapter(GratitudeEntryAdapter());
     }
+    if (!Hive.isAdapterRegistered(17)) {
+      Hive.registerAdapter(EarnedBadgeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(18)) {
+      Hive.registerAdapter(BadgeCategoryAdapter());
+    }
 
     _moodBox = await Hive.openBox<MoodEntry>(moodBoxName);
     _routineBox = await Hive.openBox<RoutineItem>(routineBoxName);
@@ -123,6 +134,7 @@ class DatabaseService {
         await Hive.openBox<MorningIntention>(intentionBoxName);
     _gratitudeBox =
         await Hive.openBox<GratitudeEntry>(gratitudeBoxName);
+    _badgeBox = await Hive.openBox<EarnedBadge>(badgeBoxName);
     _initialized = true;
   }
 
@@ -138,6 +150,7 @@ class DatabaseService {
     await _insightBox.close();
     await _intentionBox.close();
     await _gratitudeBox.close();
+    await _badgeBox.close();
     _initialized = false;
   }
 }

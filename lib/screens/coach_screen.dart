@@ -8,11 +8,13 @@ import '../models/daily_data.dart';
 import '../models/reflection.dart';
 import '../models/sfx_type.dart';
 import '../services/ai_service.dart';
+import '../services/badge_service.dart';
 import '../services/chat_repository.dart';
 import '../services/haptic_service.dart';
 import '../services/reflection_repository.dart';
 import '../services/sfx_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/badge_unlock_modal.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/loading_orb.dart';
 import '../widgets/reflection_card.dart';
@@ -69,6 +71,10 @@ class _CoachScreenState extends State<CoachScreen> {
       );
       SfxService().fire(SfxType.aiMessage);
       HapticService().medium();
+      final awarded = await BadgeService().checkAndAwardBadges();
+      if (awarded.isNotEmpty && mounted) {
+        await showBadgeUnlockQueue(context, awarded);
+      }
     } on AiException catch (e) {
       SfxService().fire(SfxType.errorGentle);
       setState(() => _generationError = e.message);

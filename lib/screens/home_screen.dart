@@ -16,6 +16,7 @@ import '../models/routine_item.dart';
 import '../models/sfx_type.dart';
 import '../models/user_profile.dart';
 import '../services/adaptive_routine_service.dart';
+import '../services/badge_service.dart';
 import '../services/effects_service.dart';
 import '../services/gratitude_repository.dart';
 import '../services/habit_repository.dart';
@@ -32,6 +33,7 @@ import '../services/sfx_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bottom_nav.dart';
+import '../widgets/badge_unlock_modal.dart';
 import '../widgets/cards.dart';
 import '../widgets/freeze_badge.dart';
 import '../widgets/glow_slider.dart';
@@ -78,6 +80,21 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadSuggestion();
     _maybePromptIntention();
+    _maybeAwardBadgesOnOpen();
+  }
+
+  static bool _coldStartBadgeCheckRan = false;
+
+  Future<void> _maybeAwardBadgesOnOpen() async {
+    if (_coldStartBadgeCheckRan) return;
+    _coldStartBadgeCheckRan = true;
+    // Slight delay so the cold-start render doesn't fight with the modal.
+    await Future<void>.delayed(const Duration(milliseconds: 1400));
+    if (!mounted) return;
+    final awarded = await BadgeService().checkAndAwardBadges();
+    if (awarded.isNotEmpty && mounted) {
+      await showBadgeUnlockQueue(context, awarded);
+    }
   }
 
   Future<void> _maybePromptIntention() async {
@@ -178,6 +195,16 @@ class _HomeScreenState extends State<HomeScreen> {
         context: context,
         userName: user?.name,
       );
+      // Perfect day → record + check routine badges. Delay so we don't
+      // step on the CosmicBloom celebration that's just starting.
+      Future<void>.delayed(const Duration(milliseconds: 2800), () async {
+        await BadgeService().recordPerfectRoutineDay();
+        if (!mounted) return;
+        final awarded = await BadgeService().checkAndAwardBadges();
+        if (awarded.isNotEmpty && mounted) {
+          await showBadgeUnlockQueue(context, awarded);
+        }
+      });
     } else {
       debugPrint('[Effects] Single routine complete — PremiumBloom');
       EffectsService().celebrateHabitComplete(context: context);
@@ -545,6 +572,13 @@ class _HomeScreenState extends State<HomeScreen> {
           days: streak,
         );
       }
+      // Streak badges. Delay so PhoenixRise / streak chime resolve first.
+      Future<void>.delayed(const Duration(milliseconds: 1400), () async {
+        final awarded = await BadgeService().checkAndAwardBadges();
+        if (awarded.isNotEmpty && mounted) {
+          await showBadgeUnlockQueue(context, awarded);
+        }
+      });
     } catch (e) {
       SfxService().fire(SfxType.errorGentle);
       HapticService().heavy();

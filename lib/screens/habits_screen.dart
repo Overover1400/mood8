@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/sfx_type.dart';
+import '../services/badge_service.dart';
 import '../services/effects_service.dart';
 import '../services/habit_repository.dart';
 import '../services/haptic_service.dart';
@@ -14,6 +15,7 @@ import '../services/sfx_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_habit_sheet.dart';
+import '../widgets/badge_unlock_modal.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/freeze_badge.dart';
 import '../widgets/freeze_modal.dart';
@@ -264,6 +266,14 @@ class _HabitsScreenState extends State<HabitsScreen> {
         context: context,
         days: streak,
       );
+    });
+    // Badge check after the cinematic effects so the unlock celebration
+    // doesn't clash with PremiumBloom / PhoenixRise.
+    Future<void>.delayed(const Duration(milliseconds: 1200), () async {
+      final awarded = await BadgeService().checkAndAwardBadges();
+      if (awarded.isNotEmpty && mounted) {
+        await showBadgeUnlockQueue(context, awarded);
+      }
     });
   }
 

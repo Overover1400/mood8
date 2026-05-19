@@ -12,6 +12,7 @@ import '../models/sfx_type.dart';
 import '../models/user_profile.dart';
 import '../services/analytics_service.dart';
 import '../services/auth_service.dart';
+import '../services/badge_service.dart';
 import '../services/effects_service.dart';
 import '../services/feedback_service.dart';
 import '../services/haptic_service.dart';
@@ -29,10 +30,12 @@ import '../widgets/settings/color_avatar.dart';
 import '../widgets/settings/settings_dropdown.dart';
 import '../widgets/settings/settings_section.dart';
 import '../widgets/settings/settings_tile.dart';
+import 'badges_screen.dart';
 import 'premium_screen.dart';
 import '../widgets/settings/settings_toggle.dart';
 import 'settings/about_screen.dart';
 import 'settings/data_privacy_screen.dart';
+import '../services/badge_definitions.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -471,6 +474,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               'Removes all local data (account sync not enabled yet)',
                           destructive: true,
                           onTap: _confirmDeleteAccount,
+                        ),
+                      ],
+                    ),
+                    SettingsSection(
+                      title: 'Achievements',
+                      children: [
+                        SettingsTile(
+                          icon: Icons.emoji_events_rounded,
+                          title: 'Badges',
+                          subtitle: 'See what you have earned',
+                          trailing: Text(
+                            '${BadgeService().earnedCount} / ${BadgeCatalog.count}',
+                            style: TextStyle(
+                              color: AppColors.pinkLight,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                            ),
+                          ),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const BadgesScreen(),
+                            ),
+                          ),
                         ),
                       ],
                     ),

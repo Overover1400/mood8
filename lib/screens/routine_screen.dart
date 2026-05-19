@@ -12,8 +12,10 @@ import '../services/sfx_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
 import '../models/user_profile.dart';
+import '../services/badge_service.dart';
 import '../services/freeze_service.dart';
 import '../widgets/add_routine_sheet.dart';
+import '../widgets/badge_unlock_modal.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/freeze_badge.dart';
 import '../widgets/freeze_modal.dart';
@@ -163,6 +165,21 @@ class _RoutineScreenState extends State<RoutineScreen> {
                                       .celebrateAllRoutinesComplete(
                                     context: context,
                                     userName: user?.name,
+                                  );
+                                  Future<void>.delayed(
+                                    const Duration(milliseconds: 2800),
+                                    () async {
+                                      await BadgeService()
+                                          .recordPerfectRoutineDay();
+                                      if (!context.mounted) return;
+                                      final awarded = await BadgeService()
+                                          .checkAndAwardBadges();
+                                      if (awarded.isNotEmpty &&
+                                          context.mounted) {
+                                        await showBadgeUnlockQueue(
+                                            context, awarded);
+                                      }
+                                    },
                                   );
                                 } else {
                                   debugPrint(

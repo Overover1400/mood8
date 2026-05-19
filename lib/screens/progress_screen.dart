@@ -6,16 +6,20 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/analytics_models.dart';
+import '../models/earned_badge.dart';
 import '../models/gratitude_entry.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/mood_entry.dart';
 import '../services/analytics_service.dart';
+import '../services/badge_definitions.dart';
+import '../services/badge_service.dart';
 import '../services/effects_service.dart';
 import '../services/gratitude_repository.dart';
 import '../services/habit_repository.dart';
 import '../services/milestone_service.dart';
 import '../services/mood_repository.dart';
+import 'badges_screen.dart';
 import '../theme/app_theme.dart';
 import '../widgets/animated_number.dart';
 import '../widgets/charts/habit_ring.dart';
@@ -152,6 +156,21 @@ class _ProgressScreenState extends State<ProgressScreen> {
               .animate()
               .fadeIn(duration: 400.ms)
               .slideY(begin: 0.06, end: 0, curve: Curves.easeOut),
+          const SizedBox(height: 12),
+          ValueListenableBuilder<Box<EarnedBadge>>(
+            valueListenable: BadgeService().watch(),
+            builder: (context, box, _) => _BadgesPill(
+              earned: box.values.map((b) => b.badgeKey).toSet().length,
+              total: BadgeCatalog.count,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const BadgesScreen()),
+              ),
+            )
+                .animate()
+                .fadeIn(delay: 150.ms, duration: 350.ms)
+                .slideY(
+                    begin: 0.04, end: 0, curve: Curves.easeOut),
+          ),
           const SizedBox(height: 28),
           _Section(
             title: 'How you’ve been',
@@ -736,6 +755,88 @@ class _HabitRingCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BadgesPill extends StatelessWidget {
+  const _BadgesPill({
+    required this.earned,
+    required this.total,
+    required this.onTap,
+  });
+  final int earned;
+  final int total;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+          decoration: BoxDecoration(
+            color: AppColors.bgCard.withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: AppColors.purple.withValues(alpha: 0.22),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.pinkLight.withValues(alpha: 0.85),
+                      AppColors.purple.withValues(alpha: 0.20),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                child: const Icon(
+                  Icons.emoji_events_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Achievements',
+                  style: TextStyle(
+                    color: AppColors.inkSoft,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+              Text(
+                '$earned / $total',
+                style: TextStyle(
+                  color: AppColors.pinkLight,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(
+                Icons.arrow_forward_rounded,
+                color: AppColors.purpleLight,
+                size: 16,
+              ),
+            ],
+          ),
         ),
       ),
     );
