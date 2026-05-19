@@ -56,6 +56,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   Future<void> _onCode(String code) async {
     if (_loading) return;
+    debugPrint('[VerifyScreen] verifying ${widget.email} · code=$code');
     setState(() {
       _loading = true;
       _error = null;
@@ -64,6 +65,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
         await AuthService().verify(email: widget.email, code: code);
     if (!mounted) return;
     if (!result.success) {
+      debugPrint('[VerifyScreen] ❌ verify failed: ${result.message}');
       HapticService().heavy();
       setState(() {
         _loading = false;
@@ -72,8 +74,13 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
       _codeKey.currentState?.clear();
       return;
     }
+    debugPrint(
+        '[VerifyScreen] ✅ verified ${result.user?.email}. Popping back to AuthGate.');
     HapticService().medium();
-    // AuthGate rebuilds to OnboardingFlow or MainNavigation automatically.
+    // AuthGate (root route) has already rebuilt because
+    // AuthService.currentUserNotifier was updated. Pop everything above it
+    // so the new MainNavigation / OnboardingFlow becomes visible.
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   Future<void> _resend() async {

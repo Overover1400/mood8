@@ -55,6 +55,7 @@ class _SignInScreenState extends State<SignInScreen> {
         await AuthService().login(email: email, password: password);
     if (!mounted) return;
     if (!result.success) {
+      debugPrint('[SignInScreen] ❌ login failed: ${result.message}');
       HapticService().heavy();
       setState(() {
         _loading = false;
@@ -62,8 +63,12 @@ class _SignInScreenState extends State<SignInScreen> {
       });
       return;
     }
+    debugPrint(
+        '[SignInScreen] ✅ logged in ${result.user?.email}. Popping back to AuthGate.');
     HapticService().medium();
-    // Gate listens to currentUserNotifier and will rebuild to MainNavigation.
+    // AuthGate has rebuilt (via currentUserNotifier) — pop everything above
+    // it so MainNavigation / OnboardingFlow becomes the visible route.
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override

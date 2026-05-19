@@ -121,6 +121,8 @@ class _AuthGateState extends State<AuthGate> {
     return ValueListenableBuilder<AuthUser?>(
       valueListenable: AuthService().currentUserNotifier,
       builder: (context, user, _) {
+        debugPrint(
+            '[AuthGate] rebuild · user=${user?.email ?? 'null'} · skipAuth=$_skipAuth');
         if (user != null || _skipAuth) {
           return const _Root();
         }

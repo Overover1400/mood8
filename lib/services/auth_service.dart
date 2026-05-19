@@ -226,6 +226,8 @@ class AuthService {
     final user = AuthUser.fromJson(_extractUser(json));
     _token = token;
     currentUserNotifier.value = user;
+    debugPrint(
+        '[AuthService] currentUserNotifier → ${user.email} (AuthGate should rebuild)');
     try {
       await _storage.write(key: _tokenKey, value: token);
       await _saveUser(user);
