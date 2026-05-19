@@ -32,6 +32,9 @@ import '../widgets/settings/settings_section.dart';
 import '../widgets/settings/settings_tile.dart';
 import 'badges_screen.dart';
 import 'premium_screen.dart';
+import 'reminder_settings_screen.dart';
+import '../models/reminder_settings.dart';
+import '../services/reminder_service.dart';
 import '../widgets/settings/settings_toggle.dart';
 import 'settings/about_screen.dart';
 import 'settings/data_privacy_screen.dart';
@@ -232,6 +235,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               : 'tap to allow')
                           : 'web only',
                       children: [
+                        ValueListenableBuilder<Box<ReminderSettings>>(
+                          valueListenable: ReminderService().watch(),
+                          builder: (context, box, _) {
+                            final s = box.get(ReminderSettings.boxKey);
+                            final subtitle = s == null || !s.enabled
+                                ? 'Off'
+                                : '${s.reminderTimes.length} reminder${s.reminderTimes.length == 1 ? '' : 's'} daily';
+                            return SettingsTile(
+                              icon: Icons.notifications_active_rounded,
+                              title: 'Smart reminders',
+                              subtitle: subtitle,
+                              onTap: () =>
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) =>
+                                    const ReminderSettingsScreen(),
+                              )),
+                            );
+                          },
+                        ),
                         SettingsTile(
                           icon: Icons.notifications_active_rounded,
                           title: NotificationService().isGranted

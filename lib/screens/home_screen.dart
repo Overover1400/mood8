@@ -22,6 +22,7 @@ import '../services/gratitude_repository.dart';
 import '../services/habit_repository.dart';
 import '../services/haptic_service.dart';
 import '../services/intention_repository.dart';
+import '../services/reminder_service.dart';
 import '../services/milestone_service.dart';
 import '../services/mood_repository.dart';
 import '../services/onboarding_service.dart';
@@ -579,6 +580,9 @@ class _HomeScreenState extends State<HomeScreen> {
           await showBadgeUnlockQueue(context, awarded);
         }
       });
+      // Smart reminders: suppress remaining slots today now that mood is in.
+      // ignore: unawaited_futures
+      ReminderService().onMoodLogged();
     } catch (e) {
       SfxService().fire(SfxType.errorGentle);
       HapticService().heavy();

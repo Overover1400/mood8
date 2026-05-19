@@ -12,6 +12,7 @@ import 'services/database_service.dart';
 import 'services/effects_service.dart';
 import 'services/freeze_service.dart';
 import 'services/haptic_service.dart';
+import 'services/reminder_service.dart';
 import 'services/preferences_service.dart';
 import 'services/routine_repository.dart';
 import 'services/sfx_service.dart';
@@ -40,6 +41,12 @@ Future<void> main() async {
       isPremium: SubscriptionService().isPremium,
     );
   }
+  // Smart reminders: ensures the settings record exists (creating defaults
+  // on first launch) and schedules timers if enabled + permission granted.
+  // No-op silently if either condition is missing — the user can grant
+  // permission from the settings screen at any time.
+  await ReminderService().getSettings();
+  await ReminderService().scheduleAllReminders();
   // Fire-and-forget so a slow audio load doesn't block first paint.
   // Both services degrade silently when assets or capabilities are missing.
   HapticService().initialize();

@@ -30,6 +30,8 @@ class NotificationServiceImpl {
 
   Future<void> testNotification() async {}
 
+  Future<void> showNow({required String title, required String body}) async {}
+
   Future<void> cancelAll() async {}
 }
 

@@ -45,4 +45,9 @@ class NotificationService {
   Future<void> testNotification() => _impl.testNotification();
 
   Future<void> cancelAll() => _impl.cancelAll();
+
+  /// Low-level: push a notification right now. Used by [ReminderService] to
+  /// fire smart reminders after consulting quiet-hours / smart-skip rules.
+  Future<void> showNow({required String title, required String body}) =>
+      _impl.showNow(title: title, body: body);
 }

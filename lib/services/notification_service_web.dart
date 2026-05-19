@@ -97,6 +97,11 @@ class NotificationServiceImpl {
     _show('Mood8 test notification ✨', 'You\'re wired up.');
   }
 
+  Future<void> showNow({required String title, required String body}) async {
+    if (!isGranted) return;
+    _show(title, body);
+  }
+
   Future<void> cancelAll() async {
     for (final t in _timers.values) {
       t.cancel();
