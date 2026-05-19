@@ -201,6 +201,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               _prefs.checkinTime.format(_prefs.timeFormat)),
                           onTap: _editCheckinTime,
                         ),
+                        SettingsToggle(
+                          icon: Icons.wb_sunny_rounded,
+                          title: 'Morning intention prompt',
+                          subtitle:
+                              'Ask once each morning what would make today great',
+                          value: _prefs.showMorningIntention,
+                          onChanged: (v) =>
+                              _prefs.setShowMorningIntention(v),
+                        ),
                       ],
                     ),
                     SettingsSection(

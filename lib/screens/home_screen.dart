@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +9,7 @@ import '../models/adaptive_suggestion.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/mood_entry.dart';
+import '../models/morning_intention.dart';
 import '../models/reflection.dart';
 import '../models/routine_item.dart';
 import '../models/sfx_type.dart';
@@ -16,9 +18,11 @@ import '../services/adaptive_routine_service.dart';
 import '../services/effects_service.dart';
 import '../services/habit_repository.dart';
 import '../services/haptic_service.dart';
+import '../services/intention_repository.dart';
 import '../services/milestone_service.dart';
 import '../services/mood_repository.dart';
 import '../services/onboarding_service.dart';
+import '../services/preferences_service.dart';
 import '../services/reflection_repository.dart';
 import '../services/routine_repository.dart';
 import '../services/score_service.dart';
@@ -30,6 +34,7 @@ import '../widgets/cards.dart';
 import '../widgets/freeze_badge.dart';
 import '../widgets/glow_slider.dart';
 import '../widgets/habit_log_button.dart';
+import '../widgets/intention_sheet.dart';
 import '../widgets/mood_orb.dart';
 import '../widgets/adaptive_suggestion_card.dart';
 import '../widgets/reflection_card.dart';
@@ -52,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final UserRepository _users = UserRepository();
   final ReflectionRepository _reflections = ReflectionRepository();
   final HabitRepository _habits = HabitRepository();
+  final IntentionRepository _intentions = IntentionRepository();
   final ScoreService _score = ScoreService();
   final AdaptiveRoutineService _adaptive = AdaptiveRoutineService();
 
@@ -59,10 +65,31 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _applyingSuggestion = false;
   bool _suggestionLoaded = false;
 
+  /// Static so the auto-prompt only fires once per app session, even if
+  /// HomeScreen rebuilds (tab switches, hot reload, etc.).
+  static bool _intentionPromptShown = false;
+
   @override
   void initState() {
     super.initState();
     _loadSuggestion();
+    _maybePromptIntention();
+  }
+
+  Future<void> _maybePromptIntention() async {
+    if (_intentionPromptShown) return;
+    if (!PreferencesService.instance.showMorningIntention) return;
+    if (DateTime.now().hour < 4) return;
+    if (_intentions.hasSetTodaysIntention()) return;
+    _intentionPromptShown = true;
+    await Future<void>.delayed(const Duration(seconds: 1));
+    if (!mounted) return;
+    await showIntentionSheet(context);
+  }
+
+  Future<void> _openIntentionSheet({String? existing}) async {
+    HapticService().light();
+    await showIntentionSheet(context, existingText: existing);
   }
 
   Future<void> _loadSuggestion() async {
@@ -243,6 +270,45 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                           }
                           return const SizedBox.shrink();
+                        },
+                      ),
+                      ValueListenableBuilder<Box<MorningIntention>>(
+                        valueListenable:
+                            _intentions.watchIntentions(),
+                        builder: (context, _, _) {
+                          final i = _intentions.getTodaysIntention();
+                          if (i != null && !i.wasSkipped && i.text.trim().isNotEmpty) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 18),
+                              child: _IntentionCard(
+                                text: i.text,
+                                onTap: () => _openIntentionSheet(
+                                    existing: i.text),
+                              )
+                                  .animate()
+                                  .fadeIn(delay: 80.ms, duration: 500.ms)
+                                  .slideY(
+                                      begin: 0.06,
+                                      end: 0,
+                                      curve: Curves.easeOutCubic),
+                            );
+                          }
+                          if (!PreferencesService
+                              .instance.showMorningIntention) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 18),
+                            child: _IntentionNudge(
+                              onTap: () => _openIntentionSheet(),
+                            )
+                                .animate()
+                                .fadeIn(delay: 80.ms, duration: 450.ms)
+                                .slideY(
+                                    begin: 0.06,
+                                    end: 0,
+                                    curve: Curves.easeOutCubic),
+                          );
                         },
                       ),
                       const SizedBox(height: 24),
@@ -1093,6 +1159,165 @@ class _ReflectionNudge extends StatelessWidget {
               ),
               Icon(Icons.arrow_forward_rounded,
                   color: AppColors.pinkLight, size: 18),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IntentionCard extends StatelessWidget {
+  const _IntentionCard({required this.text, required this.onTap});
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.purple.withValues(alpha: 0.20),
+                AppColors.pink.withValues(alpha: 0.10),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: AppColors.purpleLight.withValues(alpha: 0.45),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.purple.withValues(alpha: 0.22),
+                blurRadius: 22,
+                spreadRadius: -6,
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                margin: const EdgeInsets.only(top: 2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFFFFD08A).withValues(alpha: 0.85),
+                      AppColors.pink.withValues(alpha: 0.30),
+                      Colors.transparent,
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.pink.withValues(alpha: 0.40),
+                      blurRadius: 14,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.wb_sunny_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "TODAY'S FOCUS",
+                      style: TextStyle(
+                        color: AppColors.inkDim,
+                        fontSize: 10,
+                        letterSpacing: 1.6,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      text,
+                      style: GoogleFonts.instrumentSerif(
+                        color: AppColors.ink,
+                        fontStyle: FontStyle.italic,
+                        fontSize: 19,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, top: 4),
+                child: Icon(
+                  Icons.edit_outlined,
+                  color: AppColors.purpleLight.withValues(alpha: 0.85),
+                  size: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _IntentionNudge extends StatelessWidget {
+  const _IntentionNudge({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+          decoration: BoxDecoration(
+            color: AppColors.bgCard.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: AppColors.purple.withValues(alpha: 0.22),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.wb_sunny_outlined,
+                color: AppColors.purpleLight,
+                size: 16,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  "Set today's intention",
+                  style: TextStyle(
+                    color: AppColors.inkSoft,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_rounded,
+                color: AppColors.purpleLight,
+                size: 16,
+              ),
             ],
           ),
         ),

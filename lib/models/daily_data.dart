@@ -1,3 +1,4 @@
+import '../services/intention_repository.dart';
 import '../services/mood_repository.dart';
 import '../services/routine_repository.dart';
 import '../services/user_repository.dart';
@@ -15,6 +16,7 @@ class DailyData {
     required this.skippedRoutines,
     required this.streak,
     required this.hasCheckin,
+    this.morningIntention,
   });
 
   final String name;
@@ -29,6 +31,11 @@ class DailyData {
   final int streak;
   final bool hasCheckin;
 
+  /// The user's typed morning intention for today (null if not set or
+  /// explicitly skipped). The backend uses this to enrich nightly reflections
+  /// with a "User's morning intention today was: …" line of context.
+  final String? morningIntention;
+
   Map<String, dynamic> toJson() => {
         'name': name,
         'identities': identities,
@@ -41,12 +48,15 @@ class DailyData {
         'skipped_routines': skippedRoutines,
         'streak': streak,
         'has_checkin': hasCheckin,
+        if (morningIntention != null && morningIntention!.isNotEmpty)
+          'morning_intention': morningIntention,
       };
 
   static Future<DailyData> gather() async {
     final user = UserRepository().getCurrentUser();
     final moods = MoodRepository();
     final routines = RoutineRepository();
+    final intentions = IntentionRepository();
 
     final today = moods.getTodayEntry();
     final todayRoutines = routines.getRoutinesForDate(DateTime.now());
@@ -54,6 +64,11 @@ class DailyData {
         todayRoutines.where((r) => r.isCompleted).toList(growable: false);
     final skipped =
         todayRoutines.where((r) => !r.isCompleted).toList(growable: false);
+    final intention = intentions.getTodaysIntention();
+    final intentionText =
+        intention != null && !intention.wasSkipped && intention.text.trim().isNotEmpty
+            ? intention.text.trim()
+            : null;
 
     return DailyData(
       name: user?.name ?? 'friend',
@@ -67,6 +82,7 @@ class DailyData {
       skippedRoutines: skipped.map((r) => r.title).toList(),
       streak: moods.calculateStreak(),
       hasCheckin: today != null,
+      morningIntention: intentionText,
     );
   }
 }

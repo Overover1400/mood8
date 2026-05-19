@@ -34,6 +34,7 @@ class PreferencesService extends ChangeNotifier {
   static const _kAiInsightsEnabled = 'mood8.aiInsightsEnabled';
   static const _kCheckinHour = 'mood8.checkinHour';
   static const _kCheckinMinute = 'mood8.checkinMinute';
+  static const _kShowMorningIntention = 'show_morning_intention';
 
   SharedPreferences? _prefs;
 
@@ -142,6 +143,17 @@ class PreferencesService extends ChangeNotifier {
   Future<void> setAiInsightsEnabled(bool value) async {
     final p = await _get();
     await p.setBool(_kAiInsightsEnabled, value);
+    notifyListeners();
+  }
+
+  // ─── Morning intention prompt ─────────────────────────────────────────
+
+  bool get showMorningIntention =>
+      _prefs?.getBool(_kShowMorningIntention) ?? true;
+
+  Future<void> setShowMorningIntention(bool value) async {
+    final p = await _get();
+    await p.setBool(_kShowMorningIntention, value);
     notifyListeners();
   }
 

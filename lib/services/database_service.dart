@@ -9,6 +9,7 @@ import '../models/habit_type.dart';
 import '../models/insight.dart';
 import '../models/insight_type.dart';
 import '../models/mood_entry.dart';
+import '../models/morning_intention.dart';
 import '../models/reflection.dart';
 import '../models/routine_category.dart';
 import '../models/routine_item.dart';
@@ -27,6 +28,7 @@ class DatabaseService {
   static const String habitBoxName = 'habits';
   static const String habitLogBoxName = 'habit_logs';
   static const String insightBoxName = 'insights';
+  static const String intentionBoxName = 'morning_intentions';
 
   bool _initialized = false;
   late Box<MoodEntry> _moodBox;
@@ -37,6 +39,7 @@ class DatabaseService {
   late Box<Habit> _habitBox;
   late Box<HabitLog> _habitLogBox;
   late Box<Insight> _insightBox;
+  late Box<MorningIntention> _intentionBox;
 
   Box<MoodEntry> get moodBox => _moodBox;
   Box<RoutineItem> get routineBox => _routineBox;
@@ -46,6 +49,7 @@ class DatabaseService {
   Box<Habit> get habitBox => _habitBox;
   Box<HabitLog> get habitLogBox => _habitLogBox;
   Box<Insight> get insightBox => _insightBox;
+  Box<MorningIntention> get intentionBox => _intentionBox;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -96,6 +100,9 @@ class DatabaseService {
     if (!Hive.isAdapterRegistered(14)) {
       Hive.registerAdapter(SubscriptionTierAdapter());
     }
+    if (!Hive.isAdapterRegistered(15)) {
+      Hive.registerAdapter(MorningIntentionAdapter());
+    }
 
     _moodBox = await Hive.openBox<MoodEntry>(moodBoxName);
     _routineBox = await Hive.openBox<RoutineItem>(routineBoxName);
@@ -105,6 +112,8 @@ class DatabaseService {
     _habitBox = await Hive.openBox<Habit>(habitBoxName);
     _habitLogBox = await Hive.openBox<HabitLog>(habitLogBoxName);
     _insightBox = await Hive.openBox<Insight>(insightBoxName);
+    _intentionBox =
+        await Hive.openBox<MorningIntention>(intentionBoxName);
     _initialized = true;
   }
 
@@ -118,6 +127,7 @@ class DatabaseService {
     await _habitBox.close();
     await _habitLogBox.close();
     await _insightBox.close();
+    await _intentionBox.close();
     _initialized = false;
   }
 }
