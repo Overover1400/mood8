@@ -22,11 +22,13 @@ class HeatmapDay {
     required this.date,
     required this.completionScore,
     required this.hasData,
+    this.isFrozen = false,
   });
 
   final DateTime date;
   final double completionScore;
   final bool hasData;
+  final bool isFrozen;
 }
 
 class HabitStats {

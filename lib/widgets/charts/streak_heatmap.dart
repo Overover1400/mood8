@@ -79,6 +79,7 @@ class _Cell extends StatelessWidget {
   }
 
   Color get _bg {
+    if (day.isFrozen) return AppColors.blueAccent.withValues(alpha: 0.40);
     if (!day.hasData) return AppColors.bg.withValues(alpha: 0.55);
     final s = day.completionScore;
     if (s < 0.34) {
@@ -98,33 +99,52 @@ class _Cell extends StatelessWidget {
       child: Container(
         width: size,
         height: size,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: _bg,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: _isToday
                 ? AppColors.pinkLight.withValues(alpha: 0.85)
-                : AppColors.purple.withValues(alpha: 0.10),
+                : day.isFrozen
+                    ? AppColors.blueAccent.withValues(alpha: 0.65)
+                    : AppColors.purple.withValues(alpha: 0.10),
             width: _isToday ? 1.5 : 1,
           ),
-          boxShadow: glow
+          boxShadow: day.isFrozen
               ? [
                   BoxShadow(
-                    color: AppColors.pink.withValues(alpha: 0.45),
+                    color: AppColors.blueAccent.withValues(alpha: 0.55),
                     blurRadius: 8,
                   ),
                 ]
-              : null,
+              : glow
+                  ? [
+                      BoxShadow(
+                        color: AppColors.pink.withValues(alpha: 0.45),
+                        blurRadius: 8,
+                      ),
+                    ]
+                  : null,
         ),
+        child: day.isFrozen && size >= 18
+            ? Icon(
+                Icons.ac_unit_rounded,
+                size: size * 0.55,
+                color: Colors.white.withValues(alpha: 0.92),
+              )
+            : null,
       ),
     );
   }
 
   void _showPopup(BuildContext context) {
     final label = DateFormat('EEE, MMM d').format(day.date);
-    final value = day.hasData
-        ? '${(day.completionScore * 10).toStringAsFixed(1)}/10'
-        : 'no data';
+    final value = day.isFrozen
+        ? 'frozen ❄'
+        : day.hasData
+            ? '${(day.completionScore * 10).toStringAsFixed(1)}/10'
+            : 'no data';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$label · $value'),

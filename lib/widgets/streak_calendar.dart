@@ -9,11 +9,13 @@ class StreakCalendar extends StatelessWidget {
     required this.logs,
     required this.color,
     this.days = 30,
+    this.frozenDates = const <DateTime>[],
   });
 
   final List<HabitLog> logs;
   final Color color;
   final int days;
+  final List<DateTime> frozenDates;
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +24,9 @@ class StreakCalendar extends StatelessWidget {
     final byDay = <DateTime, HabitLog>{
       for (final l in logs)
         DateTime(l.date.year, l.date.month, l.date.day): l,
+    };
+    final frozenSet = <DateTime>{
+      for (final d in frozenDates) DateTime(d.year, d.month, d.day),
     };
 
     final dates = <DateTime>[
@@ -43,6 +48,7 @@ class StreakCalendar extends StatelessWidget {
               ratio: byDay[d]?.completionPercentage ?? 0,
               color: color,
               isToday: d == today,
+              isFrozen: frozenSet.contains(d),
             ),
         ],
       );
@@ -56,40 +62,62 @@ class _Cell extends StatelessWidget {
     required this.ratio,
     required this.color,
     required this.isToday,
+    required this.isFrozen,
   });
 
   final double size;
   final double ratio;
   final Color color;
   final bool isToday;
+  final bool isFrozen;
 
   @override
   Widget build(BuildContext context) {
     final alpha = 0.12 + 0.78 * ratio.clamp(0.0, 1.0);
     final filled = ratio > 0;
+    final bgColor = isFrozen
+        ? AppColors.blueAccent.withValues(alpha: 0.40)
+        : filled
+            ? color.withValues(alpha: alpha)
+            : AppColors.bg.withValues(alpha: 0.55);
     return Container(
       width: size,
       height: size,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: filled
-            ? color.withValues(alpha: alpha)
-            : AppColors.bg.withValues(alpha: 0.55),
+        color: bgColor,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
           color: isToday
               ? AppColors.pinkLight.withValues(alpha: 0.8)
-              : AppColors.purple.withValues(alpha: 0.10),
+              : isFrozen
+                  ? AppColors.blueAccent.withValues(alpha: 0.65)
+                  : AppColors.purple.withValues(alpha: 0.10),
           width: isToday ? 1.5 : 1,
         ),
-        boxShadow: filled && ratio >= 1
+        boxShadow: isFrozen
             ? [
                 BoxShadow(
-                  color: color.withValues(alpha: 0.30),
+                  color: AppColors.blueAccent.withValues(alpha: 0.45),
                   blurRadius: 6,
                 ),
               ]
-            : null,
+            : filled && ratio >= 1
+                ? [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.30),
+                      blurRadius: 6,
+                    ),
+                  ]
+                : null,
       ),
+      child: isFrozen && size >= 18
+          ? Icon(
+              Icons.ac_unit_rounded,
+              size: size * 0.55,
+              color: Colors.white.withValues(alpha: 0.92),
+            )
+          : null,
     );
   }
 }

@@ -67,7 +67,11 @@ class UserProfile extends HiveObject {
     required this.hasCompletedOnboarding,
     required this.createdAt,
     required this.chronotype,
-  });
+    int? freezesAvailable,
+    this.lastFreezeReplenish,
+    int? totalFreezesUsed,
+  })  : freezesAvailable = freezesAvailable ?? 1,
+        totalFreezesUsed = totalFreezesUsed ?? 0;
 
   @HiveField(0)
   String name;
@@ -86,4 +90,13 @@ class UserProfile extends HiveObject {
 
   @HiveField(5)
   Chronotype chronotype;
+
+  @HiveField(6)
+  int freezesAvailable;
+
+  @HiveField(7)
+  DateTime? lastFreezeReplenish;
+
+  @HiveField(8)
+  int totalFreezesUsed;
 }

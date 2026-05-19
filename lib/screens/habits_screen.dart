@@ -15,9 +15,14 @@ import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_habit_sheet.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/freeze_badge.dart';
+import '../widgets/freeze_modal.dart';
 import '../widgets/habit_card.dart';
 import '../widgets/responsive_container.dart';
 import 'habit_detail_screen.dart';
+
+import '../models/user_profile.dart';
+import '../services/freeze_service.dart';
 
 const String _kAllFilter = '__all__';
 
@@ -81,6 +86,12 @@ class _HabitsScreenState extends State<HabitsScreen> {
                       debugPrint(
                           '==> HabitsScreen build (habits=${all.length}, scheduled=${scheduled.length}, completed=$completedToday, filter=$_filter)');
 
+                      // Detect a missed scheduled habit from yesterday and
+                      // offer a freeze (once per session per habit per date).
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _maybePromptFreeze(all, user);
+                      });
+
                       return SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding:
@@ -88,7 +99,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const _Header(),
+                            _Header(profile: user),
                             const SizedBox(height: 16),
                             _IdentityFilter(
                               identities: identities,
@@ -261,6 +272,57 @@ class _HabitsScreenState extends State<HabitsScreen> {
     final step = h.targetUnit?.toLowerCase().contains('minute') == true ? 5 : 1;
     await _repo.incrementLog(habitId: h.id, by: -step);
   }
+
+  bool _freezePromptInFlight = false;
+
+  Future<void> _maybePromptFreeze(
+    List<Habit> habits,
+    UserProfile? profile,
+  ) async {
+    if (_freezePromptInFlight || !mounted) return;
+    if (profile == null || profile.freezesAvailable <= 0) return;
+
+    final yesterday =
+        DateTime.now().subtract(const Duration(days: 1));
+    final y = DateTime(yesterday.year, yesterday.month, yesterday.day);
+
+    // First habit that was scheduled yesterday, has an existing streak
+    // worth protecting, wasn't completed, isn't already frozen, and that
+    // we haven't already prompted about this session.
+    final freezeSvc = FreezeService();
+    Habit? target;
+    for (final h in habits) {
+      if (!h.isScheduledFor(y)) continue;
+      if (h.isFrozenOn(y)) continue;
+      final log = _repo.getLogForDate(h.id, y);
+      if (log != null && log.isCompleted) continue;
+      // Only suggest a freeze when there was a streak to lose (>= 2 days).
+      final streak = _repo.getStreakForHabit(h.id);
+      if (streak < 2) continue;
+      if (freezeSvc.wasPrompted(kind: 'habit', id: h.id, date: y)) continue;
+      target = h;
+      break;
+    }
+    if (target == null) return;
+
+    _freezePromptInFlight = true;
+    freezeSvc.markPrompted(kind: 'habit', id: target.id, date: y);
+    final habit = target;
+    try {
+      await showFreezeModal(
+        context,
+        itemType: 'habit',
+        itemName: habit.title,
+        date: y,
+        profile: profile,
+        onConfirm: () async {
+          await freezeSvc.freezeHabit(habit, profile, y);
+        },
+      );
+    } finally {
+      if (mounted) _freezePromptInFlight = false;
+    }
+  }
 }
 
 class _BackgroundGlow extends StatelessWidget {
@@ -314,29 +376,42 @@ class _BackgroundGlow extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header();
+  const _Header({this.profile});
+  final UserProfile? profile;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          'Habits',
-          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                fontSize: 32,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Habits',
+                style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      fontSize: 32,
+                    ),
               ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          "Who you're becoming",
-          style: TextStyle(
-            color: AppColors.inkDim,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.4,
+              const SizedBox(height: 2),
+              Text(
+                "Who you're becoming",
+                style: TextStyle(
+                  color: AppColors.inkDim,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ],
           ),
         ),
+        if (profile != null)
+          FreezeBadge(
+            count: profile!.freezesAvailable,
+            profile: profile,
+          ),
       ],
     );
   }

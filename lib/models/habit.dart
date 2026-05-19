@@ -24,7 +24,8 @@ class Habit extends HiveObject {
     this.frequencyDays,
     this.sortOrder = 0,
     this.isArchived = false,
-  });
+    List<DateTime>? frozenDates,
+  }) : frozenDates = frozenDates ?? <DateTime>[];
 
   @HiveField(0)
   String id;
@@ -70,6 +71,20 @@ class Habit extends HiveObject {
 
   @HiveField(14)
   bool isArchived;
+
+  @HiveField(15)
+  List<DateTime> frozenDates;
+
+  bool isFrozenOn(DateTime date) {
+    for (final d in frozenDates) {
+      if (d.year == date.year &&
+          d.month == date.month &&
+          d.day == date.day) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   bool isScheduledFor(DateTime date) {
     final wd = weekdayIndexFor(date);

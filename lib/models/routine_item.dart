@@ -16,7 +16,8 @@ class RoutineItem extends HiveObject {
     this.isCompleted = false,
     this.completedAt,
     this.sortOrder = 0,
-  });
+    List<DateTime>? frozenDates,
+  }) : frozenDates = frozenDates ?? <DateTime>[];
 
   @HiveField(0)
   String id;
@@ -44,4 +45,18 @@ class RoutineItem extends HiveObject {
 
   @HiveField(8)
   int sortOrder;
+
+  @HiveField(9)
+  List<DateTime> frozenDates;
+
+  bool isFrozenOn(DateTime date) {
+    for (final d in frozenDates) {
+      if (d.year == date.year &&
+          d.month == date.month &&
+          d.day == date.day) {
+        return true;
+      }
+    }
+    return false;
+  }
 }

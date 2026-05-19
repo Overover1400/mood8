@@ -10,6 +10,7 @@ import 'screens/onboarding/onboarding_flow.dart';
 import 'services/auth_service.dart';
 import 'services/database_service.dart';
 import 'services/effects_service.dart';
+import 'services/freeze_service.dart';
 import 'services/haptic_service.dart';
 import 'services/preferences_service.dart';
 import 'services/routine_repository.dart';
@@ -30,6 +31,15 @@ Future<void> main() async {
   await SubscriptionService().load();
   await EffectsService().initialize();
   await AuthService().initialize();
+  // Auto-replenish streak freezes (no-op if onboarding hasn't created a
+  // profile yet — first replenish will happen after onboarding).
+  final profile = UserRepository().getCurrentUser();
+  if (profile != null) {
+    await FreezeService().checkAndReplenish(
+      profile,
+      isPremium: SubscriptionService().isPremium,
+    );
+  }
   // Fire-and-forget so a slow audio load doesn't block first paint.
   // Both services degrade silently when assets or capabilities are missing.
   HapticService().initialize();

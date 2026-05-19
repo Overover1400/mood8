@@ -11,8 +11,12 @@ import '../services/effects_service.dart';
 import '../services/sfx_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
+import '../models/user_profile.dart';
+import '../services/freeze_service.dart';
 import '../widgets/add_routine_sheet.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/freeze_badge.dart';
+import '../widgets/freeze_modal.dart';
 import '../widgets/responsive_container.dart';
 import '../widgets/routine_card_v2.dart';
 
@@ -27,9 +31,11 @@ class RoutineScreen extends StatefulWidget {
 
 class _RoutineScreenState extends State<RoutineScreen> {
   final RoutineRepository _repo = RoutineRepository();
+  final UserRepository _userRepo = UserRepository();
   late final ValueListenable<Box<RoutineItem>> _listenable =
       _repo.watchRoutines();
   _DayTab _tab = _DayTab.today;
+  bool _freezePromptInFlight = false;
 
   DateTime get _targetDate {
     final now = DateTime.now();
@@ -60,6 +66,13 @@ class _RoutineScreenState extends State<RoutineScreen> {
                 debugPrint(
                     '==> Filtered routines: ${items.map((r) => '${r.title}@${r.time}').toList()}');
 
+                final profile = _userRepo.getCurrentUser();
+                if (_tab == _DayTab.today) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _maybePromptFreeze(profile);
+                  });
+                }
+
                 return ResponsiveContainer(
                   maxWidth: 520,
                   child: SingleChildScrollView(
@@ -69,7 +82,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const _HeaderBar()
+                          _HeaderBar(profile: profile)
                               .animate()
                               .fadeIn(duration: 400.ms)
                               .slideY(
@@ -190,6 +203,49 @@ class _RoutineScreenState extends State<RoutineScreen> {
     HapticService().light();
     return showAddRoutineSheet(context, editing: editing);
   }
+
+  Future<void> _maybePromptFreeze(UserProfile? profile) async {
+    if (_freezePromptInFlight || !mounted) return;
+    if (profile == null || profile.freezesAvailable <= 0) return;
+
+    final yesterday =
+        DateTime.now().subtract(const Duration(days: 1));
+    final y = DateTime(yesterday.year, yesterday.month, yesterday.day);
+
+    // First missed routine from yesterday that isn't already frozen and
+    // hasn't been prompted this session.
+    final freezeSvc = FreezeService();
+    final allRoutines = _repo.getAllRoutines();
+    RoutineItem? target;
+    for (final r in allRoutines) {
+      if (r.isCompleted) continue;
+      if (r.isFrozenOn(y)) continue;
+      if (freezeSvc.wasPrompted(kind: 'routine', id: r.id, date: y)) {
+        continue;
+      }
+      target = r;
+      break;
+    }
+    if (target == null) return;
+
+    _freezePromptInFlight = true;
+    freezeSvc.markPrompted(kind: 'routine', id: target.id, date: y);
+    final routine = target;
+    try {
+      await showFreezeModal(
+        context,
+        itemType: 'routine',
+        itemName: routine.title,
+        date: y,
+        profile: profile,
+        onConfirm: () async {
+          await freezeSvc.freezeRoutine(routine, profile, y);
+        },
+      );
+    } finally {
+      if (mounted) _freezePromptInFlight = false;
+    }
+  }
 }
 
 class _BackgroundGlow extends StatelessWidget {
@@ -243,29 +299,42 @@ class _BackgroundGlow extends StatelessWidget {
 }
 
 class _HeaderBar extends StatelessWidget {
-  const _HeaderBar();
+  const _HeaderBar({this.profile});
+  final UserProfile? profile;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          'Routine',
-          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                fontSize: 32,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Routine',
+                style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      fontSize: 32,
+                    ),
               ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          'Your daily flow',
-          style: TextStyle(
-            color: AppColors.inkDim,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.4,
+              const SizedBox(height: 2),
+              Text(
+                'Your daily flow',
+                style: TextStyle(
+                  color: AppColors.inkDim,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ],
           ),
         ),
+        if (profile != null)
+          FreezeBadge(
+            count: profile!.freezesAvailable,
+            profile: profile,
+          ),
       ],
     );
   }

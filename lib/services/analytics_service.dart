@@ -6,6 +6,7 @@ import '../models/mood_entry.dart';
 import 'database_service.dart';
 import 'habit_repository.dart';
 import 'mood_repository.dart';
+import 'routine_repository.dart';
 import 'user_repository.dart';
 
 class _CacheEntry {
@@ -20,13 +21,16 @@ class AnalyticsService {
     MoodRepository? moods,
     HabitRepository? habits,
     UserRepository? users,
+    RoutineRepository? routines,
   })  : _moods = moods ?? MoodRepository(),
         _habits = habits ?? HabitRepository(),
-        _users = users ?? UserRepository();
+        _users = users ?? UserRepository(),
+        _routines = routines ?? RoutineRepository();
 
   final MoodRepository _moods;
   final HabitRepository _habits;
   final UserRepository _users;
+  final RoutineRepository _routines;
 
   final Map<String, _CacheEntry> _cache = {};
   static const Duration _ttl = Duration(minutes: 1);
@@ -70,13 +74,26 @@ class AnalyticsService {
   List<HeatmapDay> getStreakHeatmapData(int days) {
     return _memo('heatmap:$days', () {
       final today = _dayKey(DateTime.now());
+      // Any day where *any* habit or routine was frozen counts as frozen
+      // on the discipline heatmap.
+      final frozenDays = <DateTime>{
+        for (final h in _habits.getActiveHabits())
+          for (final d in h.frozenDates) _dayKey(d),
+        for (final r in _routines.getAllRoutines())
+          for (final d in r.frozenDates) _dayKey(d),
+      };
       final out = <HeatmapDay>[];
       for (var i = days - 1; i >= 0; i--) {
         final date = today.subtract(Duration(days: i));
         final entries = _moods.getEntriesForDate(date);
+        final isFrozen = frozenDays.contains(date);
         if (entries.isEmpty) {
-          out.add(
-              HeatmapDay(date: date, completionScore: 0, hasData: false));
+          out.add(HeatmapDay(
+            date: date,
+            completionScore: 0,
+            hasData: false,
+            isFrozen: isFrozen,
+          ));
         } else {
           final avg = entries.map((e) => e.averageScore).reduce((a, b) => a + b) /
               entries.length;
@@ -84,6 +101,7 @@ class AnalyticsService {
             date: date,
             completionScore: (avg / 10.0).clamp(0.0, 1.0),
             hasData: true,
+            isFrozen: isFrozen,
           ));
         }
       }

@@ -32,13 +32,14 @@ class HabitAdapter extends TypeAdapter<Habit> {
       frequencyDays: (fields[10] as List?)?.cast<int>(),
       sortOrder: fields[13] as int,
       isArchived: fields[14] as bool,
+      frozenDates: (fields[15] as List?)?.cast<DateTime>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, Habit obj) {
     writer
-      ..writeByte(15)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -68,7 +69,9 @@ class HabitAdapter extends TypeAdapter<Habit> {
       ..writeByte(13)
       ..write(obj.sortOrder)
       ..writeByte(14)
-      ..write(obj.isArchived);
+      ..write(obj.isArchived)
+      ..writeByte(15)
+      ..write(obj.frozenDates);
   }
 
   @override

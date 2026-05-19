@@ -209,15 +209,22 @@ class HabitRepository {
       for (final l in _logBox.values)
         if (l.habitId == habitId && l.isCompleted) _dayKey(l.date),
     };
-    if (dayKeys.isEmpty) return 0;
+    // A frozen day keeps the streak alive without a log.
+    final frozenKeys = <DateTime>{
+      for (final d in habit.frozenDates) _dayKey(d),
+    };
+    if (dayKeys.isEmpty && frozenKeys.isEmpty) return 0;
+    bool counts(DateTime d) => dayKeys.contains(d) || frozenKeys.contains(d);
+
     var streak = 0;
     var cursor = _dayKey(DateTime.now());
-    if (!dayKeys.contains(cursor)) {
+    if (!counts(cursor)) {
       cursor = cursor.subtract(const Duration(days: 1));
-      if (!dayKeys.contains(cursor)) return 0;
+      if (!counts(cursor)) return 0;
     }
-    while (dayKeys.contains(cursor)) {
-      streak += 1;
+    while (counts(cursor)) {
+      // Frozen days protect but don't add to the visible streak number.
+      if (dayKeys.contains(cursor)) streak += 1;
       cursor = cursor.subtract(const Duration(days: 1));
     }
     return streak;

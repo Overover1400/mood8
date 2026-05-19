@@ -105,7 +105,11 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                      child: StreakCalendar(logs: logs, color: color),
+                      child: StreakCalendar(
+                        logs: logs,
+                        color: color,
+                        frozenDates: habit.frozenDates,
+                      ),
                     ),
                   ),
                   SliverToBoxAdapter(

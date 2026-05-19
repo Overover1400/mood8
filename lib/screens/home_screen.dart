@@ -27,6 +27,7 @@ import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/cards.dart';
+import '../widgets/freeze_badge.dart';
 import '../widgets/glow_slider.dart';
 import '../widgets/habit_log_button.dart';
 import '../widgets/mood_orb.dart';
@@ -186,6 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             return _Header(
                               name: user?.name ?? 'friend',
                               streak: _moods.calculateStreak(),
+                              profile: user,
                               onLongPressName: () =>
                                   _confirmReset(context),
                               onOpenSettings: () => Navigator.of(context).push(
@@ -511,12 +513,14 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.name,
     required this.streak,
+    required this.profile,
     required this.onLongPressName,
     required this.onOpenSettings,
   });
 
   final String name;
   final int streak;
+  final UserProfile? profile;
   final VoidCallback onLongPressName;
   final VoidCallback onOpenSettings;
 
@@ -596,6 +600,13 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
+        if (profile != null) ...[
+          const SizedBox(width: 8),
+          FreezeBadge(
+            count: profile!.freezesAvailable,
+            profile: profile,
+          ),
+        ],
         const SizedBox(width: 10),
         ColorAvatar(
           name: name,
