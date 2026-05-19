@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/auth_user.dart';
 
@@ -39,7 +39,6 @@ class AuthService {
   static const String _userKey = 'mood8.authUser';
   static const Duration _timeout = Duration(seconds: 30);
 
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final http.Client _client = http.Client();
 
   final ValueNotifier<AuthUser?> currentUserNotifier =
@@ -48,7 +47,8 @@ class AuthService {
   String? _token;
   bool _initialized = false;
 
-  bool get isAuthenticated => _token != null && currentUserNotifier.value != null;
+  bool get isAuthenticated =>
+      _token != null && currentUserNotifier.value != null;
   AuthUser? get currentUser => currentUserNotifier.value;
   String? get token => _token;
   String? get authHeader => _token == null ? null : 'Bearer $_token';
@@ -57,19 +57,24 @@ class AuthService {
     if (_initialized) return;
     _initialized = true;
     try {
-      _token = await _storage.read(key: _tokenKey);
-      final userRaw = await _storage.read(key: _userKey);
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString(_tokenKey);
+      final userRaw = prefs.getString(_userKey);
+      debugPrint(
+          '[AuthService] initialize · token=${_token == null ? 'null' : 'present'} · userRaw=${userRaw == null ? 'null' : '${userRaw.length}b'}');
       if (userRaw != null && userRaw.isNotEmpty) {
         try {
           currentUserNotifier.value = AuthUser.fromJson(
             jsonDecode(userRaw) as Map<String, dynamic>,
           );
+          debugPrint(
+              '[AuthService] initialize → restored ${currentUserNotifier.value?.email}');
         } catch (e) {
-          debugPrint('AuthService: cached user parse failed: $e');
+          debugPrint('[AuthService] cached user parse failed: $e');
         }
       }
     } catch (e) {
-      debugPrint('AuthService.initialize failed: $e');
+      debugPrint('[AuthService] initialize failed: $e');
     }
   }
 
@@ -78,6 +83,7 @@ class AuthService {
     required String password,
     required String name,
   }) async {
+    debugPrint('[AuthService] register → $email');
     return _post(
       path: '/auth/register',
       body: {'email': email.trim(), 'password': password, 'name': name.trim()},
@@ -93,6 +99,7 @@ class AuthService {
     required String email,
     required String code,
   }) async {
+    debugPrint('[AuthService] verify → $email code=$code');
     return _post(
       path: '/auth/verify',
       body: {'email': email.trim(), 'code': code.trim()},
@@ -106,6 +113,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    debugPrint('[AuthService] login → $email');
     return _post(
       path: '/auth/login',
       body: {'email': email.trim(), 'password': password},
@@ -116,6 +124,7 @@ class AuthService {
   }
 
   Future<AuthResult> forgotPassword({required String email}) async {
+    debugPrint('[AuthService] forgotPassword → $email');
     return _post(
       path: '/auth/forgot-password',
       body: {'email': email.trim()},
@@ -132,6 +141,7 @@ class AuthService {
     required String code,
     required String newPassword,
   }) async {
+    debugPrint('[AuthService] resetPassword → $email');
     return _post(
       path: '/auth/reset-password',
       body: {
@@ -157,6 +167,7 @@ class AuthService {
             headers: {'authorization': 'Bearer $t'},
           )
           .timeout(_timeout);
+      debugPrint('[AuthService] /auth/me → ${res.statusCode}');
       if (res.statusCode == 401) {
         await logout();
         return AuthResult.fail('Session expired. Sign in again.');
@@ -175,13 +186,15 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    debugPrint('[AuthService] logout');
     _token = null;
     currentUserNotifier.value = null;
     try {
-      await _storage.delete(key: _tokenKey);
-      await _storage.delete(key: _userKey);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_tokenKey);
+      await prefs.remove(_userKey);
     } catch (e) {
-      debugPrint('AuthService.logout storage clear failed: $e');
+      debugPrint('[AuthService] logout storage clear failed: $e');
     }
   }
 
@@ -194,6 +207,7 @@ class AuthService {
     required String fallbackError,
   }) async {
     try {
+      debugPrint('[AuthService] POST $path');
       final res = await _client
           .post(
             Uri.parse('$_baseUrl$path'),
@@ -201,11 +215,13 @@ class AuthService {
             body: jsonEncode(body),
           )
           .timeout(_timeout);
+      debugPrint('[AuthService] POST $path → ${res.statusCode}');
       if (res.statusCode >= 200 && res.statusCode < 300) {
         return await onSuccess(_decode(res.body));
       }
       return AuthResult.fail(_friendlyError(res, fallback: fallbackError));
     } on TimeoutException {
+      debugPrint('[AuthService] POST $path TIMEOUT');
       return AuthResult.fail("Mood8 didn't reply in time. Try again.");
     } catch (e) {
       return AuthResult.fail(_networkError(e));
@@ -216,24 +232,26 @@ class AuthService {
     Map<String, dynamic> json, {
     required String fallbackMessage,
   }) async {
+    final data = json['data'];
     final token = (json['token'] ??
             json['access_token'] ??
             json['jwt'] ??
-            json['data']?['token']) as String?;
+            (data is Map ? data['token'] : null)) as String?;
     if (token == null || token.isEmpty) {
+      debugPrint('[AuthService] ❌ persist: response missing token');
       return AuthResult.fail('Server response missing token.');
     }
     final user = AuthUser.fromJson(_extractUser(json));
     _token = token;
+
+    // Persist to SharedPreferences BEFORE flipping the notifier so anything
+    // that subscribes and immediately reads getAuthToken() sees the same value.
+    await _saveToken(token);
+    await _saveUser(user);
+
     currentUserNotifier.value = user;
     debugPrint(
-        '[AuthService] currentUserNotifier → ${user.email} (AuthGate should rebuild)');
-    try {
-      await _storage.write(key: _tokenKey, value: token);
-      await _saveUser(user);
-    } catch (e) {
-      debugPrint('AuthService persist failed: $e');
-    }
+        '[AuthService] ✅ persisted; currentUserNotifier → ${user.email} (AuthGate should rebuild)');
     return AuthResult.ok(
       message: (json['message'] as String?) ?? fallbackMessage,
       user: user,
@@ -241,11 +259,34 @@ class AuthService {
     );
   }
 
+  Future<void> _saveToken(String token) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_tokenKey, token);
+    } catch (e) {
+      debugPrint('[AuthService] _saveToken failed: $e');
+    }
+  }
+
   Future<void> _saveUser(AuthUser user) async {
     try {
-      await _storage.write(key: _userKey, value: jsonEncode(user.toJson()));
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_userKey, jsonEncode(user.toJson()));
     } catch (e) {
-      debugPrint('AuthService._saveUser failed: $e');
+      debugPrint('[AuthService] _saveUser failed: $e');
+    }
+  }
+
+  /// Async accessor for the persisted bearer token. Prefer the synchronous
+  /// [token] getter inside this isolate; this is here for callers that want
+  /// to read directly from disk (e.g. after a cold start before initialize()).
+  Future<String?> getAuthToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_tokenKey);
+    } catch (e) {
+      debugPrint('[AuthService] getAuthToken failed: $e');
+      return null;
     }
   }
 
@@ -253,8 +294,9 @@ class AuthService {
     if (json['user'] is Map<String, dynamic>) {
       return json['user'] as Map<String, dynamic>;
     }
-    if (json['data']?['user'] is Map<String, dynamic>) {
-      return json['data']['user'] as Map<String, dynamic>;
+    final data = json['data'];
+    if (data is Map<String, dynamic> && data['user'] is Map<String, dynamic>) {
+      return data['user'] as Map<String, dynamic>;
     }
     return json;
   }
@@ -269,8 +311,8 @@ class AuthService {
   String _friendlyError(http.Response res, {String? fallback}) {
     try {
       final body = _decode(res.body);
-      final msg = (body['message'] ?? body['error'] ?? body['detail'])
-          ?.toString();
+      final msg =
+          (body['message'] ?? body['error'] ?? body['detail'])?.toString();
       if (msg != null && msg.isNotEmpty) return msg;
     } catch (_) {}
     if (res.statusCode == 401) return 'Email or password is incorrect.';
@@ -289,7 +331,7 @@ class AuthService {
   }
 
   String _networkError(Object e) {
-    debugPrint('AuthService network: $e');
+    debugPrint('[AuthService] network error: $e');
     return "Couldn't reach Mood8. Check your connection.";
   }
 }
