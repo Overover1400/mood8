@@ -5,13 +5,21 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/chat_message.dart';
+import 'auth_service.dart';
 import '../models/daily_data.dart';
 import '../models/routine_category.dart';
 
 class AiException implements Exception {
-  AiException(this.message, {this.retryable = true});
+  AiException(
+    this.message, {
+    this.retryable = true,
+    this.dailyLimitReached = false,
+  });
   final String message;
   final bool retryable;
+  /// Backend returned 402 with `daily_limit_reached: true` (free-tier
+  /// chat cap). Callers should surface the paywall, not a generic error.
+  final bool dailyLimitReached;
 
   @override
   String toString() => 'AiException: $message';
@@ -191,12 +199,19 @@ class AiService {
     Map<String, dynamic> payload,
   ) async {
     final uri = Uri.parse('$_baseUrl$path');
+    final headers = <String, String>{
+      'content-type': 'application/json',
+    };
+    final token = AuthService().token;
+    if (token != null) {
+      headers['authorization'] = 'Bearer $token';
+    }
     http.Response res;
     try {
       res = await _client
           .post(
             uri,
-            headers: const {'content-type': 'application/json'},
+            headers: headers,
             body: jsonEncode(payload),
           )
           .timeout(_timeout);
@@ -212,6 +227,13 @@ class AiService {
       );
     }
 
+    if (res.statusCode == 402) {
+      throw AiException(
+        "You've hit today's free-tier limit. Upgrade for unlimited chat.",
+        retryable: false,
+        dailyLimitReached: true,
+      );
+    }
     if (res.statusCode == 429) {
       throw AiException(
         'Too many requests right now. Take a breath, try again soon.',

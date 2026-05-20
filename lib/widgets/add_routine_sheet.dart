@@ -5,7 +5,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../models/routine_category.dart';
 import '../models/routine_item.dart';
+import '../screens/paywall_screen.dart';
 import '../services/routine_repository.dart';
+import '../services/subscription_service.dart';
 import '../theme/app_theme.dart';
 import 'category_chip.dart';
 
@@ -82,6 +84,16 @@ class _AddRoutineSheetState extends State<AddRoutineSheet> {
   Future<void> _onSave() async {
     debugPrint('==> SAVE PRESSED');
     final title = _titleCtrl.text.trim();
+    if (!_isEditing) {
+      final subs = SubscriptionService();
+      if (!subs.isPremium) {
+        final active = _repo.getAllRoutines().length;
+        if (subs.routineLimitReached(active)) {
+          await _showRoutineLimitDialog();
+          return;
+        }
+      }
+    }
     debugPrint('==> Title: $title');
     debugPrint('==> Time: $_time');
     debugPrint('==> Duration: $_duration');
@@ -311,6 +323,42 @@ class _AddRoutineSheetState extends State<AddRoutineSheet> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _showRoutineLimitDialog() async {
+    final cap = SubscriptionService().maxRoutines;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text('Routine limit reached',
+            style: TextStyle(color: BrandColors.ink(context))),
+        content: Text(
+          'Free plan supports up to $cap routines.\n\n'
+          'Premium gives you unlimited routines, habits, and AI Coach.',
+          style: TextStyle(color: BrandColors.inkSoft(context)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Maybe later'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const PaywallScreen(
+                    contextNote: 'Unlimited routines is a Premium feature',
+                  ),
+                ),
+              );
+            },
+            child: const Text('See Premium'),
+          ),
+        ],
       ),
     );
   }

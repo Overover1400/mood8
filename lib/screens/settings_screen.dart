@@ -33,7 +33,9 @@ import '../widgets/settings/settings_tile.dart';
 import 'badges_screen.dart';
 import 'past_recaps_screen.dart';
 import 'patterns_screen.dart';
+import 'paywall_screen.dart';
 import 'premium_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'reminder_settings_screen.dart';
 import '../widgets/tutorial_overlay.dart';
 import '../models/reminder_settings.dart';
@@ -180,6 +182,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: Text("Couldn't save that — check your connection."),
       ),
     );
+  }
+
+  Future<void> _openBillingPortal() async {
+    final url = await SubscriptionService().openBillingPortal();
+    if (!mounted) return;
+    if (url == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text("Couldn't open billing portal. Try again.")),
+      );
+      return;
+    }
+    await launchUrl(Uri.parse(url),
+        mode: LaunchMode.platformDefault, webOnlyWindowName: '_self');
   }
 
   Future<void> _playAllSounds() async {
@@ -731,23 +747,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     SettingsSection(
                       title: 'Membership',
                       children: [
-                        SettingsTile(
-                          icon: Icons.workspace_premium_rounded,
-                          title: 'Mood8 Premium',
-                          subtitle:
-                              SubscriptionService().isPremium
-                                  ? 'Active'
-                                  : 'Free tier · upgrade when ready',
-                          trailing: PremiumBadge(
-                            tier: SubscriptionService().tier,
-                            compact: true,
-                          ),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const PremiumScreen(),
+                        if (SubscriptionService().isPremium)
+                          SettingsTile(
+                            icon: Icons.workspace_premium_rounded,
+                            title: 'Mood8 Premium',
+                            subtitle: 'Active',
+                            trailing: PremiumBadge(
+                              tier: SubscriptionService().tier,
+                              compact: true,
+                            ),
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const PremiumScreen(),
+                              ),
+                            ),
+                          )
+                        else
+                          SettingsTile(
+                            icon: Icons.workspace_premium_rounded,
+                            title: 'Unlock Mood8 Premium',
+                            subtitle:
+                                'Unlimited habits, AI Coach, advanced insights',
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const PaywallScreen(),
+                              ),
                             ),
                           ),
-                        ),
+                        if (SubscriptionService().isPremium)
+                          SettingsTile(
+                            icon: Icons.credit_card_rounded,
+                            title: 'Manage subscription',
+                            subtitle: 'Cancel anytime via Stripe',
+                            onTap: _openBillingPortal,
+                          ),
                       ],
                     ),
                     SettingsSection(

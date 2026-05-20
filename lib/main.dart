@@ -54,6 +54,10 @@ Future<void> main() async {
   // Both services degrade silently when assets or capabilities are missing.
   HapticService().initialize();
   SfxService().initialize();
+  // Refresh subscription status in the background — local cache covers
+  // the first frame; the server has the canonical state.
+  // ignore: discarded_futures
+  SubscriptionService().refreshStatus();
   runApp(const Mood8App());
 }
 
@@ -102,11 +106,36 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   bool _skipAuth = false;
   bool _checked = false;
+  static bool _checkoutReturnHandled = false;
 
   @override
   void initState() {
     super.initState();
     _loadSkip();
+    _maybeHandleCheckoutReturn();
+  }
+
+  void _maybeHandleCheckoutReturn() {
+    if (_checkoutReturnHandled) return;
+    _checkoutReturnHandled = true;
+    try {
+      final params = Uri.base.queryParameters;
+      final result = params['checkout'];
+      if (result == 'success') {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          await SubscriptionService().refreshStatus();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Welcome to Mood8 Premium ✨ Thanks for being here.'),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        });
+      }
+      // checkout=cancelled is a no-op (user just lands back on Home).
+    } catch (_) {}
   }
 
   Future<void> _loadSkip() async {

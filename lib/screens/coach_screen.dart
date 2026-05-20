@@ -16,6 +16,7 @@ import '../services/sfx_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/badge_unlock_modal.dart';
 import '../widgets/chat_bubble.dart';
+import 'paywall_screen.dart';
 import '../widgets/loading_orb.dart';
 import '../widgets/reflection_card.dart';
 import '../widgets/responsive_container.dart';
@@ -617,7 +618,17 @@ class _ChatTabState extends State<_ChatTab> {
       HapticService().light();
     } on AiException catch (e) {
       SfxService().fire(SfxType.errorGentle);
-      setState(() => _sendError = e.message);
+      if (e.dailyLimitReached && mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const PaywallScreen(
+              contextNote: "You've hit today's free chat limit",
+            ),
+          ),
+        );
+      } else {
+        setState(() => _sendError = e.message);
+      }
     } catch (e) {
       debugPrint('CoachScreen.chat send failed: $e');
       SfxService().fire(SfxType.errorGentle);

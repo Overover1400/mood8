@@ -6,7 +6,7 @@ import '../models/frequency.dart';
 import '../models/habit.dart';
 import '../models/habit_type.dart';
 import '../models/routine_category.dart';
-import '../screens/premium_screen.dart';
+import '../screens/paywall_screen.dart';
 import '../services/habit_repository.dart';
 import '../services/subscription_service.dart';
 import '../services/user_repository.dart';
@@ -201,7 +201,9 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
               Navigator.of(ctx).pop(false);
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const PremiumScreen(),
+                  builder: (_) => const PaywallScreen(
+                    contextNote: 'Unlimited habits is a Premium feature',
+                  ),
                 ),
               );
             },
