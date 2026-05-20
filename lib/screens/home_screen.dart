@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/adaptive_suggestion.dart';
 import '../models/gratitude_entry.dart';
@@ -23,6 +24,7 @@ import '../services/habit_repository.dart';
 import '../services/haptic_service.dart';
 import '../services/intention_repository.dart';
 import '../services/reminder_service.dart';
+import '../services/weekly_recap_service.dart';
 import '../services/milestone_service.dart';
 import '../services/mood_repository.dart';
 import '../services/onboarding_service.dart';
@@ -41,6 +43,7 @@ import '../widgets/glow_slider.dart';
 import '../widgets/gratitude_sheet.dart';
 import '../widgets/habit_log_button.dart';
 import '../widgets/intention_sheet.dart';
+import 'weekly_recap_screen.dart';
 import '../widgets/mood_orb.dart';
 import '../widgets/adaptive_suggestion_card.dart';
 import '../widgets/reflection_card.dart';
@@ -76,12 +79,47 @@ class _HomeScreenState extends State<HomeScreen> {
   /// HomeScreen rebuilds (tab switches, hot reload, etc.).
   static bool _intentionPromptShown = false;
 
+  bool _showRecapBanner = false;
+
   @override
   void initState() {
     super.initState();
     _loadSuggestion();
     _maybePromptIntention();
     _maybeAwardBadgesOnOpen();
+    _maybeShowRecapBanner();
+  }
+
+  Future<void> _maybeShowRecapBanner() async {
+    final service = WeeklyRecapService();
+    if (!service.shouldShowRecapPrompt()) return;
+    final prefs = await SharedPreferences.getInstance();
+    final key = WeeklyRecapService.bannerDismissedPrefKey(DateTime.now());
+    if (prefs.getBool(key) ?? false) return;
+    if (!mounted) return;
+    setState(() => _showRecapBanner = true);
+  }
+
+  Future<void> _openRecap() async {
+    HapticService().light();
+    setState(() => _showRecapBanner = false);
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const WeeklyRecapScreen(),
+      ),
+    );
+  }
+
+  Future<void> _dismissRecapBanner() async {
+    HapticService().selection();
+    setState(() => _showRecapBanner = false);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(
+        WeeklyRecapService.bannerDismissedPrefKey(DateTime.now()),
+        true,
+      );
+    } catch (_) {}
   }
 
   static bool _coldStartBadgeCheckRan = false;
@@ -309,6 +347,19 @@ class _HomeScreenState extends State<HomeScreen> {
                           return const SizedBox.shrink();
                         },
                       ),
+                      if (_showRecapBanner) ...[
+                        const SizedBox(height: 18),
+                        _RecapBanner(
+                          onTap: _openRecap,
+                          onDismiss: _dismissRecapBanner,
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms)
+                            .slideY(
+                                begin: -0.05,
+                                end: 0,
+                                curve: Curves.easeOutCubic),
+                      ],
                       ValueListenableBuilder<Box<MorningIntention>>(
                         valueListenable:
                             _intentions.watchIntentions(),
@@ -1341,6 +1392,112 @@ class _IntentionCard extends StatelessWidget {
                 child: Icon(
                   Icons.edit_outlined,
                   color: AppColors.purpleLight.withValues(alpha: 0.85),
+                  size: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecapBanner extends StatelessWidget {
+  const _RecapBanner({required this.onTap, required this.onDismiss});
+  final VoidCallback onTap;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.purple.withValues(alpha: 0.30),
+                AppColors.pink.withValues(alpha: 0.18),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppColors.pinkLight.withValues(alpha: 0.50),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.pink.withValues(alpha: 0.30),
+                blurRadius: 22,
+                spreadRadius: -6,
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.pinkLight.withValues(alpha: 0.90),
+                      AppColors.purple.withValues(alpha: 0.25),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'WEEKLY RECAP',
+                      style: TextStyle(
+                        color: AppColors.pinkLight,
+                        fontSize: 10,
+                        letterSpacing: 1.8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Your week is ready',
+                      style: GoogleFonts.instrumentSerif(
+                        color: AppColors.ink,
+                        fontStyle: FontStyle.italic,
+                        fontSize: 18,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_rounded,
+                color: AppColors.pinkLight,
+                size: 18,
+              ),
+              IconButton(
+                tooltip: 'Dismiss',
+                onPressed: onDismiss,
+                icon: Icon(
+                  Icons.close_rounded,
+                  color: AppColors.inkDim,
                   size: 16,
                 ),
               ),

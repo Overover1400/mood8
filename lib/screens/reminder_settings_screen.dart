@@ -433,7 +433,8 @@ class _Banner extends StatelessWidget {
               ],
             ),
           ),
-          ?action,
+          // ignore: use_null_aware_elements
+          if (action != null) action!,
         ],
       ),
     );

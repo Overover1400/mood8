@@ -31,10 +31,14 @@ import '../widgets/settings/settings_dropdown.dart';
 import '../widgets/settings/settings_section.dart';
 import '../widgets/settings/settings_tile.dart';
 import 'badges_screen.dart';
+import 'past_recaps_screen.dart';
 import 'premium_screen.dart';
 import 'reminder_settings_screen.dart';
 import '../models/reminder_settings.dart';
 import '../services/reminder_service.dart';
+import '../services/weekly_recap_service.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../widgets/settings/settings_toggle.dart';
 import 'settings/about_screen.dart';
 import 'settings/data_privacy_screen.dart';
@@ -83,6 +87,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _onPrefs() {
     if (mounted) setState(() {});
+  }
+
+  bool? _weeklyRecapEnabled; // null = unknown / not loaded yet
+  bool _weeklyRecapToggleInFlight = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadWeeklyRecapPref();
+  }
+
+  Future<void> _loadWeeklyRecapPref() async {
+    final token = AuthService().token;
+    if (token == null) {
+      if (mounted) setState(() => _weeklyRecapEnabled = null);
+      return;
+    }
+    try {
+      final res = await http.get(
+        Uri.parse('https://mood8.app/api/auth/me'),
+        headers: {'authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 12));
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _weeklyRecapEnabled =
+                body['weekly_recap_enabled'] as bool? ?? true;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _setWeeklyRecapEnabled(bool value) async {
+    if (_weeklyRecapToggleInFlight) return;
+    final token = AuthService().token;
+    if (token == null) return;
+    setState(() {
+      _weeklyRecapToggleInFlight = true;
+      _weeklyRecapEnabled = value;
+    });
+    try {
+      final res = await http.post(
+        Uri.parse('https://mood8.app/api/user/preferences'),
+        headers: {
+          'authorization': 'Bearer $token',
+          'content-type': 'application/json',
+        },
+        body: jsonEncode({'weekly_recap_enabled': value}),
+      ).timeout(const Duration(seconds: 12));
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        // Revert on failure.
+        if (mounted) setState(() => _weeklyRecapEnabled = !value);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _weeklyRecapEnabled = !value);
+    } finally {
+      if (mounted) {
+        setState(() => _weeklyRecapToggleInFlight = false);
+      }
+    }
   }
 
   void _bumpVersionTaps() {
@@ -265,6 +331,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onTap: NotificationService().isSupported
                               ? _onTestNotification
                               : null,
+                        ),
+                        SettingsToggle(
+                          icon: Icons.mail_outline_rounded,
+                          title: 'Weekly recap email',
+                          subtitle: _weeklyRecapEnabled == null
+                              ? 'Loading…'
+                              : (_weeklyRecapEnabled!
+                                  ? 'Sundays · AI-generated summary'
+                                  : 'Off'),
+                          value: _weeklyRecapEnabled ?? true,
+                          onChanged: _weeklyRecapEnabled == null
+                              ? (_) {}
+                              : (v) => _setWeeklyRecapEnabled(v),
+                        ),
+                        SettingsTile(
+                          icon: Icons.menu_book_rounded,
+                          title: 'Past recaps',
+                          subtitle:
+                              '${WeeklyRecapService().getAll().length} saved',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const PastRecapsScreen(),
+                            ),
+                          ),
                         ),
                         SettingsTile(
                           icon: Icons.wb_twilight_rounded,

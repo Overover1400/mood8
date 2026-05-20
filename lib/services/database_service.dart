@@ -19,6 +19,7 @@ import '../models/routine_category.dart';
 import '../models/routine_item.dart';
 import '../models/subscription.dart';
 import '../models/user_profile.dart';
+import '../models/weekly_recap.dart';
 
 class DatabaseService {
   DatabaseService._();
@@ -36,6 +37,7 @@ class DatabaseService {
   static const String gratitudeBoxName = 'gratitude_entries';
   static const String badgeBoxName = 'earned_badges';
   static const String reminderSettingsBoxName = 'reminder_settings';
+  static const String weeklyRecapBoxName = 'weekly_recaps';
 
   bool _initialized = false;
   late Box<MoodEntry> _moodBox;
@@ -50,6 +52,7 @@ class DatabaseService {
   late Box<GratitudeEntry> _gratitudeBox;
   late Box<EarnedBadge> _badgeBox;
   late Box<ReminderSettings> _reminderSettingsBox;
+  late Box<WeeklyRecap> _weeklyRecapBox;
 
   Box<MoodEntry> get moodBox => _moodBox;
   Box<RoutineItem> get routineBox => _routineBox;
@@ -63,6 +66,7 @@ class DatabaseService {
   Box<GratitudeEntry> get gratitudeBox => _gratitudeBox;
   Box<EarnedBadge> get badgeBox => _badgeBox;
   Box<ReminderSettings> get reminderSettingsBox => _reminderSettingsBox;
+  Box<WeeklyRecap> get weeklyRecapBox => _weeklyRecapBox;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -128,6 +132,9 @@ class DatabaseService {
     if (!Hive.isAdapterRegistered(19)) {
       Hive.registerAdapter(ReminderSettingsAdapter());
     }
+    if (!Hive.isAdapterRegistered(20)) {
+      Hive.registerAdapter(WeeklyRecapAdapter());
+    }
 
     _moodBox = await Hive.openBox<MoodEntry>(moodBoxName);
     _routineBox = await Hive.openBox<RoutineItem>(routineBoxName);
@@ -144,6 +151,8 @@ class DatabaseService {
     _badgeBox = await Hive.openBox<EarnedBadge>(badgeBoxName);
     _reminderSettingsBox =
         await Hive.openBox<ReminderSettings>(reminderSettingsBoxName);
+    _weeklyRecapBox =
+        await Hive.openBox<WeeklyRecap>(weeklyRecapBoxName);
     _initialized = true;
   }
 
@@ -161,6 +170,7 @@ class DatabaseService {
     await _gratitudeBox.close();
     await _badgeBox.close();
     await _reminderSettingsBox.close();
+    await _weeklyRecapBox.close();
     _initialized = false;
   }
 }
