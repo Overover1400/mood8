@@ -99,17 +99,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadWeeklyRecapPref();
   }
 
+  bool _weeklyRecapLoadAttempted = false;
+
   Future<void> _loadWeeklyRecapPref() async {
+    // didChangeDependencies fires more than once; only attempt the load
+    // once per screen instance to avoid duplicate network calls.
+    if (_weeklyRecapLoadAttempted) return;
+    _weeklyRecapLoadAttempted = true;
+
     final token = AuthService().token;
     if (token == null) {
-      if (mounted) setState(() => _weeklyRecapEnabled = null);
+      // Bypass-auth user — no backend pref to sync. Default to enabled
+      // locally so the toggle becomes interactive immediately.
+      if (mounted) setState(() => _weeklyRecapEnabled = true);
       return;
     }
     try {
       final res = await http.get(
         Uri.parse('https://mood8.app/api/auth/me'),
         headers: {'authorization': 'Bearer $token'},
-      ).timeout(const Duration(seconds: 12));
+      ).timeout(const Duration(seconds: 10));
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
         if (mounted) {
@@ -118,18 +127,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 body['weekly_recap_enabled'] as bool? ?? true;
           });
         }
+        return;
       }
-    } catch (_) {}
+    } catch (_) {/* fall through */}
+    // Failure path: default to enabled optimistically so the toggle is
+    // never stuck on "Loading…". The first successful save will sync to
+    // the server.
+    if (mounted) setState(() => _weeklyRecapEnabled = true);
   }
 
   Future<void> _setWeeklyRecapEnabled(bool value) async {
     if (_weeklyRecapToggleInFlight) return;
-    final token = AuthService().token;
-    if (token == null) return;
+    // Optimistic UI: flip locally first, sync after.
     setState(() {
       _weeklyRecapToggleInFlight = true;
       _weeklyRecapEnabled = value;
     });
+    final token = AuthService().token;
+    if (token == null) {
+      // Bypass-auth user — no backend to sync to. Local-only state.
+      if (mounted) setState(() => _weeklyRecapToggleInFlight = false);
+      return;
+    }
     try {
       final res = await http.post(
         Uri.parse('https://mood8.app/api/user/preferences'),
@@ -138,17 +157,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'content-type': 'application/json',
         },
         body: jsonEncode({'weekly_recap_enabled': value}),
-      ).timeout(const Duration(seconds: 12));
+      ).timeout(const Duration(seconds: 10));
       if (res.statusCode < 200 || res.statusCode >= 300) {
-        // Revert on failure.
         if (mounted) setState(() => _weeklyRecapEnabled = !value);
+        _showRecapToggleError();
       }
     } catch (_) {
       if (mounted) setState(() => _weeklyRecapEnabled = !value);
+      _showRecapToggleError();
     } finally {
       if (mounted) {
         setState(() => _weeklyRecapToggleInFlight = false);
       }
+    }
+  }
+
+  void _showRecapToggleError() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Couldn't save that — check your connection."),
+      ),
+    );
+  }
+
+  Future<void> _playAllSounds() async {
+    for (final t in SfxType.values) {
+      _sfx.fire(t);
+      await Future<void>.delayed(const Duration(milliseconds: 750));
     }
   }
 
@@ -178,7 +214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -554,6 +590,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           title: 'Test sound',
                           subtitle: 'Play check-in chime',
                           onTap: () => _sfx.fire(SfxType.checkInSuccess),
+                        ),
+                        SettingsTile(
+                          icon: Icons.queue_music_rounded,
+                          title: 'Test all sounds',
+                          subtitle:
+                              'Play every effect (≈8 s) — confirms autoplay unlocked',
+                          onTap: _playAllSounds,
                         ),
                         SettingsTile(
                           icon: Icons.touch_app_rounded,
