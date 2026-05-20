@@ -172,7 +172,7 @@ class _StepperPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _round(Icons.remove_rounded, onMinus, enabled: value > 0),
+          _round(Icons.remove_rounded, onMinus, enabled: value > 0 && !done),
           SizedBox(
             width: compact ? 56 : 70,
             child: Center(
@@ -187,7 +187,7 @@ class _StepperPill extends StatelessWidget {
               ),
             ),
           ),
-          _round(Icons.add_rounded, onPlus),
+          _round(Icons.add_rounded, onPlus, enabled: !done),
         ],
       ),
     );

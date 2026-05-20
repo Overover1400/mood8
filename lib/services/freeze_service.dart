@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit.dart';
 import '../models/routine_item.dart';
@@ -116,28 +117,72 @@ class FreezeService {
 
   bool canFreeze(UserProfile profile) => profile.freezesAvailable > 0;
 
-  // ─── Session prompt gate ────────────────────────────────────────────────
-  // Tracks which (kind, id, date) combinations have already been offered a
-  // freeze prompt during this session, so we don't re-pester the user.
+  // ─── Prompt gate ────────────────────────────────────────────────────────
+  // The freeze offer is a heavy modal; we only want it ONCE per day, full
+  // stop. Persisted in SharedPreferences via a per-calendar-day flag so a
+  // browser refresh / app reload doesn't reset it.
+  //
+  // The legacy in-memory Set is kept as a hot-path optimization — if it
+  // says we've already prompted, we don't even hit prefs.
 
-  final Set<String> _promptedThisSession = <String>{};
+  static const String _kPromptedAnyDayPrefKey =
+      'mood8.freeze.promptedDays';
+  final Set<String> _promptedAnyMemory = <String>{};
+  bool _anyPromptCachedLoaded = false;
 
+  /// Returns true if a freeze prompt has fired today for ANY missed-day
+  /// event (habit or routine). Once true, no more freeze prompts until
+  /// midnight rolls over.
   bool wasPrompted({
     required String kind,
     required String id,
     required DateTime date,
   }) {
-    final d = DateTime(date.year, date.month, date.day);
-    return _promptedThisSession
-        .contains('$kind|$id|${d.toIso8601String()}');
+    final today = _dayKey(DateTime.now()).toIso8601String();
+    return _promptedAnyMemory.contains(today);
   }
 
+  /// Marks today as "freeze prompt already shown" — in memory immediately,
+  /// then persisted to SharedPreferences best-effort.
   void markPrompted({
     required String kind,
     required String id,
     required DateTime date,
   }) {
-    final d = DateTime(date.year, date.month, date.day);
-    _promptedThisSession.add('$kind|$id|${d.toIso8601String()}');
+    final today = _dayKey(DateTime.now()).toIso8601String();
+    _promptedAnyMemory.add(today);
+    _persistPromptedDay(today);
   }
+
+  /// Loads the persisted prompted-day set into memory. Call once on app
+  /// boot via [warmUpPromptCache] so the first session render has it.
+  Future<void> warmUpPromptCache() async {
+    if (_anyPromptCachedLoaded) return;
+    _anyPromptCachedLoaded = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList(_kPromptedAnyDayPrefKey) ?? const [];
+      _promptedAnyMemory.addAll(list);
+    } catch (e) {
+      debugPrint('[FreezeService] warmUpPromptCache failed: $e');
+    }
+  }
+
+  Future<void> _persistPromptedDay(String iso) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList(_kPromptedAnyDayPrefKey) ?? const [];
+      if (list.contains(iso)) return;
+      // Keep last 30 days only — bounded growth.
+      final updated = [...list, iso].toList();
+      if (updated.length > 30) {
+        updated.removeRange(0, updated.length - 30);
+      }
+      await prefs.setStringList(_kPromptedAnyDayPrefKey, updated);
+    } catch (e) {
+      debugPrint('[FreezeService] persistPromptedDay failed: $e');
+    }
+  }
+
+  static DateTime _dayKey(DateTime d) => DateTime(d.year, d.month, d.day);
 }

@@ -35,6 +35,7 @@ import 'past_recaps_screen.dart';
 import 'patterns_screen.dart';
 import 'premium_screen.dart';
 import 'reminder_settings_screen.dart';
+import '../widgets/tutorial_overlay.dart';
 import '../models/reminder_settings.dart';
 import '../services/reminder_service.dart';
 import '../services/weekly_recap_service.dart';
@@ -791,6 +792,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               Navigator.of(context).push(MaterialPageRoute(
                             builder: (_) => const AboutScreen(),
                           )),
+                        ),
+                        SettingsTile(
+                          icon: Icons.school_outlined,
+                          title: 'Replay tutorial',
+                          subtitle: 'Walk through the app again',
+                          onTap: () async {
+                            await resetTutorial();
+                            if (!context.mounted) return;
+                            await showTutorial(context);
+                          },
                         ),
                         SettingsTile(
                           icon: Icons.tag_rounded,

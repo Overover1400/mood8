@@ -34,6 +34,7 @@ Future<void> main() async {
   await AuthService().initialize();
   // Auto-replenish streak freezes (no-op if onboarding hasn't created a
   // profile yet — first replenish will happen after onboarding).
+  await FreezeService().warmUpPromptCache();
   final profile = UserRepository().getCurrentUser();
   if (profile != null) {
     await FreezeService().checkAndReplenish(

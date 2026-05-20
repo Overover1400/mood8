@@ -39,7 +39,8 @@ Future<void> showBadgeUnlockQueue(
 }
 
 Future<void> _showOne(BuildContext context, EarnedBadge badge) {
-  HapticService().heavy();
+  // ignore: discarded_futures
+  HapticService().reward();
   SfxService().fire(SfxType.streakMilestone);
   return Navigator.of(context).push(
     PageRouteBuilder<void>(

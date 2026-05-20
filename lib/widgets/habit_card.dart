@@ -28,71 +28,83 @@ class HabitCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Color(habit.color);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.bgCard.withValues(alpha: 0.92),
-                AppColors.bg.withValues(alpha: 0.85),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: color.withValues(alpha: 0.22),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  _IconBubble(color: color, emoji: habit.icon),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          habit.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.ink,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        _IdentityChip(
-                          identity: habit.identity,
-                          color: color,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  HabitLogButton(
-                    habit: habit,
-                    value: todayValue,
-                    onIncrement: onIncrement,
-                    onDecrement: onDecrement,
-                    onToggle: onToggle,
-                    compact: true,
-                  ),
+    // Locked when the user has hit (or exceeded) today's target. Card
+    // fades to 45% opacity over 600ms so the user can see it's complete
+    // but can't accidentally tap a − to undo. Tap-to-detail still works.
+    final locked = todayValue >= habit.effectiveTarget;
+    return AnimatedOpacity(
+      opacity: locked ? 0.45 : 1.0,
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOut,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.bgCard.withValues(alpha: 0.92),
+                  AppColors.bg.withValues(alpha: 0.85),
                 ],
               ),
-              const SizedBox(height: 12),
-              _WeekStrip(logs: last7, color: color),
-            ],
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: color.withValues(alpha: 0.22),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _IconBubble(color: color, emoji: habit.icon),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            habit.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.ink,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          _IdentityChip(
+                            identity: habit.identity,
+                            color: color,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    IgnorePointer(
+                      ignoring: locked,
+                      child: HabitLogButton(
+                        habit: habit,
+                        value: todayValue,
+                        onIncrement: onIncrement,
+                        onDecrement: onDecrement,
+                        onToggle: onToggle,
+                        compact: true,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _WeekStrip(logs: last7, color: color),
+              ],
+            ),
           ),
         ),
       ),

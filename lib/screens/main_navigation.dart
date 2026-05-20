@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/bottom_nav.dart';
+import '../widgets/tutorial_overlay.dart';
 import 'coach_screen.dart';
 import 'habits_screen.dart';
 import 'home_screen.dart';
@@ -33,6 +34,20 @@ class _MainNavigationState extends State<MainNavigation> {
   void initState() {
     super.initState();
     _loadTab();
+    _maybeShowTutorial();
+  }
+
+  static bool _tutorialCheckedThisSession = false;
+
+  Future<void> _maybeShowTutorial() async {
+    if (_tutorialCheckedThisSession) return;
+    _tutorialCheckedThisSession = true;
+    if (await isTutorialCompleted()) return;
+    // Let the first paint settle so the cards animate cleanly over a
+    // mounted home screen instead of an empty void.
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    if (!mounted) return;
+    await showTutorial(context);
   }
 
   Future<void> _loadTab() async {

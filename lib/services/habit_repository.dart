@@ -169,9 +169,14 @@ class HabitRepository {
     DateTime? date,
   }) async {
     final on = date ?? DateTime.now();
+    final habit = _habitBox.get(habitId);
     final existing = _findLog(habitId, on);
     final current = existing?.value ?? 0;
-    final next = (current + by).clamp(0, 1 << 30);
+    // Cap at effectiveTarget so duration / counter habits don't exceed
+    // their target (e.g. 30/10m bug from mobile testing). Min stays at 0.
+    final cap = habit?.effectiveTarget ?? (1 << 30);
+    final next = (current + by).clamp(0, cap);
+    if (next == current) return;
     await logHabit(habitId: habitId, value: next, date: on);
   }
 

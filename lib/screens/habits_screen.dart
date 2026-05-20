@@ -234,7 +234,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
     final currentValue =
         _repo.getLogForDate(h.id, DateTime.now())?.value ?? 0;
     final willComplete = currentValue == 0;
-    HapticService().medium();
+    HapticService().light();
     if (willComplete) {
       SfxService().fire(SfxType.habitComplete);
     }

@@ -99,7 +99,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                     child: Padding(
                       padding:
                           const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                      child: _SectionHeader(label: '30-day heatmap'),
+                      child: _SectionHeader(label: '30-Day Heatmap'),
                     ),
                   ),
                   SliverToBoxAdapter(
@@ -402,7 +402,7 @@ class _StatsRow extends StatelessWidget {
         Expanded(
           child: _StatBox(
             emoji: '📊',
-            label: '30-day',
+            label: '30 days',
             value: '${(completion * 100).round()}%',
           ),
         ),

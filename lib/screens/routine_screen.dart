@@ -49,7 +49,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       body: Stack(
         children: [
           const _BackgroundGlow(),
@@ -150,10 +150,11 @@ class _RoutineScreenState extends State<RoutineScreen> {
                                     '[Effects] Routine completion (Routine tab): $done/$total · allDone=$allDone');
                                 if (allDone) {
                                   SfxService().fire(SfxType.streakMilestone);
-                                  HapticService().heavy();
+                                  // ignore: discarded_futures
+                                  HapticService().reward();
                                 } else {
                                   SfxService().fire(SfxType.routineDone);
-                                  HapticService().medium();
+                                  HapticService().light();
                                 }
                                 if (!context.mounted) return;
                                 if (allDone) {

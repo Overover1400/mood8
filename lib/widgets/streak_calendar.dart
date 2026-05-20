@@ -42,13 +42,14 @@ class StreakCalendar extends StatelessWidget {
         spacing: spacing,
         runSpacing: spacing,
         children: [
-          for (final d in dates)
+          for (var i = 0; i < dates.length; i++)
             _Cell(
               size: side,
-              ratio: byDay[d]?.completionPercentage ?? 0,
+              ratio: byDay[dates[i]]?.completionPercentage ?? 0,
               color: color,
-              isToday: d == today,
-              isFrozen: frozenSet.contains(d),
+              isToday: dates[i] == today,
+              isFrozen: frozenSet.contains(dates[i]),
+              dayNumber: i + 1,
             ),
         ],
       );
@@ -63,6 +64,7 @@ class _Cell extends StatelessWidget {
     required this.color,
     required this.isToday,
     required this.isFrozen,
+    required this.dayNumber,
   });
 
   final double size;
@@ -70,16 +72,21 @@ class _Cell extends StatelessWidget {
   final Color color;
   final bool isToday;
   final bool isFrozen;
+  final int dayNumber;
 
   @override
   Widget build(BuildContext context) {
-    final alpha = 0.12 + 0.78 * ratio.clamp(0.0, 1.0);
+    // Stronger floor so partial completions remain visible. 0.30 base
+    // ramps to ~0.90 at full completion, vs the old 0.12 → 0.90 which
+    // looked nearly empty for half-target days.
+    final alpha = 0.30 + 0.60 * ratio.clamp(0.0, 1.0);
     final filled = ratio > 0;
     final bgColor = isFrozen
         ? AppColors.blueAccent.withValues(alpha: 0.40)
         : filled
             ? color.withValues(alpha: alpha)
             : AppColors.bg.withValues(alpha: 0.55);
+    final showFreezeIcon = isFrozen && size >= 18;
     return Container(
       width: size,
       height: size,
@@ -111,13 +118,22 @@ class _Cell extends StatelessWidget {
                   ]
                 : null,
       ),
-      child: isFrozen && size >= 18
+      child: showFreezeIcon
           ? Icon(
               Icons.ac_unit_rounded,
               size: size * 0.55,
               color: Colors.white.withValues(alpha: 0.92),
             )
-          : null,
+          : Text(
+              '$dayNumber',
+              style: TextStyle(
+                color: filled
+                    ? Colors.white.withValues(alpha: 0.85)
+                    : AppColors.inkDim.withValues(alpha: 0.65),
+                fontSize: size < 22 ? 9 : 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
     );
   }
 }

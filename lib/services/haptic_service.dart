@@ -69,4 +69,24 @@ class HapticService extends ChangeNotifier {
       await HapticFeedback.selectionClick();
     } catch (_) {}
   }
+
+  /// Strong sustained vibration for reward moments — badge unlock, streak
+  /// milestone, perfect-day finale. Loops heavy impacts at ~150ms intervals
+  /// for ~2 seconds to approximate a continuous shake. On web (and any
+  /// platform without real haptics) HapticFeedback is a no-op, so this
+  /// silently degrades.
+  ///
+  /// Returns once the loop finishes — but it's safe to fire-and-forget.
+  Future<void> reward() async {
+    if (!_enabled) return;
+    const totalMs = 2000;
+    const intervalMs = 150;
+    final ticks = totalMs ~/ intervalMs;
+    for (var i = 0; i < ticks; i++) {
+      try {
+        await HapticFeedback.heavyImpact();
+      } catch (_) {}
+      await Future<void>.delayed(const Duration(milliseconds: intervalMs));
+    }
+  }
 }

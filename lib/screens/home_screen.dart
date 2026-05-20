@@ -270,10 +270,11 @@ class _HomeScreenState extends State<HomeScreen> {
     // Sound + haptic FIRST, sized by whether this is the perfect-day moment.
     if (allDone) {
       SfxService().fire(SfxType.streakMilestone);
-      HapticService().heavy();
+      // ignore: discarded_futures
+      HapticService().reward();
     } else {
       SfxService().fire(SfxType.routineDone);
-      HapticService().medium();
+      HapticService().light();
     }
     if (!mounted) return;
 
@@ -667,10 +668,11 @@ class _HomeScreenState extends State<HomeScreen> {
       final hitMilestone = _kStreakMilestones.contains(streak);
       if (hitMilestone) {
         SfxService().fire(SfxType.streakMilestone);
-        HapticService().heavy();
+        // ignore: discarded_futures
+        HapticService().reward();
       } else {
         SfxService().fire(SfxType.checkInSuccess);
-        HapticService().heavy();
+        HapticService().light();
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -823,15 +825,26 @@ class _Header extends StatelessWidget {
               GestureDetector(
                 onLongPress: onLongPressName,
                 behavior: HitTestBehavior.opaque,
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: '$greeting,\n',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '$greeting,',
+                        maxLines: 1,
+                        softWrap: false,
                         style: Theme.of(context).textTheme.headlineLarge,
                       ),
-                      TextSpan(
-                        text: name,
+                    ),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        softWrap: false,
                         style: Theme.of(context)
                             .textTheme
                             .headlineLarge
@@ -842,8 +855,8 @@ class _Header extends StatelessWidget {
                                         0, 0, 220, 50)),
                             ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],

@@ -348,7 +348,7 @@ class OnboardingService {
     ],
     'Mindful': [
       StarterHabit(
-        title: 'Meditate',
+        title: 'Meditation',
         icon: '🧘',
         type: HabitType.duration,
         identity: 'Mindful',
