@@ -297,15 +297,15 @@ class _TabToggle extends StatelessWidget {
         ),
         child: Row(
           children: [
-            _segment("Tonight's reflection", _CoachTab.reflection),
-            _segment('Chat', _CoachTab.chat),
+            _segment(context, "Tonight's reflection", _CoachTab.reflection),
+            _segment(context, 'Chat', _CoachTab.chat),
           ],
         ),
       ),
     );
   }
 
-  Widget _segment(String label, _CoachTab tab) {
+  Widget _segment(BuildContext context, String label, _CoachTab tab) {
     final selected = tab == value;
     return Expanded(
       child: GestureDetector(
@@ -330,7 +330,7 @@ class _TabToggle extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? Colors.white : AppColors.inkDim,
+              color: selected ? Colors.white : BrandColors.inkDim(context),
               fontWeight: FontWeight.w700,
               fontSize: 12,
               letterSpacing: 0.3,

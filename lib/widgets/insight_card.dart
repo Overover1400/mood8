@@ -96,8 +96,8 @@ class _InsightCardState extends State<InsightCard> {
                   minWidth: 28,
                   minHeight: 28,
                 ),
-                icon: const Icon(Icons.close_rounded,
-                    color: AppColors.inkDim, size: 18),
+                icon: Icon(Icons.close_rounded,
+                    color: BrandColors.inkDim(context), size: 18),
               ),
             ],
           ),
@@ -105,7 +105,7 @@ class _InsightCardState extends State<InsightCard> {
           Text(
             i.title,
             style: GoogleFonts.instrumentSerif(
-              color: AppColors.ink,
+              color: BrandColors.ink(context),
               fontStyle: FontStyle.italic,
               fontSize: 22,
               height: 1.15,
@@ -116,7 +116,7 @@ class _InsightCardState extends State<InsightCard> {
             Text(
               i.description!,
               style: TextStyle(
-                color: AppColors.inkSoft,
+                color: BrandColors.inkSoft(context),
                 fontSize: 13,
                 height: 1.45,
               ),
@@ -130,7 +130,7 @@ class _InsightCardState extends State<InsightCard> {
               Text(
                 'Based on ${i.sampleSize} day${i.sampleSize == 1 ? '' : 's'}',
                 style: TextStyle(
-                  color: AppColors.inkDim,
+                  color: BrandColors.inkDim(context),
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.3,
@@ -163,7 +163,7 @@ class _InsightCardState extends State<InsightCard> {
                     child: Container(
                       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                       decoration: BoxDecoration(
-                        color: AppColors.bg.withValues(alpha: 0.55),
+                        color: BrandColors.bg(context).withValues(alpha: 0.55),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: tone.withValues(alpha: 0.22),
@@ -185,7 +185,7 @@ class _InsightCardState extends State<InsightCard> {
                                 Text(
                                   'Mood8 is thinking…',
                                   style: TextStyle(
-                                    color: AppColors.inkSoft,
+                                    color: BrandColors.inkSoft(context),
                                     fontSize: 13,
                                   ),
                                 ),
@@ -195,8 +195,8 @@ class _InsightCardState extends State<InsightCard> {
                               _explanation ?? '',
                               style: TextStyle(
                                 color: isWarning
-                                    ? AppColors.inkSoft
-                                    : AppColors.ink,
+                                    ? BrandColors.inkSoft(context)
+                                    : BrandColors.ink(context),
                                 fontSize: 13,
                                 height: 1.45,
                               ),

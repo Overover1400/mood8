@@ -25,8 +25,8 @@ class GlassCard extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.bgCard.withValues(alpha: 0.95),
-                AppColors.bg.withValues(alpha: 0.85),
+                BrandColors.bgCard(context).withValues(alpha: 0.95),
+                BrandColors.bg(context).withValues(alpha: 0.85),
               ],
             ),
         borderRadius: BorderRadius.circular(borderRadius),
@@ -89,8 +89,8 @@ class StatCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             value,
-            style: const TextStyle(
-              color: AppColors.ink,
+            style: TextStyle(
+              color: BrandColors.ink(context),
               fontSize: 22,
               fontWeight: FontWeight.w700,
               height: 1.0,
@@ -100,7 +100,7 @@ class StatCard extends StatelessWidget {
           Text(
             label.toUpperCase(),
             style: TextStyle(
-              color: AppColors.inkDim,
+              color: BrandColors.inkDim(context),
               fontSize: 10,
               letterSpacing: 1.4,
               fontWeight: FontWeight.w600,
@@ -171,7 +171,7 @@ class RoutineCard extends StatelessWidget {
                   : null,
             ),
             child: Icon(icon,
-                color: isNow ? Colors.white : AppColors.inkSoft, size: 22),
+                color: isNow ? Colors.white : BrandColors.inkSoft(context), size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -183,7 +183,7 @@ class RoutineCard extends StatelessWidget {
                     Text(
                       time,
                       style: TextStyle(
-                        color: isNow ? AppColors.pinkLight : AppColors.inkDim,
+                        color: isNow ? AppColors.pinkLight : BrandColors.inkDim(context),
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
@@ -215,21 +215,21 @@ class RoutineCard extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    color: AppColors.ink,
+                    color: BrandColors.ink(context),
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     decoration: isCompleted
                         ? TextDecoration.lineThrough
                         : null,
                     decorationColor:
-                        AppColors.inkDim.withValues(alpha: 0.7),
+                        BrandColors.inkDim(context).withValues(alpha: 0.7),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    color: AppColors.inkDim,
+                  style: TextStyle(
+                    color: BrandColors.inkDim(context),
                     fontSize: 12,
                   ),
                 ),
@@ -240,7 +240,7 @@ class RoutineCard extends StatelessWidget {
             isCompleted
                 ? Icons.check_circle_rounded
                 : Icons.chevron_right,
-            color: isCompleted ? AppColors.pinkLight : AppColors.inkDim,
+            color: isCompleted ? AppColors.pinkLight : BrandColors.inkDim(context),
             size: 22,
           ),
         ],

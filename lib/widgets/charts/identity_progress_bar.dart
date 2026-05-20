@@ -28,7 +28,7 @@ class IdentityProgressBar extends StatelessWidget {
               Text(
                 identity,
                 style: GoogleFonts.instrumentSerif(
-                  color: AppColors.ink,
+                  color: BrandColors.ink(context),
                   fontStyle: FontStyle.italic,
                   fontSize: 19,
                   height: 1.0,
@@ -39,7 +39,7 @@ class IdentityProgressBar extends StatelessWidget {
                 child: Text(
                   subtitle,
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -63,7 +63,7 @@ class IdentityProgressBar extends StatelessWidget {
               children: [
                 Container(
                   height: 8,
-                  color: AppColors.bg.withValues(alpha: 0.7),
+                  color: BrandColors.bg(context).withValues(alpha: 0.7),
                 ),
                 AnimatedFractionallySizedBox(
                   duration: const Duration(milliseconds: 800),

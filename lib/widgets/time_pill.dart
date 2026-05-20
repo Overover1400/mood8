@@ -30,7 +30,7 @@ class TimePill extends StatelessWidget {
           Text(
             _label(minutes),
             style: TextStyle(
-              color: AppColors.inkSoft,
+              color: BrandColors.inkSoft(context),
               fontSize: 10,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,

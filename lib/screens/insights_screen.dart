@@ -492,7 +492,7 @@ class _FilterStrip extends StatelessWidget {
               child: Text(
                 entries[i].value,
                 style: TextStyle(
-                  color: selected ? Colors.white : AppColors.inkSoft,
+                  color: selected ? Colors.white : BrandColors.inkSoft(context),
                   fontWeight: FontWeight.w700,
                   fontSize: 12,
                   letterSpacing: 0.3,

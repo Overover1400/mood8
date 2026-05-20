@@ -92,13 +92,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.inkSoft, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: BrandColors.inkSoft(context), size: 18),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
       ),
@@ -118,7 +118,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Text(
                   '60 seconds. We never sell your data.',
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 14,
                   ),
                 ),
@@ -187,7 +187,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           child: Text.rich(
                             TextSpan(
                               style: TextStyle(
-                                color: AppColors.inkSoft,
+                                color: BrandColors.inkSoft(context),
                                 fontSize: 12,
                                 height: 1.5,
                               ),
@@ -248,7 +248,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           TextSpan(
                             text: 'Already have an account? ',
                             style: TextStyle(
-                              color: AppColors.inkDim,
+                              color: BrandColors.inkDim(context),
                               fontSize: 13,
                             ),
                           ),
@@ -312,7 +312,7 @@ class _StrengthBar extends StatelessWidget {
               decoration: BoxDecoration(
                 color: i < score
                     ? _color
-                    : AppColors.bg.withValues(alpha: 0.6),
+                    : BrandColors.bg(context).withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(20),
               ),
             ),

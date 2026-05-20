@@ -56,8 +56,8 @@ class RoutineCardV2 extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        AppColors.bgCard.withValues(alpha: 0.95),
-                        AppColors.bg.withValues(alpha: 0.85),
+                        BrandColors.bgCard(context).withValues(alpha: 0.95),
+                        BrandColors.bg(context).withValues(alpha: 0.85),
                       ],
                     ),
               borderRadius: BorderRadius.circular(20),
@@ -102,7 +102,7 @@ class RoutineCardV2 extends StatelessWidget {
                         Text(
                           _kTimeFmt.format(item.time),
                           style: GoogleFonts.instrumentSerif(
-                            color: AppColors.ink,
+                            color: BrandColors.ink(context),
                             fontStyle: FontStyle.italic,
                             fontSize: 16,
                             height: 1.0,
@@ -114,7 +114,7 @@ class RoutineCardV2 extends StatelessWidget {
                           style: TextStyle(
                             color: isCurrent
                                 ? AppColors.pinkLight
-                                : AppColors.inkDim,
+                                : BrandColors.inkDim(context),
                             fontSize: 9,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.6,
@@ -135,14 +135,14 @@ class RoutineCardV2 extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: AppColors.ink,
+                              color: BrandColors.ink(context),
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                               decoration: completed
                                   ? TextDecoration.lineThrough
                                   : null,
                               decorationColor:
-                                  AppColors.inkDim.withValues(alpha: 0.7),
+                                  BrandColors.inkDim(context).withValues(alpha: 0.7),
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -150,8 +150,8 @@ class RoutineCardV2 extends StatelessWidget {
                             item.meta,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.inkDim,
+                            style: TextStyle(
+                              color: BrandColors.inkDim(context),
                               fontSize: 12,
                             ),
                           ),
@@ -218,7 +218,7 @@ class _CategoryBadge extends StatelessWidget {
           Text(
             (category.label as String).toUpperCase(),
             style: TextStyle(
-              color: AppColors.inkSoft,
+              color: BrandColors.inkSoft(context),
               fontSize: 9,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.2,
@@ -259,13 +259,13 @@ class _CompleteButton extends StatelessWidget {
         color: completed
             ? null
             : (disabled
-                ? AppColors.bgCard.withValues(alpha: 0.4)
-                : AppColors.bgCard.withValues(alpha: 0.9)),
+                ? BrandColors.bgCard(context).withValues(alpha: 0.4)
+                : BrandColors.bgCard(context).withValues(alpha: 0.9)),
         border: Border.all(
           color: completed
               ? Colors.transparent
               : (disabled
-                  ? AppColors.inkFaint.withValues(alpha: 0.4)
+                  ? BrandColors.inkFaint(context).withValues(alpha: 0.4)
                   : accent.withValues(alpha: 0.55)),
           width: 1.5,
         ),
@@ -284,7 +284,7 @@ class _CompleteButton extends StatelessWidget {
               Icons.check_rounded,
               size: 18,
               color: disabled
-                  ? AppColors.inkFaint
+                  ? BrandColors.inkFaint(context)
                   : accent.withValues(alpha: 0.55),
             ),
     );

@@ -75,7 +75,7 @@ class _LoadingOrbState extends State<LoadingOrb>
                         height: widget.size * 0.55,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.bgDeep.withValues(alpha: 0.85),
+                          color: BrandColors.bgDeep(context).withValues(alpha: 0.85),
                         ),
                       ),
                     ),
@@ -90,7 +90,7 @@ class _LoadingOrbState extends State<LoadingOrb>
           Text(
             widget.label!,
             style: TextStyle(
-              color: AppColors.inkSoft,
+              color: BrandColors.inkSoft(context),
               fontSize: 13,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.4,

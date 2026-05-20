@@ -53,7 +53,7 @@ class _NameStepState extends State<NameStep> {
           const SizedBox(height: 8),
           Text(
             'What should we call you?',
-            style: TextStyle(color: AppColors.inkDim, fontSize: 15),
+            style: TextStyle(color: BrandColors.inkDim(context), fontSize: 15),
           ).animate().fadeIn(delay: 120.ms, duration: 500.ms),
           const SizedBox(height: 32),
           _GradientField(
@@ -112,14 +112,14 @@ class _GradientField extends StatelessWidget {
           cursorColor: AppColors.pinkLight,
           textCapitalization: TextCapitalization.words,
           style: GoogleFonts.instrumentSerif(
-            color: AppColors.ink,
+            color: BrandColors.ink(context),
             fontStyle: FontStyle.italic,
             fontSize: 28,
           ),
           decoration: InputDecoration(
             hintText: 'Your name',
             hintStyle: GoogleFonts.instrumentSerif(
-              color: AppColors.inkDim.withValues(alpha: 0.7),
+              color: BrandColors.inkDim(context).withValues(alpha: 0.7),
               fontStyle: FontStyle.italic,
               fontSize: 28,
             ),

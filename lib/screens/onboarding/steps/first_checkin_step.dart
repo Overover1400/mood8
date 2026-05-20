@@ -46,7 +46,7 @@ class _FirstCheckinStepState extends State<FirstCheckinStep> {
           const SizedBox(height: 8),
           Text(
             'Just 10 seconds — how are you feeling now?',
-            style: TextStyle(color: AppColors.inkDim, fontSize: 14),
+            style: TextStyle(color: BrandColors.inkDim(context), fontSize: 14),
           ).animate().fadeIn(delay: 120.ms, duration: 500.ms),
           const SizedBox(height: 24),
           Center(

@@ -80,8 +80,8 @@ class AdaptiveSuggestionCard extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 constraints:
                     const BoxConstraints(minWidth: 28, minHeight: 28),
-                icon: const Icon(Icons.close_rounded,
-                    color: AppColors.inkDim, size: 18),
+                icon: Icon(Icons.close_rounded,
+                    color: BrandColors.inkDim(context), size: 18),
               ),
             ],
           ),
@@ -89,7 +89,7 @@ class AdaptiveSuggestionCard extends StatelessWidget {
           Text(
             suggestion.title,
             style: GoogleFonts.instrumentSerif(
-              color: AppColors.ink,
+              color: BrandColors.ink(context),
               fontStyle: FontStyle.italic,
               fontSize: 20,
               height: 1.15,
@@ -99,7 +99,7 @@ class AdaptiveSuggestionCard extends StatelessWidget {
           Text(
             suggestion.reason,
             style: TextStyle(
-              color: AppColors.inkSoft,
+              color: BrandColors.inkSoft(context),
               fontSize: 13,
               height: 1.45,
             ),

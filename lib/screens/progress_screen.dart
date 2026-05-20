@@ -468,7 +468,7 @@ class _RangeSelector extends StatelessWidget {
                   child: Text(
                     '$d days',
                     style: TextStyle(
-                      color: d == value ? Colors.white : AppColors.inkDim,
+                      color: d == value ? Colors.white : BrandColors.inkDim(context),
                       fontWeight: FontWeight.w700,
                       fontSize: 12,
                       letterSpacing: 0.3,

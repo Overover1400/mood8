@@ -21,6 +21,7 @@ import '../widgets/freeze_badge.dart';
 import '../widgets/freeze_modal.dart';
 import '../widgets/habit_card.dart';
 import '../widgets/responsive_container.dart';
+import '../widgets/tutorial_overlay.dart';
 import 'habit_detail_screen.dart';
 
 import '../models/user_profile.dart';
@@ -133,7 +134,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                   child: Text(
                                     'No habits for this identity yet.',
                                     style: TextStyle(
-                                      color: AppColors.inkDim,
+                                      color: BrandColors.inkDim(context),
                                       fontSize: 13,
                                     ),
                                   ),
@@ -290,6 +291,8 @@ class _HabitsScreenState extends State<HabitsScreen> {
     UserProfile? profile,
   ) async {
     if (_freezePromptInFlight || !mounted) return;
+    // First-run sequencing: do not race the tutorial.
+    if (!tutorialCompletedNotifier.value) return;
     if (profile == null || profile.freezesAvailable <= 0) return;
 
     final yesterday =
@@ -408,7 +411,7 @@ class _Header extends StatelessWidget {
               Text(
                 "Who you're becoming",
                 style: TextStyle(
-                  color: AppColors.inkDim,
+                  color: BrandColors.inkDim(context),
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
@@ -465,7 +468,7 @@ class _IdentityFilter extends StatelessWidget {
                     selected ? AppColors.buttonGradient : null,
                 color: selected
                     ? null
-                    : AppColors.bgCard.withValues(alpha: 0.7),
+                    : BrandColors.bgCard(context).withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(
                   color: selected
@@ -484,7 +487,7 @@ class _IdentityFilter extends StatelessWidget {
               child: Text(
                 label,
                 style: TextStyle(
-                  color: selected ? Colors.white : AppColors.inkSoft,
+                  color: selected ? Colors.white : BrandColors.inkSoft(context),
                   fontWeight: FontWeight.w700,
                   fontSize: 12,
                   letterSpacing: 0.3,
@@ -515,7 +518,7 @@ class _ProgressCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.85),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.20),
@@ -531,8 +534,8 @@ class _ProgressCard extends StatelessWidget {
                   total == 0
                       ? 'No habits scheduled today'
                       : '$completed of $total habits done today',
-                  style: const TextStyle(
-                    color: AppColors.ink,
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
                   ),
@@ -555,7 +558,7 @@ class _ProgressCard extends StatelessWidget {
               children: [
                 Container(
                   height: 10,
-                  color: AppColors.bg.withValues(alpha: 0.7),
+                  color: BrandColors.bg(context).withValues(alpha: 0.7),
                 ),
                 AnimatedFractionallySizedBox(
                   duration: const Duration(milliseconds: 500),
@@ -587,7 +590,7 @@ class _ProgressCard extends StatelessWidget {
                     ? 'No streaks yet — start today.'
                     : 'Top streak: $bestStreak day${bestStreak == 1 ? '' : 's'}',
                 style: TextStyle(
-                  color: AppColors.inkDim,
+                  color: BrandColors.inkDim(context),
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -622,7 +625,7 @@ class _GroupHeader extends StatelessWidget {
           Text(
             label.toUpperCase(),
             style: TextStyle(
-              color: AppColors.inkDim,
+              color: BrandColors.inkDim(context),
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.8,

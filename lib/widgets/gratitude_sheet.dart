@@ -121,8 +121,8 @@ class _GratitudeSheetState extends State<GratitudeSheet> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.bgCard,
-                AppColors.bg,
+                BrandColors.bgCard(context),
+                BrandColors.bg(context),
               ],
             ),
             borderRadius: BorderRadius.circular(28),
@@ -147,7 +147,7 @@ class _GratitudeSheetState extends State<GratitudeSheet> {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.inkFaint.withValues(alpha: 0.5),
+                    color: BrandColors.inkFaint(context).withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -173,7 +173,7 @@ class _GratitudeSheetState extends State<GratitudeSheet> {
                   'Small moments. Big impact.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 14,
                     height: 1.5,
                   ),
@@ -213,7 +213,7 @@ class _GratitudeSheetState extends State<GratitudeSheet> {
                 child: Text(
                   'Maybe later',
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
                   ),
@@ -250,7 +250,7 @@ class _GratitudeField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.bg.withValues(alpha: 0.55),
+        color: BrandColors.bg(context).withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: AppColors.pink.withValues(alpha: 0.22),
@@ -290,8 +290,8 @@ class _GratitudeField extends StatelessWidget {
               enabled: enabled,
               maxLength: _kMaxItemChars,
               cursorColor: AppColors.pinkLight,
-              style: const TextStyle(
-                color: AppColors.ink,
+              style: TextStyle(
+                color: BrandColors.ink(context),
                 fontSize: 14,
                 height: 1.4,
               ),
@@ -315,7 +315,7 @@ class _GratitudeField extends StatelessWidget {
                 counterText: '',
                 hintText: _hintFor(index),
                 hintStyle: TextStyle(
-                  color: AppColors.inkDim.withValues(alpha: 0.8),
+                  color: BrandColors.inkDim(context).withValues(alpha: 0.8),
                   fontSize: 14,
                 ),
               ),

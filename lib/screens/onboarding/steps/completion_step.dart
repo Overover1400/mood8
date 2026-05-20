@@ -93,7 +93,7 @@ class _CompletionStepState extends State<CompletionStep> {
               Text(
                 'Welcome,',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: AppColors.inkSoft,
+                      color: BrandColors.inkSoft(context),
                     ),
               )
                   .animate()
@@ -101,7 +101,7 @@ class _CompletionStepState extends State<CompletionStep> {
               Text(
                 name,
                 style: GoogleFonts.instrumentSerif(
-                  color: AppColors.ink,
+                  color: BrandColors.ink(context),
                   fontStyle: FontStyle.italic,
                   fontSize: 48,
                   height: 1.0,
@@ -117,7 +117,7 @@ class _CompletionStepState extends State<CompletionStep> {
               Text(
                 "You're on day 1 of becoming a $topIdentity.",
                 style: TextStyle(
-                  color: AppColors.inkDim,
+                  color: BrandColors.inkDim(context),
                   fontSize: 14,
                   height: 1.5,
                 ),
@@ -137,7 +137,7 @@ class _CompletionStepState extends State<CompletionStep> {
               Text(
                 "HERE'S YOUR STARTER PACK",
                 style: TextStyle(
-                  color: AppColors.inkDim,
+                  color: BrandColors.inkDim(context),
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.6,
@@ -193,7 +193,7 @@ class _IdentityPill extends StatelessWidget {
       child: Text(
         label,
         style: GoogleFonts.instrumentSerif(
-          color: AppColors.ink,
+          color: BrandColors.ink(context),
           fontStyle: FontStyle.italic,
           fontSize: 14,
         ),
@@ -217,7 +217,7 @@ class _StarterRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.75),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.18),
@@ -242,8 +242,8 @@ class _StarterRow extends StatelessWidget {
               children: [
                 Text(
                   routine.title,
-                  style: const TextStyle(
-                    color: AppColors.ink,
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -251,8 +251,8 @@ class _StarterRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   routine.meta,
-                  style: const TextStyle(
-                    color: AppColors.inkDim,
+                  style: TextStyle(
+                    color: BrandColors.inkDim(context),
                     fontSize: 11,
                   ),
                 ),
@@ -262,7 +262,7 @@ class _StarterRow extends StatelessWidget {
           Text(
             time,
             style: GoogleFonts.instrumentSerif(
-              color: AppColors.inkSoft,
+              color: BrandColors.inkSoft(context),
               fontStyle: FontStyle.italic,
               fontSize: 16,
             ),

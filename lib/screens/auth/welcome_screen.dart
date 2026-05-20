@@ -24,7 +24,7 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       body: Stack(
         children: [
           const _BackgroundGlow(),
@@ -59,7 +59,7 @@ class WelcomeScreen extends StatelessWidget {
                         Text(
                           'Mood8',
                           style: GoogleFonts.instrumentSerif(
-                            color: AppColors.ink,
+                            color: BrandColors.ink(context),
                             fontStyle: FontStyle.italic,
                             fontSize: 22,
                           ),
@@ -96,7 +96,7 @@ class WelcomeScreen extends StatelessWidget {
                       'AI-powered personal operating system.\nLearn what actually makes you better.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: AppColors.inkDim,
+                        color: BrandColors.inkDim(context),
                         fontSize: 14,
                         height: 1.6,
                       ),

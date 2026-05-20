@@ -71,7 +71,7 @@ class _IdentityStepState extends State<IdentityStep> {
           const SizedBox(height: 8),
           Text(
             "Choose up to 3. We'll help you become this person.",
-            style: TextStyle(color: AppColors.inkDim, fontSize: 14),
+            style: TextStyle(color: BrandColors.inkDim(context), fontSize: 14),
           ).animate().fadeIn(delay: 120.ms, duration: 500.ms),
           const SizedBox(height: 18),
           Expanded(
@@ -104,7 +104,7 @@ class _IdentityStepState extends State<IdentityStep> {
             child: Text(
               '${_selected.length} of $_kMaxIdentities selected',
               style: TextStyle(
-                color: AppColors.inkDim,
+                color: BrandColors.inkDim(context),
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.6,
@@ -155,7 +155,7 @@ class _IdentityCard extends StatelessWidget {
                   ],
                 )
               : null,
-          color: selected ? null : AppColors.bgCard.withValues(alpha: 0.7),
+          color: selected ? null : BrandColors.bgCard(context).withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             color: selected
@@ -186,8 +186,8 @@ class _IdentityCard extends StatelessWidget {
                       fontSize: 22,
                       height: 1.0,
                     )
-                  : const TextStyle(
-                      color: AppColors.ink,
+                  : TextStyle(
+                      color: BrandColors.ink(context),
                       fontWeight: FontWeight.w700,
                       fontSize: 18,
                     ),
@@ -200,7 +200,7 @@ class _IdentityCard extends StatelessWidget {
               style: TextStyle(
                 color: selected
                     ? Colors.white.withValues(alpha: 0.85)
-                    : AppColors.inkDim,
+                    : BrandColors.inkDim(context),
                 fontSize: 12,
                 height: 1.3,
               ),

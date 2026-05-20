@@ -78,7 +78,7 @@ class _YesNoButton extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: done ? AppColors.buttonGradient : null,
-        color: done ? null : AppColors.bgCard.withValues(alpha: 0.9),
+        color: done ? null : BrandColors.bgCard(context).withValues(alpha: 0.9),
         border: Border.all(
           color: done
               ? Colors.transparent
@@ -153,7 +153,7 @@ class _StepperPill extends StatelessWidget {
                 ],
               )
             : null,
-        color: done ? null : AppColors.bg.withValues(alpha: 0.6),
+        color: done ? null : BrandColors.bg(context).withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: done
@@ -172,14 +172,15 @@ class _StepperPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _round(Icons.remove_rounded, onMinus, enabled: value > 0 && !done),
+          _round(Icons.remove_rounded, onMinus,
+              enabled: value > 0 && !done, context: context),
           SizedBox(
             width: compact ? 56 : 70,
             child: Center(
               child: Text(
                 label,
                 style: GoogleFonts.instrumentSerif(
-                  color: AppColors.ink,
+                  color: BrandColors.ink(context),
                   fontStyle: FontStyle.italic,
                   fontSize: compact ? 16 : 18,
                   height: 1.0,
@@ -187,13 +188,19 @@ class _StepperPill extends StatelessWidget {
               ),
             ),
           ),
-          _round(Icons.add_rounded, onPlus, enabled: !done),
+          _round(Icons.add_rounded, onPlus,
+              enabled: !done, context: context),
         ],
       ),
     );
   }
 
-  Widget _round(IconData icon, VoidCallback onTap, {bool enabled = true}) {
+  Widget _round(
+    IconData icon,
+    VoidCallback onTap, {
+    bool enabled = true,
+    required BuildContext context,
+  }) {
     return GestureDetector(
       onTap: enabled ? onTap : null,
       child: Opacity(
@@ -204,9 +211,9 @@ class _StepperPill extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.bgCard.withValues(alpha: 0.85),
+            color: BrandColors.bgCard(context).withValues(alpha: 0.85),
           ),
-          child: Icon(icon, size: 16, color: AppColors.inkSoft),
+          child: Icon(icon, size: 16, color: BrandColors.inkSoft(context)),
         ),
       ),
     );

@@ -13,6 +13,7 @@ import 'services/effects_service.dart';
 import 'services/freeze_service.dart';
 import 'services/haptic_service.dart';
 import 'services/reminder_service.dart';
+import 'widgets/tutorial_overlay.dart';
 import 'services/preferences_service.dart';
 import 'services/routine_repository.dart';
 import 'services/sfx_service.dart';
@@ -34,6 +35,7 @@ Future<void> main() async {
   await AuthService().initialize();
   // Auto-replenish streak freezes (no-op if onboarding hasn't created a
   // profile yet — first replenish will happen after onboarding).
+  await warmUpTutorialState();
   await FreezeService().warmUpPromptCache();
   final profile = UserRepository().getCurrentUser();
   if (profile != null) {

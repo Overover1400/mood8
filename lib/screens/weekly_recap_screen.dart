@@ -82,7 +82,7 @@ class _WeeklyRecapScreenState extends State<WeeklyRecapScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Recap emailed to you.'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -118,7 +118,7 @@ class _WeeklyRecapScreenState extends State<WeeklyRecapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       body: Stack(
         children: [
           const _BackgroundGlow(),
@@ -188,7 +188,7 @@ class _Header extends StatelessWidget {
                 Text(
                   'Your week in review',
                   style: GoogleFonts.instrumentSerif(
-                    color: AppColors.ink,
+                    color: BrandColors.ink(context),
                     fontStyle: FontStyle.italic,
                     fontSize: 32,
                     height: 1.05,
@@ -199,9 +199,9 @@ class _Header extends StatelessWidget {
           ),
           IconButton(
             onPressed: onClose,
-            icon: const Icon(
+            icon: Icon(
               Icons.close_rounded,
-              color: AppColors.inkSoft,
+              color: BrandColors.inkSoft(context),
               size: 22,
             ),
           ),
@@ -253,7 +253,7 @@ class _LoadingState extends StatelessWidget {
                 Text(
                   'Reading your week…',
                   style: GoogleFonts.instrumentSerif(
-                    color: AppColors.ink,
+                    color: BrandColors.ink(context),
                     fontStyle: FontStyle.italic,
                     fontSize: 20,
                   ),
@@ -309,7 +309,7 @@ class _ShimmerBlock extends StatelessWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.65),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.65),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.18),
@@ -335,7 +335,7 @@ class _ErrorState extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
         decoration: BoxDecoration(
-          color: AppColors.bgCard,
+          color: BrandColors.bgCard(context),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             color: AppColors.pink.withValues(alpha: 0.40),
@@ -347,7 +347,7 @@ class _ErrorState extends StatelessWidget {
             Text(
               'A little hiccup',
               style: GoogleFonts.instrumentSerif(
-                color: AppColors.ink,
+                color: BrandColors.ink(context),
                 fontStyle: FontStyle.italic,
                 fontSize: 22,
               ),
@@ -356,7 +356,7 @@ class _ErrorState extends StatelessWidget {
             Text(
               message,
               style: TextStyle(
-                color: AppColors.inkSoft,
+                color: BrandColors.inkSoft(context),
                 fontSize: 14,
                 height: 1.5,
               ),
@@ -414,7 +414,7 @@ class _LoadedState extends StatelessWidget {
           Text(
             dateLabel,
             style: TextStyle(
-              color: AppColors.inkDim,
+              color: BrandColors.inkDim(context),
               fontSize: 12,
               letterSpacing: 1.4,
               fontWeight: FontWeight.w700,
@@ -500,7 +500,7 @@ class _SectionLabel extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          color: AppColors.inkDim,
+          color: BrandColors.inkDim(context),
           fontSize: 10,
           letterSpacing: 1.8,
           fontWeight: FontWeight.w800,
@@ -554,7 +554,7 @@ class _StatPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.bgCard.withValues(alpha: 0.85),
+          color: BrandColors.bgCard(context).withValues(alpha: 0.85),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: c.withValues(alpha: 0.35),
@@ -572,7 +572,7 @@ class _StatPill extends StatelessWidget {
             Text(
               value,
               style: GoogleFonts.instrumentSerif(
-                color: AppColors.ink,
+                color: BrandColors.ink(context),
                 fontStyle: FontStyle.italic,
                 fontSize: 22,
                 height: 1.0,
@@ -582,7 +582,7 @@ class _StatPill extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: AppColors.inkDim,
+                color: BrandColors.inkDim(context),
                 fontSize: 10,
                 letterSpacing: 1.2,
                 fontWeight: FontWeight.w800,
@@ -627,7 +627,7 @@ class _NarrativeCard extends StatelessWidget {
       child: Text(
         narrative,
         style: TextStyle(
-          color: AppColors.ink,
+          color: BrandColors.ink(context),
           fontSize: 15,
           height: 1.65,
         ),
@@ -645,7 +645,7 @@ class _PatternCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.75),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.22),
@@ -667,7 +667,7 @@ class _PatternCard extends StatelessWidget {
             child: Text(
               text,
               style: TextStyle(
-                color: AppColors.inkSoft,
+                color: BrandColors.inkSoft(context),
                 fontSize: 14,
                 height: 1.55,
               ),
@@ -697,7 +697,7 @@ class _GratitudeCard extends StatelessWidget {
       child: Text(
         text,
         style: GoogleFonts.instrumentSerif(
-          color: AppColors.ink,
+          color: BrandColors.ink(context),
           fontStyle: FontStyle.italic,
           fontSize: 15,
           height: 1.4,
@@ -730,7 +730,7 @@ class _LookingAheadCard extends StatelessWidget {
       child: Text(
         text,
         style: GoogleFonts.instrumentSerif(
-          color: AppColors.ink,
+          color: BrandColors.ink(context),
           fontStyle: FontStyle.italic,
           fontSize: 15,
           height: 1.5,
@@ -809,7 +809,7 @@ class _SecondaryButton extends StatelessWidget {
         height: 48,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.bgCard.withValues(alpha: 0.8),
+          color: BrandColors.bgCard(context).withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: AppColors.purple.withValues(alpha: 0.30),
@@ -818,12 +818,12 @@ class _SecondaryButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: AppColors.ink, size: 16),
+            Icon(icon, color: BrandColors.ink(context), size: 16),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
-                color: AppColors.ink,
+                color: BrandColors.ink(context),
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
               ),

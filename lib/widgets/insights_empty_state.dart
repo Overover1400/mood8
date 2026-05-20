@@ -40,7 +40,7 @@ class InsightsEmptyState extends StatelessWidget {
             'to find patterns worth surfacing.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: AppColors.inkDim,
+              color: BrandColors.inkDim(context),
               fontSize: 13,
               height: 1.5,
             ),
@@ -57,7 +57,7 @@ class InsightsEmptyState extends StatelessWidget {
                     children: [
                       Container(
                         height: 10,
-                        color: AppColors.bg.withValues(alpha: 0.7),
+                        color: BrandColors.bg(context).withValues(alpha: 0.7),
                       ),
                       AnimatedFractionallySizedBox(
                         duration: const Duration(milliseconds: 700),
@@ -85,7 +85,7 @@ class InsightsEmptyState extends StatelessWidget {
                   '${remaining == 0 ? 'ready' : '$remaining to go'}',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: AppColors.inkSoft,
+                    color: BrandColors.inkSoft(context),
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.3,

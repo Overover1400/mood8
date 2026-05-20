@@ -10,6 +10,25 @@ import 'bottom_nav.dart';
 
 const String _kTutorialCompletedPrefKey = 'tutorial_completed';
 
+/// Reactive flag for the tutorial-completion state. Other prompt
+/// surfaces (morning intention, freeze offer) listen to this so they
+/// can hold off until the tutorial is dismissed and then fire in turn.
+/// Initialized once from SharedPreferences via [warmUpTutorialState].
+final ValueNotifier<bool> tutorialCompletedNotifier =
+    ValueNotifier<bool>(false);
+
+/// Loads the persisted flag into [tutorialCompletedNotifier]. Call once
+/// on app boot before any screen reads it.
+Future<void> warmUpTutorialState() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    tutorialCompletedNotifier.value =
+        prefs.getBool(_kTutorialCompletedPrefKey) ?? false;
+  } catch (_) {
+    tutorialCompletedNotifier.value = false;
+  }
+}
+
 /// Returns true if the user has already seen (or skipped) the tutorial.
 Future<bool> isTutorialCompleted() async {
   try {
@@ -21,6 +40,7 @@ Future<bool> isTutorialCompleted() async {
 }
 
 Future<void> markTutorialCompleted() async {
+  tutorialCompletedNotifier.value = true;
   try {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kTutorialCompletedPrefKey, true);
@@ -28,6 +48,7 @@ Future<void> markTutorialCompleted() async {
 }
 
 Future<void> resetTutorial() async {
+  tutorialCompletedNotifier.value = false;
   try {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kTutorialCompletedPrefKey, false);
@@ -255,7 +276,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
                   child: Text(
                     'Skip',
                     style: TextStyle(
-                      color: AppColors.ink,
+                      color: BrandColors.ink(context),
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -382,8 +403,8 @@ class _StepCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.bgCard,
-            AppColors.bg,
+            BrandColors.bgCard(context),
+            BrandColors.bg(context),
           ],
         ),
         borderRadius: BorderRadius.circular(22),
@@ -430,7 +451,7 @@ class _StepCard extends StatelessWidget {
               Text(
                 step.label,
                 style: TextStyle(
-                  color: AppColors.inkDim,
+                  color: BrandColors.inkDim(context),
                   fontSize: 11,
                   letterSpacing: 2.2,
                   fontWeight: FontWeight.w800,
@@ -442,7 +463,7 @@ class _StepCard extends StatelessWidget {
           Text(
             step.title,
             style: GoogleFonts.instrumentSerif(
-              color: AppColors.ink,
+              color: BrandColors.ink(context),
               fontStyle: FontStyle.italic,
               fontSize: 28,
               height: 1.1,
@@ -452,7 +473,7 @@ class _StepCard extends StatelessWidget {
           Text(
             step.body,
             style: TextStyle(
-              color: AppColors.inkSoft,
+              color: BrandColors.inkSoft(context),
               fontSize: 14.5,
               height: 1.55,
             ),
@@ -503,7 +524,7 @@ class _StepDots extends StatelessWidget {
             decoration: BoxDecoration(
               color: i == active
                   ? AppColors.pinkLight
-                  : AppColors.inkFaint.withValues(alpha: 0.55),
+                  : BrandColors.inkFaint(context).withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(8),
             ),
           ),
@@ -562,7 +583,7 @@ class _SecondaryButton extends StatelessWidget {
         height: 46,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.bgCard.withValues(alpha: 0.85),
+          color: BrandColors.bgCard(context).withValues(alpha: 0.85),
           borderRadius: BorderRadius.circular(23),
           border: Border.all(
             color: AppColors.purple.withValues(alpha: 0.35),
@@ -571,7 +592,7 @@ class _SecondaryButton extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: AppColors.ink,
+            color: BrandColors.ink(context),
             fontWeight: FontWeight.w700,
             fontSize: 14,
           ),

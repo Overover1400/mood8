@@ -38,7 +38,7 @@ class HabitRing extends StatelessWidget {
               child: Text(
                 '${(v * 100).round()}%',
                 style: TextStyle(
-                  color: AppColors.ink,
+                  color: BrandColors.ink(context),
                   fontSize: size * 0.22,
                   fontWeight: FontWeight.w800,
                 ),

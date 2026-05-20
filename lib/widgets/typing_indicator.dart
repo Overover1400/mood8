@@ -46,7 +46,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: AppColors.bgCard.withValues(alpha: 0.85),
+            color: BrandColors.bgCard(context).withValues(alpha: 0.85),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(18),
               topRight: Radius.circular(18),

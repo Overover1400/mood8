@@ -169,7 +169,7 @@ class _BadgeUnlockModalState extends State<BadgeUnlockModal> {
                         widget.badge.title,
                         textAlign: TextAlign.center,
                         style: GoogleFonts.instrumentSerif(
-                          color: AppColors.ink,
+                          color: BrandColors.ink(context),
                           fontStyle: FontStyle.italic,
                           fontSize: 38,
                           height: 1.1,
@@ -186,7 +186,7 @@ class _BadgeUnlockModalState extends State<BadgeUnlockModal> {
                         widget.badge.description,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: AppColors.inkSoft,
+                          color: BrandColors.inkSoft(context),
                           fontSize: 15,
                           height: 1.5,
                         ),
@@ -401,12 +401,12 @@ class _SecondaryButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: AppColors.ink, size: 16),
+            Icon(icon, color: BrandColors.ink(context), size: 16),
             const SizedBox(width: 8),
             Text(
               label,
-              style: const TextStyle(
-                color: AppColors.ink,
+              style: TextStyle(
+                color: BrandColors.ink(context),
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
@@ -429,7 +429,7 @@ class BadgeDetailPopup extends StatelessWidget {
     final icon = _iconForBadge(badge);
     final dateLabel = DateFormat.yMMMd().format(badge.unlockedAt);
     return AlertDialog(
-      backgroundColor: AppColors.bgCard,
+      backgroundColor: BrandColors.bgCard(context),
       contentPadding: const EdgeInsets.fromLTRB(22, 22, 22, 14),
       shape:
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -468,7 +468,7 @@ class BadgeDetailPopup extends StatelessWidget {
                 badge.title,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.instrumentSerif(
-                  color: AppColors.ink,
+                  color: BrandColors.ink(context),
                   fontStyle: FontStyle.italic,
                   fontSize: 26,
                   height: 1.15,
@@ -480,7 +480,7 @@ class BadgeDetailPopup extends StatelessWidget {
               badge.description,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppColors.inkSoft,
+                color: BrandColors.inkSoft(context),
                 fontSize: 14,
                 height: 1.5,
               ),
@@ -490,7 +490,7 @@ class BadgeDetailPopup extends StatelessWidget {
               child: Text(
                 'Unlocked $dateLabel',
                 style: TextStyle(
-                  color: AppColors.inkDim,
+                  color: BrandColors.inkDim(context),
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.3,

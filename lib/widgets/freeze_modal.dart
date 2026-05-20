@@ -69,8 +69,8 @@ class FreezeModal extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.bgCard,
-                AppColors.bg,
+                BrandColors.bgCard(context),
+                BrandColors.bg(context),
               ],
             ),
             borderRadius: BorderRadius.circular(28),
@@ -95,7 +95,7 @@ class FreezeModal extends StatelessWidget {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.inkFaint.withValues(alpha: 0.5),
+                    color: BrandColors.inkFaint(context).withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -119,7 +119,7 @@ class FreezeModal extends StatelessWidget {
                   child: Text.rich(
                     TextSpan(
                       style: TextStyle(
-                        color: AppColors.inkSoft,
+                        color: BrandColors.inkSoft(context),
                         fontSize: 14,
                         height: 1.55,
                       ),
@@ -127,16 +127,16 @@ class FreezeModal extends StatelessWidget {
                         const TextSpan(text: 'Use a freeze to protect your '),
                         TextSpan(
                           text: itemType,
-                          style: const TextStyle(
-                            color: AppColors.ink,
+                          style: TextStyle(
+                            color: BrandColors.ink(context),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const TextSpan(text: ' streak for '),
                         TextSpan(
                           text: dayLabel,
-                          style: const TextStyle(
-                            color: AppColors.ink,
+                          style: TextStyle(
+                            color: BrandColors.ink(context),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -153,7 +153,7 @@ class FreezeModal extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.bg.withValues(alpha: 0.55),
+                  color: BrandColors.bg(context).withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: AppColors.purple.withValues(alpha: 0.18),
@@ -165,7 +165,7 @@ class FreezeModal extends StatelessWidget {
                       Icons.ac_unit_rounded,
                       size: 18,
                       color: empty
-                          ? AppColors.inkDim
+                          ? BrandColors.inkDim(context)
                           : AppColors.blueAccent,
                       shadows: empty
                           ? null
@@ -184,7 +184,7 @@ class FreezeModal extends StatelessWidget {
                             ? 'You have 0 freezes available'
                             : '${profile.freezesAvailable} freeze${profile.freezesAvailable == 1 ? '' : 's'} available',
                         style: TextStyle(
-                          color: AppColors.inkSoft,
+                          color: BrandColors.inkSoft(context),
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
@@ -193,7 +193,7 @@ class FreezeModal extends StatelessWidget {
                     Text(
                       itemName,
                       style: TextStyle(
-                        color: AppColors.inkDim,
+                        color: BrandColors.inkDim(context),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -232,7 +232,7 @@ class FreezeModal extends StatelessWidget {
                 child: Text(
                   'No thanks',
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
                   ),
@@ -386,7 +386,7 @@ class _PremiumUpsell extends StatelessWidget {
                 Text(
                   'Out of freezes',
                   style: TextStyle(
-                    color: AppColors.ink,
+                    color: BrandColors.ink(context),
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
                   ),
@@ -397,7 +397,7 @@ class _PremiumUpsell extends StatelessWidget {
                       ? 'Next freeze arrives Sunday.'
                       : 'Upgrade for 2 freezes per Sunday, stored up to 3.',
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 11.5,
                     height: 1.35,
                   ),

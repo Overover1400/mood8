@@ -27,13 +27,13 @@ class GlowSlider extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 16, color: AppColors.inkSoft),
+              Icon(icon, size: 16, color: BrandColors.inkSoft(context)),
               const SizedBox(width: 8),
             ],
             Text(
               label,
-              style: const TextStyle(
-                color: AppColors.inkSoft,
+              style: TextStyle(
+                color: BrandColors.inkSoft(context),
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
@@ -45,7 +45,7 @@ class GlowSlider extends StatelessWidget {
                   TextSpan(
                     text: score,
                     style: GoogleFonts.instrumentSerif(
-                      color: AppColors.ink,
+                      color: BrandColors.ink(context),
                       fontStyle: FontStyle.italic,
                       fontSize: 22,
                       height: 1.0,
@@ -54,7 +54,7 @@ class GlowSlider extends StatelessWidget {
                   TextSpan(
                     text: ' /10',
                     style: TextStyle(
-                      color: AppColors.inkDim,
+                      color: BrandColors.inkDim(context),
                       fontWeight: FontWeight.w600,
                       fontSize: 11,
                       letterSpacing: 0.5,
@@ -73,7 +73,7 @@ class GlowSlider extends StatelessWidget {
             thumbShape: const _GlowThumbShape(),
             overlayShape: SliderComponentShape.noOverlay,
             activeTrackColor: AppColors.pink,
-            inactiveTrackColor: AppColors.bgCard,
+            inactiveTrackColor: BrandColors.bgCard(context),
             thumbColor: Colors.white,
           ),
           child: Slider(

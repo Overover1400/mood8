@@ -77,7 +77,7 @@ class ReflectionCard extends StatelessWidget {
                   Text(
                     dateLabel,
                     style: TextStyle(
-                      color: AppColors.inkDim,
+                      color: BrandColors.inkDim(context),
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.2,
@@ -91,7 +91,7 @@ class ReflectionCard extends StatelessWidget {
                 maxLines: compact ? 4 : null,
                 overflow: compact ? TextOverflow.ellipsis : null,
                 style: GoogleFonts.instrumentSerif(
-                  color: AppColors.ink,
+                  color: BrandColors.ink(context),
                   fontStyle: FontStyle.italic,
                   fontSize: compact ? 17 : 19,
                   height: 1.35,
@@ -103,7 +103,7 @@ class ReflectionCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.fromLTRB(12, 10, 12, 10),
                   decoration: BoxDecoration(
-                    color: AppColors.bg.withValues(alpha: 0.5),
+                    color: BrandColors.bg(context).withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: AppColors.purple.withValues(alpha: 0.25),
@@ -118,8 +118,8 @@ class ReflectionCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           reflection.suggestion!,
-                          style: const TextStyle(
-                            color: AppColors.inkSoft,
+                          style: TextStyle(
+                            color: BrandColors.inkSoft(context),
                             fontSize: 13,
                             height: 1.4,
                           ),
@@ -135,7 +135,7 @@ class ReflectionCard extends StatelessWidget {
                   Text(
                     timeLabel,
                     style: TextStyle(
-                      color: AppColors.inkDim,
+                      color: BrandColors.inkDim(context),
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),

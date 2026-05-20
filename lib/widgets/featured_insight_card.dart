@@ -93,7 +93,7 @@ class FeaturedInsightCard extends StatelessWidget {
               Text(
                 insight.title,
                 style: GoogleFonts.instrumentSerif(
-                  color: AppColors.ink,
+                  color: BrandColors.ink(context),
                   fontStyle: FontStyle.italic,
                   fontSize: 26,
                   height: 1.1,
@@ -104,7 +104,7 @@ class FeaturedInsightCard extends StatelessWidget {
                 Text(
                   insight.description!,
                   style: TextStyle(
-                    color: AppColors.inkSoft,
+                    color: BrandColors.inkSoft(context),
                     fontSize: 13,
                     height: 1.5,
                   ),
@@ -118,7 +118,7 @@ class FeaturedInsightCard extends StatelessWidget {
                   Text(
                     'Based on ${insight.sampleSize} day${insight.sampleSize == 1 ? '' : 's'}',
                     style: TextStyle(
-                      color: AppColors.inkSoft,
+                      color: BrandColors.inkSoft(context),
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.3,

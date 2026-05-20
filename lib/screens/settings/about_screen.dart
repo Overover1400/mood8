@@ -15,13 +15,13 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.inkSoft, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: BrandColors.inkSoft(context), size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text('About', style: Theme.of(context).textTheme.headlineSmall),
@@ -57,7 +57,7 @@ class AboutScreen extends StatelessWidget {
                         Text(
                           'Mood8',
                           style: GoogleFonts.instrumentSerif(
-                            color: AppColors.ink,
+                            color: BrandColors.ink(context),
                             fontStyle: FontStyle.italic,
                             fontSize: 32,
                             height: 1.0,
@@ -67,7 +67,7 @@ class AboutScreen extends StatelessWidget {
                         Text(
                           'v$kMood8Version',
                           style: TextStyle(
-                            color: AppColors.inkDim,
+                            color: BrandColors.inkDim(context),
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.4,
@@ -126,7 +126,7 @@ class AboutScreen extends StatelessWidget {
                   child: Text(
                     'Made with 💜 for people becoming.',
                     style: TextStyle(
-                      color: AppColors.inkDim,
+                      color: BrandColors.inkDim(context),
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.4,
@@ -147,7 +147,7 @@ class AboutScreen extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Copied: $text'),
-        backgroundColor: AppColors.bgCard,
+        backgroundColor: BrandColors.bgCard(context),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),

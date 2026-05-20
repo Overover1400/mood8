@@ -60,7 +60,7 @@ class AiSummaryCard extends StatelessWidget {
                 icon: Icon(
                   Icons.refresh_rounded,
                   color: loading
-                      ? AppColors.inkDim
+                      ? BrandColors.inkDim(context)
                       : AppColors.purpleLight,
                   size: 18,
                 ),
@@ -85,7 +85,7 @@ class AiSummaryCard extends StatelessWidget {
                 Text(
                   'Mood8 is reading your week…',
                   style: TextStyle(
-                    color: AppColors.inkSoft,
+                    color: BrandColors.inkSoft(context),
                     fontSize: 13,
                   ),
                 ),
@@ -97,7 +97,7 @@ class AiSummaryCard extends StatelessWidget {
                   ? 'Generate your weekly narrative once you have a few patterns.'
                   : summary!,
               style: GoogleFonts.instrumentSerif(
-                color: AppColors.ink,
+                color: BrandColors.ink(context),
                 fontStyle: FontStyle.italic,
                 fontSize: 17,
                 height: 1.45,

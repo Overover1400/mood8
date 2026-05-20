@@ -34,7 +34,7 @@ class ChatBubble extends StatelessWidget {
               )
             : null,
         color:
-            isUser ? null : AppColors.bgCard.withValues(alpha: 0.85),
+            isUser ? null : BrandColors.bgCard(context).withValues(alpha: 0.85),
         borderRadius: BorderRadius.only(
           topLeft: const Radius.circular(18),
           topRight: const Radius.circular(18),
@@ -59,7 +59,7 @@ class ChatBubble extends StatelessWidget {
       child: Text(
         message.content,
         style: TextStyle(
-          color: isUser ? Colors.white : AppColors.ink,
+          color: isUser ? Colors.white : BrandColors.ink(context),
           fontSize: 14,
           height: 1.4,
         ),
@@ -85,7 +85,7 @@ class ChatBubble extends StatelessWidget {
                 child: Text(
                   time,
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.4,

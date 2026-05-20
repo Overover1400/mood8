@@ -64,7 +64,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Password updated. Sign in with your new password.'),
-        backgroundColor: AppColors.bgCard,
+        backgroundColor: BrandColors.bgCard(context),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -76,13 +76,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.inkSoft, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: BrandColors.inkSoft(context), size: 18),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
       ),
@@ -102,7 +102,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 Text.rich(
                   TextSpan(
                     style: TextStyle(
-                      color: AppColors.inkDim,
+                      color: BrandColors.inkDim(context),
                       fontSize: 14,
                     ),
                     children: [
@@ -110,7 +110,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       TextSpan(
                         text: widget.email,
                         style: TextStyle(
-                          color: AppColors.inkSoft,
+                          color: BrandColors.inkSoft(context),
                           fontWeight: FontWeight.w700,
                         ),
                       ),

@@ -18,19 +18,19 @@ class PastRecapsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final service = WeeklyRecapService();
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.inkSoft, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: BrandColors.inkSoft(context), size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Past recaps',
           style: GoogleFonts.instrumentSerif(
-            color: AppColors.ink,
+            color: BrandColors.ink(context),
             fontStyle: FontStyle.italic,
             fontSize: 22,
           ),
@@ -72,7 +72,7 @@ class PastRecapsScreen extends StatelessWidget {
                         Text(
                           'No recaps yet',
                           style: GoogleFonts.instrumentSerif(
-                            color: AppColors.ink,
+                            color: BrandColors.ink(context),
                             fontStyle: FontStyle.italic,
                             fontSize: 22,
                           ),
@@ -82,7 +82,7 @@ class PastRecapsScreen extends StatelessWidget {
                           'Your first weekly recap will appear here.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: AppColors.inkDim,
+                            color: BrandColors.inkDim(context),
                             fontSize: 13,
                             height: 1.5,
                           ),
@@ -140,7 +140,7 @@ class _RecapRow extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
           decoration: BoxDecoration(
-            color: AppColors.bgCard.withValues(alpha: 0.80),
+            color: BrandColors.bgCard(context).withValues(alpha: 0.80),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: AppColors.purple.withValues(alpha: 0.22),
@@ -177,7 +177,7 @@ class _RecapRow extends StatelessWidget {
                     Text(
                       label,
                       style: TextStyle(
-                        color: AppColors.inkDim,
+                        color: BrandColors.inkDim(context),
                         fontSize: 11,
                         letterSpacing: 1.4,
                         fontWeight: FontWeight.w800,
@@ -189,7 +189,7 @@ class _RecapRow extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.instrumentSerif(
-                        color: AppColors.ink,
+                        color: BrandColors.ink(context),
                         fontStyle: FontStyle.italic,
                         fontSize: 15,
                         height: 1.35,

@@ -28,19 +28,19 @@ class _PatternsScreenState extends State<PatternsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.inkSoft, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: BrandColors.inkSoft(context), size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Patterns noticed',
           style: GoogleFonts.instrumentSerif(
-            color: AppColors.ink,
+            color: BrandColors.ink(context),
             fontStyle: FontStyle.italic,
             fontSize: 22,
           ),
@@ -167,7 +167,7 @@ class _Chip extends StatelessWidget {
             gradient: selected ? AppColors.buttonGradient : null,
             color: selected
                 ? null
-                : AppColors.bgCard.withValues(alpha: 0.7),
+                : BrandColors.bgCard(context).withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: selected
@@ -178,7 +178,7 @@ class _Chip extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? Colors.white : AppColors.inkSoft,
+              color: selected ? Colors.white : BrandColors.inkSoft(context),
               fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.3,
@@ -223,7 +223,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               'Nothing here yet',
               style: GoogleFonts.instrumentSerif(
-                color: AppColors.ink,
+                color: BrandColors.ink(context),
                 fontStyle: FontStyle.italic,
                 fontSize: 22,
               ),
@@ -233,7 +233,7 @@ class _EmptyState extends StatelessWidget {
               'Patterns will appear as we learn about you. Keep checking in.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppColors.inkDim,
+                color: BrandColors.inkDim(context),
                 fontSize: 13,
                 height: 1.55,
               ),

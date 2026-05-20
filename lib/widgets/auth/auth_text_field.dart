@@ -74,7 +74,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
           style: TextStyle(
             color: hasError
                 ? const Color(0xFFFF6B81)
-                : (_focused ? AppColors.pinkLight : AppColors.inkDim),
+                : (_focused ? AppColors.pinkLight : BrandColors.inkDim(context)),
             fontSize: 10,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.6,
@@ -84,7 +84,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
         AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
-            color: AppColors.bgCard.withValues(alpha: 0.65),
+            color: BrandColors.bgCard(context).withValues(alpha: 0.65),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: accent.withValues(alpha: _focused ? 0.65 : 0.30),
@@ -103,7 +103,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
             children: [
               if (widget.icon != null) ...[
                 const SizedBox(width: 12),
-                Icon(widget.icon, color: AppColors.inkDim, size: 18),
+                Icon(widget.icon, color: BrandColors.inkDim(context), size: 18),
               ],
               Expanded(
                 child: TextField(
@@ -117,15 +117,15 @@ class _AuthTextFieldState extends State<AuthTextField> {
                   onSubmitted: widget.onSubmitted,
                   textCapitalization: widget.textCapitalization,
                   autofillHints: widget.autofillHints,
-                  style: const TextStyle(
-                    color: AppColors.ink,
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
                   decoration: InputDecoration(
                     hintText: widget.hint,
                     hintStyle: TextStyle(
-                      color: AppColors.inkDim.withValues(alpha: 0.7),
+                      color: BrandColors.inkDim(context).withValues(alpha: 0.7),
                       fontWeight: FontWeight.w500,
                     ),
                     border: InputBorder.none,
@@ -148,7 +148,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
                     _hidden
                         ? Icons.visibility_off_outlined
                         : Icons.visibility_outlined,
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     size: 18,
                   ),
                 ),

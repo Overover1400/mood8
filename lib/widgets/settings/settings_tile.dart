@@ -28,7 +28,7 @@ class SettingsTile extends StatelessWidget {
         ? const Color(0xFFFF6B81)
         : (iconColor ?? AppColors.purpleLight);
     final tColor =
-        destructive ? const Color(0xFFFF6B81) : AppColors.ink;
+        destructive ? const Color(0xFFFF6B81) : BrandColors.ink(context);
     final content = Padding(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       child: Row(
@@ -61,7 +61,7 @@ class SettingsTile extends StatelessWidget {
                   Text(
                     subtitle!,
                     style: TextStyle(
-                      color: AppColors.inkDim,
+                      color: BrandColors.inkDim(context),
                       fontSize: 12,
                     ),
                   ),
@@ -73,7 +73,7 @@ class SettingsTile extends StatelessWidget {
             const SizedBox(width: 12),
             DefaultTextStyle.merge(
               style: TextStyle(
-                color: AppColors.inkSoft,
+                color: BrandColors.inkSoft(context),
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -83,7 +83,7 @@ class SettingsTile extends StatelessWidget {
           if (onTap != null && trailing == null) ...[
             const SizedBox(width: 8),
             Icon(Icons.chevron_right_rounded,
-                color: AppColors.inkDim, size: 18),
+                color: BrandColors.inkDim(context), size: 18),
           ],
         ],
       ),

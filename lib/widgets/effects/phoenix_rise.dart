@@ -330,7 +330,7 @@ class _Badge extends StatelessWidget {
                         Text(
                           '$days day streak',
                           style: GoogleFonts.instrumentSerif(
-                            color: AppColors.ink,
+                            color: BrandColors.ink(context),
                             fontStyle: FontStyle.italic,
                             fontSize: 22,
                             height: 1.0,

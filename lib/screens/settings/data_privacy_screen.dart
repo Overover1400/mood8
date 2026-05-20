@@ -22,13 +22,13 @@ class _DataPrivacyScreenState extends State<DataPrivacyScreen> {
   Widget build(BuildContext context) {
     final stats = _export.stats();
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.inkSoft, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: BrandColors.inkSoft(context), size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text('Data & Privacy',
@@ -110,7 +110,7 @@ class _DataPrivacyScreenState extends State<DataPrivacyScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('JSON copied — paste into a text file.'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -128,7 +128,7 @@ class _DataPrivacyScreenState extends State<DataPrivacyScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: AppColors.bgCard,
+        backgroundColor: BrandColors.bgCard(context),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -156,7 +156,7 @@ class _DataPrivacyScreenState extends State<DataPrivacyScreen> {
                 ? 'JSON backup downloading…'
                 : 'CSV bundle downloading…',
           ),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -169,7 +169,7 @@ class _DataPrivacyScreenState extends State<DataPrivacyScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Export failed: $e'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
         ),
       );
     }
@@ -214,7 +214,7 @@ class _DataPrivacyScreenState extends State<DataPrivacyScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Could not delete: $e'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
         ),
       );
     }
@@ -229,9 +229,9 @@ class _DataPrivacyScreenState extends State<DataPrivacyScreen> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: Text(title, style: const TextStyle(color: AppColors.ink)),
-        content: Text(body, style: const TextStyle(color: AppColors.inkSoft)),
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text(title, style: TextStyle(color: BrandColors.ink(context))),
+        content: Text(body, style: TextStyle(color: BrandColors.inkSoft(context))),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),

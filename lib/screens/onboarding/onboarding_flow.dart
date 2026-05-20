@@ -88,7 +88,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Could not finish onboarding: $e'),
-            backgroundColor: AppColors.bgCard,
+            backgroundColor: BrandColors.bgCard(context),
           ),
         );
       }
@@ -98,7 +98,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       body: Stack(
         children: [
           const _BackgroundGlow(),
@@ -199,9 +199,9 @@ class _TopBar extends StatelessWidget {
                 ? const SizedBox.shrink()
                 : IconButton(
                     onPressed: onBack,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.arrow_back_ios_new_rounded,
-                      color: AppColors.inkSoft,
+                      color: BrandColors.inkSoft(context),
                       size: 18,
                     ),
                   ),
@@ -214,7 +214,7 @@ class _TopBar extends StatelessWidget {
                 : TextButton(
                     onPressed: onSkip,
                     style: TextButton.styleFrom(
-                      foregroundColor: AppColors.inkDim,
+                      foregroundColor: BrandColors.inkDim(context),
                       padding:
                           const EdgeInsets.symmetric(horizontal: 4),
                     ),
@@ -255,7 +255,7 @@ class _ProgressDots extends StatelessWidget {
               gradient: i == page ? AppColors.buttonGradient : null,
               color: i == page
                   ? null
-                  : AppColors.inkFaint.withValues(alpha: 0.6),
+                  : BrandColors.inkFaint(context).withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(6),
             ),
           )

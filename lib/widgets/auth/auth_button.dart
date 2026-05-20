@@ -30,7 +30,7 @@ class AuthButton extends StatelessWidget {
             height: 54,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.bgCard.withValues(alpha: 0.6),
+              color: BrandColors.bgCard(context).withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(27),
               border: Border.all(
                 color: AppColors.purple.withValues(alpha: 0.4),
@@ -39,8 +39,8 @@ class AuthButton extends StatelessWidget {
             ),
             child: Text(
               label,
-              style: const TextStyle(
-                color: AppColors.ink,
+              style: TextStyle(
+                color: BrandColors.ink(context),
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.2,

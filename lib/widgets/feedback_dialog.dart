@@ -52,7 +52,7 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
           content: const Text(
             'Mailto link copied. Paste into your mail app to send.',
           ),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -65,7 +65,7 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Could not prepare feedback: $e'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
         ),
       );
     }
@@ -74,9 +74,9 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: AppColors.bgCard,
-      title: const Text('Send feedback',
-          style: TextStyle(color: AppColors.ink)),
+      backgroundColor: BrandColors.bgCard(context),
+      title: Text('Send feedback',
+          style: TextStyle(color: BrandColors.ink(context))),
       contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
       content: SizedBox(
         width: 480,
@@ -103,14 +103,14 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
               minLines: 4,
               maxLines: 8,
               cursorColor: AppColors.pinkLight,
-              style: const TextStyle(color: AppColors.ink),
+              style: TextStyle(color: BrandColors.ink(context)),
               decoration: InputDecoration(
                 hintText: 'What happened, what you expected, what you want…',
                 hintStyle: TextStyle(
-                  color: AppColors.inkDim.withValues(alpha: 0.8),
+                  color: BrandColors.inkDim(context).withValues(alpha: 0.8),
                 ),
                 filled: true,
-                fillColor: AppColors.bg.withValues(alpha: 0.5),
+                fillColor: BrandColors.bg(context).withValues(alpha: 0.5),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide(
@@ -139,7 +139,7 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
                   value: _includeSnapshot,
                   activeThumbColor: Colors.white,
                   activeTrackColor: AppColors.pink,
-                  inactiveTrackColor: AppColors.bg,
+                  inactiveTrackColor: BrandColors.bg(context),
                   onChanged: (v) => setState(() => _includeSnapshot = v),
                 ),
                 const SizedBox(width: 6),
@@ -147,7 +147,7 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
                   child: Text(
                     'Include anonymous data counts (helps debugging)',
                     style: TextStyle(
-                      color: AppColors.inkDim,
+                      color: BrandColors.inkDim(context),
                       fontSize: 12,
                     ),
                   ),
@@ -177,7 +177,7 @@ class _FeedbackDialogState extends State<_FeedbackDialog> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text('Email copied: hello@mood8.app'),
-                      backgroundColor: AppColors.bgCard,
+                      backgroundColor: BrandColors.bgCard(context),
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -212,7 +212,7 @@ class _KindChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
           gradient: selected ? AppColors.buttonGradient : null,
-          color: selected ? null : AppColors.bg.withValues(alpha: 0.5),
+          color: selected ? null : BrandColors.bg(context).withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected
@@ -223,7 +223,7 @@ class _KindChip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : AppColors.inkSoft,
+            color: selected ? Colors.white : BrandColors.inkSoft(context),
             fontSize: 12,
             fontWeight: FontWeight.w700,
           ),

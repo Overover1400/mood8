@@ -34,7 +34,7 @@ class RoundButton extends StatelessWidget {
               width: 1,
             ),
           ),
-          child: Icon(icon, size: size * 0.45, color: AppColors.inkSoft),
+          child: Icon(icon, size: size * 0.45, color: BrandColors.inkSoft(context)),
         ),
       ),
     );

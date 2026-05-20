@@ -38,7 +38,7 @@ class SettingsDropdown<T> extends StatelessWidget {
           Text(current.label),
           const SizedBox(width: 4),
           Icon(Icons.expand_more_rounded,
-              color: AppColors.inkDim, size: 18),
+              color: BrandColors.inkDim(context), size: 18),
         ],
       ),
       onTap: () => _open(context),
@@ -97,7 +97,7 @@ class _Sheet<T> extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [AppColors.bg, AppColors.bgDeep],
+          colors: [BrandColors.bg(context), BrandColors.bgDeep(context)],
         ),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         border: Border.all(
@@ -118,7 +118,7 @@ class _Sheet<T> extends StatelessWidget {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
-                    color: AppColors.inkFaint.withValues(alpha: 0.6),
+                    color: BrandColors.inkFaint(context).withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -175,8 +175,8 @@ class _OptionRow<T> extends StatelessWidget {
                       option.label,
                       style: TextStyle(
                         color: disabled
-                            ? AppColors.inkDim
-                            : (selected ? AppColors.pinkLight : AppColors.ink),
+                            ? BrandColors.inkDim(context)
+                            : (selected ? AppColors.pinkLight : BrandColors.ink(context)),
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
@@ -186,7 +186,7 @@ class _OptionRow<T> extends StatelessWidget {
                       Text(
                         option.subtitle!,
                         style: TextStyle(
-                          color: AppColors.inkDim,
+                          color: BrandColors.inkDim(context),
                           fontSize: 12,
                         ),
                       ),

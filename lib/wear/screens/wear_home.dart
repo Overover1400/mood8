@@ -58,7 +58,7 @@ class _WearHomeScreenState extends State<WearHomeScreen> {
     final hPad = isRound ? size.width * 0.12 : 14.0;
 
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 10),
@@ -68,7 +68,7 @@ class _WearHomeScreenState extends State<WearHomeScreen> {
               Text(
                 'Hi, Hamed',
                 style: GoogleFonts.instrumentSerif(
-                  color: AppColors.ink,
+                  color: BrandColors.ink(context),
                   fontStyle: FontStyle.italic,
                   fontSize: 16,
                   height: 1.1,
@@ -85,7 +85,7 @@ class _WearHomeScreenState extends State<WearHomeScreen> {
                   child: Text(
                     'How are you?',
                     style: TextStyle(
-                      color: AppColors.inkSoft,
+                      color: BrandColors.inkSoft(context),
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.5,
@@ -118,8 +118,8 @@ class _WearHomeScreenState extends State<WearHomeScreen> {
                 const SizedBox(height: 4),
                 Text(
                   '$_waterCount water today',
-                  style: const TextStyle(
-                    color: AppColors.inkDim,
+                  style: TextStyle(
+                    color: BrandColors.inkDim(context),
                     fontSize: 9,
                   ),
                 ),
@@ -161,16 +161,16 @@ class _StreakCard extends StatelessWidget {
                 TextSpan(
                   text: '$streak',
                   style: GoogleFonts.instrumentSerif(
-                    color: AppColors.ink,
+                    color: BrandColors.ink(context),
                     fontStyle: FontStyle.italic,
                     fontSize: 16,
                     height: 1.0,
                   ),
                 ),
-                const TextSpan(
+                TextSpan(
                   text: ' day streak',
                   style: TextStyle(
-                    color: AppColors.inkSoft,
+                    color: BrandColors.inkSoft(context),
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),

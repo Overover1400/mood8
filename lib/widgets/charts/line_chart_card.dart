@@ -86,7 +86,7 @@ class _LineChartCardState extends State<LineChartCard> {
         borderData: FlBorderData(show: false),
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
-            tooltipBgColor: AppColors.bgCard.withValues(alpha: 0.95),
+            tooltipBgColor: BrandColors.bgCard(context).withValues(alpha: 0.95),
             tooltipBorder: BorderSide(
               color: AppColors.purple.withValues(alpha: 0.30),
             ),
@@ -206,8 +206,8 @@ class _Legend extends StatelessWidget {
                   labelOf(l),
                   style: TextStyle(
                     color: visible.contains(l)
-                        ? AppColors.inkSoft
-                        : AppColors.inkDim,
+                        ? BrandColors.inkSoft(context)
+                        : BrandColors.inkDim(context),
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.3,
@@ -230,7 +230,7 @@ class _EmptyCard extends StatelessWidget {
       height: 180,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.7),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.18),
@@ -238,7 +238,7 @@ class _EmptyCard extends StatelessWidget {
       ),
       child: Text(
         'Track for a few days to see your trends.',
-        style: TextStyle(color: AppColors.inkDim, fontSize: 13),
+        style: TextStyle(color: BrandColors.inkDim(context), fontSize: 13),
       ),
     );
   }

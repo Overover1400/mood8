@@ -14,7 +14,7 @@ class TimeOfDayChart extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: Text(
           'Log check-ins through the day to find your peak window.',
-          style: TextStyle(color: AppColors.inkDim, fontSize: 13),
+          style: TextStyle(color: BrandColors.inkDim(context), fontSize: 13),
         ),
       );
     }
@@ -77,7 +77,7 @@ class _Bar extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  color: highlight ? AppColors.pinkLight : AppColors.ink,
+                  color: highlight ? AppColors.pinkLight : BrandColors.ink(context),
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
@@ -85,7 +85,7 @@ class _Bar extends StatelessWidget {
               Text(
                 hours,
                 style: TextStyle(
-                  color: AppColors.inkDim,
+                  color: BrandColors.inkDim(context),
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
@@ -101,7 +101,7 @@ class _Bar extends StatelessWidget {
               Container(
                 height: 14,
                 decoration: BoxDecoration(
-                  color: AppColors.bg.withValues(alpha: 0.6),
+                  color: BrandColors.bg(context).withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -150,7 +150,7 @@ class _Bar extends StatelessWidget {
             value.toStringAsFixed(1),
             textAlign: TextAlign.right,
             style: TextStyle(
-              color: AppColors.ink,
+              color: BrandColors.ink(context),
               fontWeight: FontWeight.w700,
               fontSize: 13,
             ),

@@ -54,7 +54,7 @@ class EmptyState extends StatelessWidget {
           Text(
             subtitle,
             style: TextStyle(
-              color: AppColors.inkDim,
+              color: BrandColors.inkDim(context),
               fontSize: 13,
               height: 1.4,
             ),

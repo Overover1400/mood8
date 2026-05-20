@@ -48,13 +48,13 @@ class _BadgesScreenState extends State<BadgesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.inkSoft, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: BrandColors.inkSoft(context), size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -178,7 +178,7 @@ class _StatsHeader extends StatelessWidget {
                     Text(
                       'Badges earned',
                       style: TextStyle(
-                        color: AppColors.inkDim,
+                        color: BrandColors.inkDim(context),
                         fontSize: 11,
                         letterSpacing: 1.4,
                         fontWeight: FontWeight.w800,
@@ -192,7 +192,7 @@ class _StatsHeader extends StatelessWidget {
                         Text(
                           '$earned',
                           style: GoogleFonts.instrumentSerif(
-                            color: AppColors.ink,
+                            color: BrandColors.ink(context),
                             fontStyle: FontStyle.italic,
                             fontSize: 32,
                             height: 1.0,
@@ -201,7 +201,7 @@ class _StatsHeader extends StatelessWidget {
                         Text(
                           ' / $total',
                           style: TextStyle(
-                            color: AppColors.inkSoft,
+                            color: BrandColors.inkSoft(context),
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                           ),
@@ -220,7 +220,7 @@ class _StatsHeader extends StatelessWidget {
               children: [
                 Container(
                   height: 8,
-                  color: AppColors.bg.withValues(alpha: 0.7),
+                  color: BrandColors.bg(context).withValues(alpha: 0.7),
                 ),
                 AnimatedFractionallySizedBox(
                   duration: const Duration(milliseconds: 500),
@@ -284,7 +284,7 @@ class _CategorySection extends StatelessWidget {
             Text(
               category.label.toUpperCase(),
               style: TextStyle(
-                color: AppColors.inkDim,
+                color: BrandColors.inkDim(context),
                 fontSize: 10,
                 letterSpacing: 1.8,
                 fontWeight: FontWeight.w800,
@@ -369,8 +369,8 @@ class _BadgeTile extends StatelessWidget {
                     accent.withValues(alpha: 0.06),
                   ]
                 : [
-                    AppColors.bgCard.withValues(alpha: 0.85),
-                    AppColors.bg.withValues(alpha: 0.65),
+                    BrandColors.bgCard(context).withValues(alpha: 0.85),
+                    BrandColors.bg(context).withValues(alpha: 0.65),
                   ],
           ),
           borderRadius: BorderRadius.circular(18),
@@ -413,14 +413,14 @@ class _BadgeTile extends StatelessWidget {
                           : null,
                       color: earned
                           ? null
-                          : AppColors.bg.withValues(alpha: 0.55),
+                          : BrandColors.bg(context).withValues(alpha: 0.55),
                     ),
                     child: Icon(
                       definition.icon,
                       size: 28,
                       color: earned
                           ? Colors.white
-                          : AppColors.inkFaint
+                          : BrandColors.inkFaint(context)
                               .withValues(alpha: 0.7),
                     ),
                   ),
@@ -434,16 +434,16 @@ class _BadgeTile extends StatelessWidget {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.bgCard,
+                          color: BrandColors.bgCard(context),
                           border: Border.all(
-                            color: AppColors.inkFaint
+                            color: BrandColors.inkFaint(context)
                                 .withValues(alpha: 0.55),
                           ),
                         ),
                         child: Icon(
                           Icons.lock_rounded,
                           size: 10,
-                          color: AppColors.inkDim,
+                          color: BrandColors.inkDim(context),
                         ),
                       ),
                     ),
@@ -457,7 +457,7 @@ class _BadgeTile extends StatelessWidget {
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.instrumentSerif(
-                color: earned ? AppColors.ink : AppColors.inkDim,
+                color: earned ? BrandColors.ink(context) : BrandColors.inkDim(context),
                 fontStyle: FontStyle.italic,
                 fontSize: 13,
                 height: 1.15,
@@ -472,7 +472,7 @@ class _BadgeTile extends StatelessWidget {
                   child: Stack(
                     children: [
                       Container(
-                        color: AppColors.bg.withValues(alpha: 0.7),
+                        color: BrandColors.bg(context).withValues(alpha: 0.7),
                       ),
                       FractionallySizedBox(
                         widthFactor: progress.clamp(0, 1).toDouble(),
@@ -491,7 +491,7 @@ class _BadgeTile extends StatelessWidget {
                 _progressLabel(),
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: AppColors.inkFaint,
+                  color: BrandColors.inkFaint(context),
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.3,
@@ -522,7 +522,7 @@ class _BadgeTile extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
+        backgroundColor: BrandColors.bgCard(context),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(22),
         ),
@@ -535,14 +535,14 @@ class _BadgeTile extends StatelessWidget {
               children: [
                 Icon(
                   Icons.lock_rounded,
-                  color: AppColors.inkDim,
+                  color: BrandColors.inkDim(context),
                   size: 18,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   definition.title,
                   style: GoogleFonts.instrumentSerif(
-                    color: AppColors.ink,
+                    color: BrandColors.ink(context),
                     fontStyle: FontStyle.italic,
                     fontSize: 22,
                   ),
@@ -553,7 +553,7 @@ class _BadgeTile extends StatelessWidget {
             Text(
               definition.description,
               style: TextStyle(
-                color: AppColors.inkSoft,
+                color: BrandColors.inkSoft(context),
                 fontSize: 14,
                 height: 1.5,
               ),
@@ -563,7 +563,7 @@ class _BadgeTile extends StatelessWidget {
               'Progress: ${currentCount.clamp(0, definition.threshold)} '
               '/ ${definition.threshold}',
               style: TextStyle(
-                color: AppColors.inkDim,
+                color: BrandColors.inkDim(context),
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),

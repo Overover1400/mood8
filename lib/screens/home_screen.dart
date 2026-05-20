@@ -29,6 +29,7 @@ import '../services/pattern_detection_service.dart';
 import '../models/pattern_alert.dart';
 import '../widgets/pattern_alert_card.dart';
 import 'patterns_screen.dart';
+import '../widgets/tutorial_overlay.dart';
 import '../services/milestone_service.dart';
 import '../services/mood_repository.dart';
 import '../services/onboarding_service.dart';
@@ -85,15 +86,37 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _showRecapBanner = false;
   static bool _patternsRanThisSession = false;
+  bool _intentionPromptDispatched = false;
 
   @override
   void initState() {
     super.initState();
     _loadSuggestion();
-    _maybePromptIntention();
     _maybeAwardBadgesOnOpen();
-    _maybeShowRecapBanner();
     _maybeRunPatternDetection();
+    // Tutorial-gated prompts: intention + recap banner only after the
+    // tutorial completes (or if it was already completed in a prior
+    // session). The notifier listener fires both immediately (if the
+    // initial value is true) and on later flips (when the user finishes
+    // a first-run tutorial).
+    tutorialCompletedNotifier.addListener(_onTutorialStateChange);
+    if (tutorialCompletedNotifier.value) {
+      _onTutorialStateChange();
+    }
+  }
+
+  @override
+  void dispose() {
+    tutorialCompletedNotifier.removeListener(_onTutorialStateChange);
+    super.dispose();
+  }
+
+  void _onTutorialStateChange() {
+    if (!tutorialCompletedNotifier.value) return;
+    if (_intentionPromptDispatched) return;
+    _intentionPromptDispatched = true;
+    _maybePromptIntention();
+    _maybeShowRecapBanner();
   }
 
   Future<void> _maybeRunPatternDetection() async {
@@ -232,7 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg ?? 'Got it — taking a look.'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -628,12 +651,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: const Text('Reset onboarding?',
-            style: TextStyle(color: AppColors.ink)),
-        content: const Text(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text('Reset onboarding?',
+            style: TextStyle(color: BrandColors.ink(context))),
+        content: Text(
           'This clears your profile and routines so you can run onboarding again.',
-          style: TextStyle(color: AppColors.inkSoft),
+          style: TextStyle(color: BrandColors.inkSoft(context)),
         ),
         actions: [
           TextButton(
@@ -680,7 +703,7 @@ class _HomeScreenState extends State<HomeScreen> {
           content: Text(hitMilestone
               ? '🔥 $streak-day streak — keep going.'
               : 'Check-in saved'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -721,7 +744,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Could not save check-in: $e'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -815,7 +838,7 @@ class _Header extends StatelessWidget {
               Text(
                 date,
                 style: TextStyle(
-                  color: AppColors.inkDim,
+                  color: BrandColors.inkDim(context),
                   fontSize: 11,
                   letterSpacing: 1.6,
                   fontWeight: FontWeight.w700,
@@ -878,7 +901,7 @@ class _Header extends StatelessWidget {
               Text(
                 '$streak day streak',
                 style: TextStyle(
-                  color: AppColors.inkSoft,
+                  color: BrandColors.inkSoft(context),
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
                 ),
@@ -1149,7 +1172,7 @@ class _UpNextSection extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Text(
               'No routines yet.',
-              style: TextStyle(color: AppColors.inkDim, fontSize: 13),
+              style: TextStyle(color: BrandColors.inkDim(context), fontSize: 13),
             ),
           )
         else
@@ -1241,7 +1264,7 @@ class _MiniHabitRow extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
           decoration: BoxDecoration(
-            color: AppColors.bgCard.withValues(alpha: 0.75),
+            color: BrandColors.bgCard(context).withValues(alpha: 0.75),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: color.withValues(alpha: 0.20),
@@ -1271,8 +1294,8 @@ class _MiniHabitRow extends StatelessWidget {
                   habit.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.ink,
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1361,7 +1384,7 @@ class _ReflectionNudge extends StatelessWidget {
                     Text(
                       "Tonight's reflection is ready",
                       style: TextStyle(
-                        color: AppColors.ink,
+                        color: BrandColors.ink(context),
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1370,7 +1393,7 @@ class _ReflectionNudge extends StatelessWidget {
                     Text(
                       'Mood8 will read your day and write you a note.',
                       style: TextStyle(
-                        color: AppColors.inkDim,
+                        color: BrandColors.inkDim(context),
                         fontSize: 12,
                       ),
                     ),
@@ -1459,7 +1482,7 @@ class _IntentionCard extends StatelessWidget {
                     Text(
                       "TODAY'S FOCUS",
                       style: TextStyle(
-                        color: AppColors.inkDim,
+                        color: BrandColors.inkDim(context),
                         fontSize: 10,
                         letterSpacing: 1.6,
                         fontWeight: FontWeight.w800,
@@ -1469,7 +1492,7 @@ class _IntentionCard extends StatelessWidget {
                     Text(
                       text,
                       style: GoogleFonts.instrumentSerif(
-                        color: AppColors.ink,
+                        color: BrandColors.ink(context),
                         fontStyle: FontStyle.italic,
                         fontSize: 19,
                         height: 1.35,
@@ -1519,7 +1542,7 @@ class _PatternsCarousel extends StatelessWidget {
               Text(
                 'PATTERNS NOTICED',
                 style: TextStyle(
-                  color: AppColors.inkDim,
+                  color: BrandColors.inkDim(context),
                   fontSize: 10,
                   letterSpacing: 1.8,
                   fontWeight: FontWeight.w800,
@@ -1629,7 +1652,7 @@ class _RecapBanner extends StatelessWidget {
                     Text(
                       'Your week is ready',
                       style: GoogleFonts.instrumentSerif(
-                        color: AppColors.ink,
+                        color: BrandColors.ink(context),
                         fontStyle: FontStyle.italic,
                         fontSize: 18,
                         height: 1.1,
@@ -1648,7 +1671,7 @@ class _RecapBanner extends StatelessWidget {
                 onPressed: onDismiss,
                 icon: Icon(
                   Icons.close_rounded,
-                  color: AppColors.inkDim,
+                  color: BrandColors.inkDim(context),
                   size: 16,
                 ),
               ),
@@ -1674,7 +1697,7 @@ class _IntentionNudge extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
           decoration: BoxDecoration(
-            color: AppColors.bgCard.withValues(alpha: 0.55),
+            color: BrandColors.bgCard(context).withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: AppColors.purple.withValues(alpha: 0.22),
@@ -1692,7 +1715,7 @@ class _IntentionNudge extends StatelessWidget {
                 child: Text(
                   "Set today's intention",
                   style: TextStyle(
-                    color: AppColors.inkSoft,
+                    color: BrandColors.inkSoft(context),
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.3,
@@ -1795,7 +1818,7 @@ class _GratitudeCard extends StatelessWidget {
                       style: TextStyle(
                         color: logged
                             ? AppColors.pinkLight
-                            : AppColors.inkDim,
+                            : BrandColors.inkDim(context),
                         fontSize: 10,
                         letterSpacing: 1.6,
                         fontWeight: FontWeight.w800,
@@ -1809,7 +1832,7 @@ class _GratitudeCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.instrumentSerif(
-                        color: AppColors.ink,
+                        color: BrandColors.ink(context),
                         fontStyle: FontStyle.italic,
                         fontSize: logged ? 17 : 19,
                         height: 1.3,

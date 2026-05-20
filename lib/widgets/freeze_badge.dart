@@ -48,8 +48,8 @@ class FreezeBadge extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: empty
                 ? [
-                    AppColors.bgCard.withValues(alpha: 0.85),
-                    AppColors.bg.withValues(alpha: 0.75),
+                    BrandColors.bgCard(context).withValues(alpha: 0.85),
+                    BrandColors.bg(context).withValues(alpha: 0.75),
                   ]
                 : [
                     AppColors.blueAccent.withValues(alpha: 0.28),
@@ -59,7 +59,7 @@ class FreezeBadge extends StatelessWidget {
           borderRadius: BorderRadius.circular(40),
           border: Border.all(
             color: empty
-                ? AppColors.inkFaint.withValues(alpha: 0.40)
+                ? BrandColors.inkFaint(context).withValues(alpha: 0.40)
                 : AppColors.blueAccent.withValues(alpha: 0.55),
           ),
           boxShadow: empty
@@ -80,7 +80,7 @@ class FreezeBadge extends StatelessWidget {
             Text(
               '$count',
               style: TextStyle(
-                color: empty ? AppColors.inkDim : AppColors.ink,
+                color: empty ? BrandColors.inkDim(context) : BrandColors.ink(context),
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.3,
@@ -106,7 +106,7 @@ class _Snowflake extends StatelessWidget {
       size: size,
       color: active
           ? AppColors.blueAccent
-          : AppColors.inkFaint.withValues(alpha: 0.7),
+          : BrandColors.inkFaint(context).withValues(alpha: 0.7),
       shadows: active
           ? [
               Shadow(
@@ -167,8 +167,8 @@ class _FreezeInfoSheet extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.bgCard,
-                AppColors.bg,
+                BrandColors.bgCard(context),
+                BrandColors.bg(context),
               ],
             ),
             borderRadius: BorderRadius.circular(28),
@@ -193,7 +193,7 @@ class _FreezeInfoSheet extends StatelessWidget {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.inkFaint.withValues(alpha: 0.5),
+                    color: BrandColors.inkFaint(context).withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -218,7 +218,7 @@ class _FreezeInfoSheet extends StatelessWidget {
                   'Protect your streak when you miss a day.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: AppColors.inkSoft,
+                    color: BrandColors.inkSoft(context),
                     fontSize: 14,
                     height: 1.5,
                   ),
@@ -264,7 +264,7 @@ class _FreezeInfoSheet extends StatelessWidget {
                         child: Text(
                           'Premium: 2 per Sunday, hold up to 3.',
                           style: TextStyle(
-                            color: AppColors.inkSoft,
+                            color: BrandColors.inkSoft(context),
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -302,7 +302,7 @@ class _StatRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.bg.withValues(alpha: 0.55),
+        color: BrandColors.bg(context).withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.15),
@@ -314,7 +314,7 @@ class _StatRow extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                color: AppColors.inkDim,
+                color: BrandColors.inkDim(context),
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -323,7 +323,7 @@ class _StatRow extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              color: AppColors.ink,
+              color: BrandColors.ink(context),
               fontSize: 14,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.2,

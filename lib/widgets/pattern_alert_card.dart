@@ -80,7 +80,7 @@ class PatternAlertCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.instrumentSerif(
-                    color: AppColors.ink,
+                    color: BrandColors.ink(context),
                     fontStyle: FontStyle.italic,
                     fontSize: 18,
                     height: 1.2,
@@ -94,7 +94,7 @@ class PatternAlertCard extends StatelessWidget {
                   padding: const EdgeInsets.all(6),
                   child: Icon(
                     Icons.close_rounded,
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     size: 16,
                   ),
                 ),
@@ -107,7 +107,7 @@ class PatternAlertCard extends StatelessWidget {
             maxLines: compact ? 2 : 4,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: AppColors.inkSoft,
+              color: BrandColors.inkSoft(context),
               fontSize: 13.5,
               height: 1.5,
             ),
@@ -135,7 +135,7 @@ class PatternAlertCard extends StatelessWidget {
                       Text(
                         alert.actionLabel!,
                         style: TextStyle(
-                          color: AppColors.ink,
+                          color: BrandColors.ink(context),
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.3,

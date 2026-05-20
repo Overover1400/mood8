@@ -104,8 +104,8 @@ class _IntentionSheetState extends State<IntentionSheet> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.bgCard,
-                AppColors.bg,
+                BrandColors.bgCard(context),
+                BrandColors.bg(context),
               ],
             ),
             borderRadius: BorderRadius.circular(28),
@@ -130,7 +130,7 @@ class _IntentionSheetState extends State<IntentionSheet> {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.inkFaint.withValues(alpha: 0.5),
+                    color: BrandColors.inkFaint(context).withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -156,7 +156,7 @@ class _IntentionSheetState extends State<IntentionSheet> {
                   "What's one thing that would make today great?",
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 14,
                     height: 1.5,
                   ),
@@ -183,7 +183,7 @@ class _IntentionSheetState extends State<IntentionSheet> {
                     style: TextStyle(
                       color: remaining <= 10
                           ? AppColors.pinkLight
-                          : AppColors.inkFaint,
+                          : BrandColors.inkFaint(context),
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -204,7 +204,7 @@ class _IntentionSheetState extends State<IntentionSheet> {
                 child: Text(
                   'Skip for today',
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
                   ),
@@ -235,7 +235,7 @@ class _IntentionField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.bg.withValues(alpha: 0.55),
+        color: BrandColors.bg(context).withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.28),
@@ -249,8 +249,8 @@ class _IntentionField extends StatelessWidget {
         minLines: 2,
         maxLines: 4,
         cursorColor: AppColors.pinkLight,
-        style: const TextStyle(
-          color: AppColors.ink,
+        style: TextStyle(
+          color: BrandColors.ink(context),
           fontSize: 15,
           height: 1.4,
         ),
@@ -266,7 +266,7 @@ class _IntentionField extends StatelessWidget {
           border: InputBorder.none,
           hintText: 'e.g., Finish my morning workout…',
           hintStyle: TextStyle(
-            color: AppColors.inkDim.withValues(alpha: 0.8),
+            color: BrandColors.inkDim(context).withValues(alpha: 0.8),
             fontSize: 15,
             height: 1.4,
           ),

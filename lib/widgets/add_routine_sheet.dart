@@ -127,7 +127,7 @@ class _AddRoutineSheetState extends State<AddRoutineSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Could not save: $e'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
         ),
       );
     }
@@ -145,7 +145,7 @@ class _AddRoutineSheetState extends State<AddRoutineSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Could not delete: $e'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
         ),
       );
     }
@@ -162,8 +162,8 @@ class _AddRoutineSheetState extends State<AddRoutineSheet> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              AppColors.bg,
-              AppColors.bgDeep,
+              BrandColors.bg(context),
+              BrandColors.bgDeep(context),
             ],
           ),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -188,7 +188,7 @@ class _AddRoutineSheetState extends State<AddRoutineSheet> {
                       height: 4,
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
-                        color: AppColors.inkFaint.withValues(alpha: 0.6),
+                        color: BrandColors.inkFaint(context).withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -284,7 +284,7 @@ class _AddRoutineSheetState extends State<AddRoutineSheet> {
                             ? null
                             : () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.inkSoft,
+                          foregroundColor: BrandColors.inkSoft(context),
                           side: BorderSide(
                             color:
                                 AppColors.purple.withValues(alpha: 0.35),
@@ -325,7 +325,7 @@ class _Label extends StatelessWidget {
     return Text(
       text.toUpperCase(),
       style: TextStyle(
-        color: AppColors.inkDim,
+        color: BrandColors.inkDim(context),
         fontSize: 10,
         fontWeight: FontWeight.w800,
         letterSpacing: 1.6,
@@ -359,15 +359,15 @@ class _UnderlineField extends StatelessWidget {
           focusNode: focusNode,
           textInputAction: textInputAction,
           cursorColor: AppColors.purpleLight,
-          style: const TextStyle(
-            color: AppColors.ink,
+          style: TextStyle(
+            color: BrandColors.ink(context),
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(
-              color: AppColors.inkDim.withValues(alpha: 0.8),
+              color: BrandColors.inkDim(context).withValues(alpha: 0.8),
               fontWeight: FontWeight.w500,
             ),
             isDense: true,
@@ -417,7 +417,7 @@ class _TimePickerCard extends StatelessWidget {
     return Container(
       height: 130,
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.6),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.20),
@@ -426,12 +426,12 @@ class _TimePickerCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: CupertinoTheme(
-          data: const CupertinoThemeData(
+          data: CupertinoThemeData(
             brightness: Brightness.dark,
             primaryColor: AppColors.pinkLight,
             textTheme: CupertinoTextThemeData(
               dateTimePickerTextStyle: TextStyle(
-                color: AppColors.ink,
+                color: BrandColors.ink(context),
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
               ),
@@ -499,17 +499,17 @@ class _DurationChips extends StatelessWidget {
     return showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: const Text('Custom duration',
-            style: TextStyle(color: AppColors.ink)),
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text('Custom duration',
+            style: TextStyle(color: BrandColors.ink(context))),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           keyboardType: TextInputType.number,
-          style: const TextStyle(color: AppColors.ink),
-          decoration: const InputDecoration(
+          style: TextStyle(color: BrandColors.ink(context)),
+          decoration: InputDecoration(
             suffixText: 'minutes',
-            suffixStyle: TextStyle(color: AppColors.inkDim),
+            suffixStyle: TextStyle(color: BrandColors.inkDim(context)),
           ),
         ),
         actions: [
@@ -550,7 +550,7 @@ class _DurationChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           gradient: selected ? AppColors.buttonGradient : null,
-          color: selected ? null : AppColors.bgCard.withValues(alpha: 0.6),
+          color: selected ? null : BrandColors.bgCard(context).withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected
@@ -569,7 +569,7 @@ class _DurationChip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : AppColors.inkSoft,
+            color: selected ? Colors.white : BrandColors.inkSoft(context),
             fontWeight: FontWeight.w700,
             fontSize: 12,
           ),

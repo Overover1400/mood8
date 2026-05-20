@@ -45,7 +45,7 @@ class SettingsToggle extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    color: disabled ? AppColors.inkDim : AppColors.ink,
+                    color: disabled ? BrandColors.inkDim(context) : BrandColors.ink(context),
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -55,7 +55,7 @@ class SettingsToggle extends StatelessWidget {
                   Text(
                     subtitle!,
                     style: TextStyle(
-                      color: AppColors.inkDim,
+                      color: BrandColors.inkDim(context),
                       fontSize: 12,
                     ),
                   ),
@@ -73,8 +73,8 @@ class SettingsToggle extends StatelessWidget {
                   },
             activeThumbColor: Colors.white,
             activeTrackColor: AppColors.pink,
-            inactiveThumbColor: AppColors.inkSoft,
-            inactiveTrackColor: AppColors.bg,
+            inactiveThumbColor: BrandColors.inkSoft(context),
+            inactiveTrackColor: BrandColors.bg(context),
           ),
         ],
       ),

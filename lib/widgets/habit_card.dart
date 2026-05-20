@@ -48,8 +48,8 @@ class HabitCard extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.bgCard.withValues(alpha: 0.92),
-                  AppColors.bg.withValues(alpha: 0.85),
+                  BrandColors.bgCard(context).withValues(alpha: 0.92),
+                  BrandColors.bg(context).withValues(alpha: 0.85),
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
@@ -73,8 +73,8 @@ class HabitCard extends StatelessWidget {
                             habit.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.ink,
+                            style: TextStyle(
+                              color: BrandColors.ink(context),
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                             ),
@@ -157,7 +157,7 @@ class _IdentityChip extends StatelessWidget {
       child: Text(
         identity.toUpperCase(),
         style: TextStyle(
-          color: AppColors.inkSoft,
+          color: BrandColors.inkSoft(context),
           fontSize: 9,
           fontWeight: FontWeight.w800,
           letterSpacing: 1.2,
@@ -219,7 +219,7 @@ class _Dot extends StatelessWidget {
       decoration: BoxDecoration(
         color: filled
             ? color.withValues(alpha: 0.25 + 0.65 * ratio.clamp(0.0, 1.0))
-            : AppColors.bg.withValues(alpha: 0.5),
+            : BrandColors.bg(context).withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(
           color: isToday

@@ -202,7 +202,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Developer tools unlocked.'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -220,8 +220,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.inkSoft, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: BrandColors.inkSoft(context), size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text('Settings',
@@ -553,7 +553,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           child: Row(
                             children: [
                               Icon(Icons.volume_down_rounded,
-                                  color: AppColors.inkDim, size: 16),
+                                  color: BrandColors.inkDim(context), size: 16),
                               Expanded(
                                 child: Slider(
                                   value: _sfx.volume,
@@ -561,7 +561,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       ? (v) => _sfx.setVolume(v)
                                       : null,
                                   activeColor: AppColors.pinkLight,
-                                  inactiveColor: AppColors.bg,
+                                  inactiveColor: BrandColors.bg(context),
                                 ),
                               ),
                               SizedBox(
@@ -570,7 +570,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   '${(_sfx.volume * 100).round()}%',
                                   textAlign: TextAlign.right,
                                   style: TextStyle(
-                                    color: AppColors.inkSoft,
+                                    color: BrandColors.inkSoft(context),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -830,9 +830,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               AnalyticsService().invalidate();
                               HapticFeedback.lightImpact();
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
+                                SnackBar(
                                   content: Text('Analytics cache cleared.'),
-                                  backgroundColor: AppColors.bgCard,
+                                  backgroundColor: BrandColors.bgCard(context),
                                   behavior: SnackBarBehavior.floating,
                                 ),
                               );
@@ -858,7 +858,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Text(
                         'Made with 💜 for people becoming.',
                         style: TextStyle(
-                          color: AppColors.inkDim,
+                          color: BrandColors.inkDim(context),
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.4,
@@ -881,18 +881,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final newName = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: const Text('Your name',
-            style: TextStyle(color: AppColors.ink)),
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text('Your name',
+            style: TextStyle(color: BrandColors.ink(context))),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           cursorColor: AppColors.pinkLight,
           textCapitalization: TextCapitalization.words,
-          style: const TextStyle(color: AppColors.ink),
-          decoration: const InputDecoration(
+          style: TextStyle(color: BrandColors.ink(context)),
+          decoration: InputDecoration(
             hintText: 'Your name',
-            hintStyle: TextStyle(color: AppColors.inkDim),
+            hintStyle: TextStyle(color: BrandColors.inkDim(context)),
           ),
         ),
         actions: [
@@ -986,7 +986,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$label is coming soon.'),
-        backgroundColor: AppColors.bgCard,
+        backgroundColor: BrandColors.bgCard(context),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -1003,7 +1003,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(
           content: const Text(
               'Notification permission denied. Enable it in browser settings.'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -1028,7 +1028,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Morning reminder scheduled for 09:00.'),
-        backgroundColor: AppColors.bgCard,
+        backgroundColor: BrandColors.bgCard(context),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -1046,7 +1046,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Evening reflection scheduled for 21:00.'),
-        backgroundColor: AppColors.bgCard,
+        backgroundColor: BrandColors.bgCard(context),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -1066,12 +1066,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: const Text('Sign out?',
-            style: TextStyle(color: AppColors.ink)),
-        content: const Text(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text('Sign out?',
+            style: TextStyle(color: BrandColors.ink(context))),
+        content: Text(
           "Your local data stays on this device.",
-          style: TextStyle(color: AppColors.inkSoft),
+          style: TextStyle(color: BrandColors.inkSoft(context)),
         ),
         actions: [
           TextButton(
@@ -1095,13 +1095,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: const Text('Delete account?',
-            style: TextStyle(color: AppColors.ink)),
-        content: const Text(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text('Delete account?',
+            style: TextStyle(color: BrandColors.ink(context))),
+        content: Text(
           'Sync isn\'t enabled yet — this erases everything stored on this device. '
           'You can re-onboard right after.',
-          style: TextStyle(color: AppColors.inkSoft),
+          style: TextStyle(color: BrandColors.inkSoft(context)),
         ),
         actions: [
           TextButton(
@@ -1121,12 +1121,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final ok2 = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: const Text('Are you sure?',
-            style: TextStyle(color: AppColors.ink)),
-        content: const Text(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text('Are you sure?',
+            style: TextStyle(color: BrandColors.ink(context))),
+        content: Text(
           'This cannot be undone.',
-          style: TextStyle(color: AppColors.inkSoft),
+          style: TextStyle(color: BrandColors.inkSoft(context)),
         ),
         actions: [
           TextButton(
@@ -1151,12 +1151,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: const Text('Reset onboarding?',
-            style: TextStyle(color: AppColors.ink)),
-        content: const Text(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text('Reset onboarding?',
+            style: TextStyle(color: BrandColors.ink(context))),
+        content: Text(
           'Clears profile, routines, and habits.',
-          style: TextStyle(color: AppColors.inkSoft),
+          style: TextStyle(color: BrandColors.inkSoft(context)),
         ),
         actions: [
           TextButton(
@@ -1187,13 +1187,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: const Text('Debug',
-            style: TextStyle(color: AppColors.ink)),
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text('Debug',
+            style: TextStyle(color: BrandColors.ink(context))),
         content: SingleChildScrollView(
           child: Text(
             info.toString(),
-            style: const TextStyle(color: AppColors.inkSoft, fontSize: 12),
+            style: TextStyle(color: BrandColors.inkSoft(context), fontSize: 12),
           ),
         ),
         actions: [
@@ -1250,7 +1250,7 @@ class _ProfileCard extends StatelessWidget {
                       child: Text(
                         name,
                         style: GoogleFonts.instrumentSerif(
-                          color: AppColors.ink,
+                          color: BrandColors.ink(context),
                           fontStyle: FontStyle.italic,
                           fontSize: 24,
                           height: 1.0,
@@ -1261,7 +1261,7 @@ class _ProfileCard extends StatelessWidget {
                     Text(
                       'Member since $memberSince',
                       style: TextStyle(
-                        color: AppColors.inkDim,
+                        color: BrandColors.inkDim(context),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.3,
@@ -1314,7 +1314,7 @@ class _IdentityPill extends StatelessWidget {
       child: Text(
         label,
         style: GoogleFonts.instrumentSerif(
-          color: AppColors.ink,
+          color: BrandColors.ink(context),
           fontStyle: FontStyle.italic,
           fontSize: 13,
         ),

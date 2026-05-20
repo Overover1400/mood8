@@ -85,7 +85,7 @@ class _Cell extends StatelessWidget {
         ? AppColors.blueAccent.withValues(alpha: 0.40)
         : filled
             ? color.withValues(alpha: alpha)
-            : AppColors.bg.withValues(alpha: 0.55);
+            : BrandColors.bg(context).withValues(alpha: 0.55);
     final showFreezeIcon = isFrozen && size >= 18;
     return Container(
       width: size,
@@ -129,7 +129,7 @@ class _Cell extends StatelessWidget {
               style: TextStyle(
                 color: filled
                     ? Colors.white.withValues(alpha: 0.85)
-                    : AppColors.inkDim.withValues(alpha: 0.65),
+                    : BrandColors.inkDim(context).withValues(alpha: 0.65),
                 fontSize: size < 22 ? 9 : 10,
                 fontWeight: FontWeight.w700,
               ),

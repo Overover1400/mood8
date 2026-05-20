@@ -172,7 +172,7 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Could not save: $e'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
         ),
       );
     }
@@ -183,13 +183,13 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: const Text('Habit limit reached',
-            style: TextStyle(color: AppColors.ink)),
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text('Habit limit reached',
+            style: TextStyle(color: BrandColors.ink(context))),
         content: Text(
           'Free plan supports up to $cap habits.\n\n'
           'Premium gives you unlimited habits, routines, and AI Coach.',
-          style: const TextStyle(color: AppColors.inkSoft),
+          style: TextStyle(color: BrandColors.inkSoft(context)),
         ),
         actions: [
           TextButton(
@@ -224,7 +224,7 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Could not delete: $e'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
         ),
       );
     }
@@ -243,7 +243,7 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [AppColors.bg, AppColors.bgDeep],
+            colors: [BrandColors.bg(context), BrandColors.bgDeep(context)],
           ),
           borderRadius:
               const BorderRadius.vertical(top: Radius.circular(28)),
@@ -268,7 +268,7 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
                       height: 4,
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
-                        color: AppColors.inkFaint.withValues(alpha: 0.6),
+                        color: BrandColors.inkFaint(context).withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -389,7 +389,7 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
                             ? null
                             : () => Navigator.of(context).pop(),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.inkSoft,
+                          foregroundColor: BrandColors.inkSoft(context),
                           side: BorderSide(
                             color: AppColors.purple.withValues(alpha: 0.35),
                           ),
@@ -429,7 +429,7 @@ class _Label extends StatelessWidget {
   Widget build(BuildContext context) => Text(
         text.toUpperCase(),
         style: TextStyle(
-          color: AppColors.inkDim,
+          color: BrandColors.inkDim(context),
           fontSize: 10,
           fontWeight: FontWeight.w800,
           letterSpacing: 1.6,
@@ -462,7 +462,7 @@ class _EmojiPicker extends StatelessWidget {
                     ? AppColors.buttonGradient
                     : null,
                 color:
-                    value == e ? null : AppColors.bgCard.withValues(alpha: 0.7),
+                    value == e ? null : BrandColors.bgCard(context).withValues(alpha: 0.7),
                 border: Border.all(
                   color: value == e
                       ? Colors.transparent
@@ -507,15 +507,15 @@ class _UnderlineField extends StatelessWidget {
           controller: controller,
           focusNode: focusNode,
           cursorColor: AppColors.purpleLight,
-          style: const TextStyle(
-            color: AppColors.ink,
+          style: TextStyle(
+            color: BrandColors.ink(context),
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(
-              color: AppColors.inkDim.withValues(alpha: 0.8),
+              color: BrandColors.inkDim(context).withValues(alpha: 0.8),
               fontWeight: FontWeight.w500,
             ),
             isDense: true,
@@ -559,8 +559,8 @@ class _NumberField extends StatelessWidget {
         FilteringTextInputFormatter.digitsOnly,
       ],
       cursorColor: AppColors.purpleLight,
-      style: const TextStyle(
-        color: AppColors.ink,
+      style: TextStyle(
+        color: BrandColors.ink(context),
         fontSize: 16,
         fontWeight: FontWeight.w600,
       ),
@@ -590,7 +590,7 @@ class _TypeTabs extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.7),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.20),
@@ -617,7 +617,7 @@ class _TypeTabs extends StatelessWidget {
                   child: Text(
                     t.label,
                     style: TextStyle(
-                      color: t == value ? Colors.white : AppColors.inkDim,
+                      color: t == value ? Colors.white : BrandColors.inkDim(context),
                       fontWeight: FontWeight.w700,
                       fontSize: 12,
                     ),
@@ -662,7 +662,7 @@ class _IdentityPicker extends StatelessWidget {
                 gradient: o == value ? AppColors.buttonGradient : null,
                 color: o == value
                     ? null
-                    : AppColors.bgCard.withValues(alpha: 0.6),
+                    : BrandColors.bgCard(context).withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: o == value
@@ -673,7 +673,7 @@ class _IdentityPicker extends StatelessWidget {
               child: Text(
                 o,
                 style: TextStyle(
-                  color: o == value ? Colors.white : AppColors.inkSoft,
+                  color: o == value ? Colors.white : BrandColors.inkSoft(context),
                   fontWeight: FontWeight.w700,
                   fontSize: 12,
                 ),
@@ -710,7 +710,7 @@ class _FrequencyPicker extends StatelessWidget {
                 gradient: f == value ? AppColors.buttonGradient : null,
                 color: f == value
                     ? null
-                    : AppColors.bgCard.withValues(alpha: 0.6),
+                    : BrandColors.bgCard(context).withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: f == value
@@ -721,7 +721,7 @@ class _FrequencyPicker extends StatelessWidget {
               child: Text(
                 f.label,
                 style: TextStyle(
-                  color: f == value ? Colors.white : AppColors.inkSoft,
+                  color: f == value ? Colors.white : BrandColors.inkSoft(context),
                   fontWeight: FontWeight.w700,
                   fontSize: 12,
                 ),
@@ -761,7 +761,7 @@ class _CustomDaysRow extends StatelessWidget {
                       : null,
                   color: selected.contains(i)
                       ? null
-                      : AppColors.bgCard.withValues(alpha: 0.6),
+                      : BrandColors.bgCard(context).withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: selected.contains(i)
@@ -774,7 +774,7 @@ class _CustomDaysRow extends StatelessWidget {
                   style: TextStyle(
                     color: selected.contains(i)
                         ? Colors.white
-                        : AppColors.inkSoft,
+                        : BrandColors.inkSoft(context),
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
                   ),

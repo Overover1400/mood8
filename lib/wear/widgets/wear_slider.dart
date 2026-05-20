@@ -20,7 +20,7 @@ class WearSlider extends StatelessWidget {
         thumbShape: const _CompactThumbShape(),
         overlayShape: SliderComponentShape.noOverlay,
         activeTrackColor: AppColors.pink,
-        inactiveTrackColor: AppColors.bgCard,
+        inactiveTrackColor: BrandColors.bgCard(context),
         thumbColor: Colors.white,
       ),
       child: Slider(

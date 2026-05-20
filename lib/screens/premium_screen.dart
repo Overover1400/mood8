@@ -63,13 +63,13 @@ class PremiumScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.inkSoft, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: BrandColors.inkSoft(context), size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -88,7 +88,7 @@ class PremiumScreen extends StatelessWidget {
                 Text(
                   'CHOOSE YOUR PLAN',
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.6,
@@ -105,7 +105,7 @@ class PremiumScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
-                      color: AppColors.bgCard.withValues(alpha: 0.7),
+                      color: BrandColors.bgCard(context).withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: AppColors.purple.withValues(alpha: 0.25),
@@ -114,7 +114,7 @@ class PremiumScreen extends StatelessWidget {
                     child: Text(
                       'Billing launches soon · join the waitlist',
                       style: TextStyle(
-                        color: AppColors.inkSoft,
+                        color: BrandColors.inkSoft(context),
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.3,
@@ -159,7 +159,7 @@ class PremiumScreen extends StatelessWidget {
         content: const Text(
           'Email copied: hello@mood8.app — send "premium" in the subject.',
         ),
-        backgroundColor: AppColors.bgCard,
+        backgroundColor: BrandColors.bgCard(context),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -197,7 +197,7 @@ class _Hero extends StatelessWidget {
         Text(
           'Mood8 Premium',
           style: GoogleFonts.instrumentSerif(
-            color: AppColors.ink,
+            color: BrandColors.ink(context),
             fontStyle: FontStyle.italic,
             fontSize: 36,
             height: 1.0,
@@ -207,7 +207,7 @@ class _Hero extends StatelessWidget {
         Text(
           'Everything that compounds.',
           style: TextStyle(
-            color: AppColors.inkDim,
+            color: BrandColors.inkDim(context),
             fontSize: 13,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.3,
@@ -224,7 +224,7 @@ class _FeatureList extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.85),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.20),
@@ -242,8 +242,8 @@ class _FeatureList extends StatelessWidget {
                 Expanded(
                   child: Text(
                     _kFeatures[i],
-                    style: const TextStyle(
-                      color: AppColors.ink,
+                    style: TextStyle(
+                      color: BrandColors.ink(context),
                       fontSize: 14,
                       height: 1.5,
                     ),
@@ -278,7 +278,7 @@ class _PlanRow extends StatelessWidget {
                 ],
               )
             : null,
-        color: plan.highlight ? null : AppColors.bgCard.withValues(alpha: 0.85),
+        color: plan.highlight ? null : BrandColors.bgCard(context).withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: plan.highlight
@@ -297,7 +297,7 @@ class _PlanRow extends StatelessWidget {
                   style: TextStyle(
                     color: plan.highlight
                         ? AppColors.pinkLight
-                        : AppColors.inkDim,
+                        : BrandColors.inkDim(context),
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.4,
@@ -310,7 +310,7 @@ class _PlanRow extends StatelessWidget {
                       TextSpan(
                         text: plan.price,
                         style: GoogleFonts.instrumentSerif(
-                          color: AppColors.ink,
+                          color: BrandColors.ink(context),
                           fontStyle: FontStyle.italic,
                           fontSize: 26,
                           height: 1.0,
@@ -319,7 +319,7 @@ class _PlanRow extends StatelessWidget {
                       TextSpan(
                         text: ' ${plan.per}',
                         style: TextStyle(
-                          color: AppColors.inkDim,
+                          color: BrandColors.inkDim(context),
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),

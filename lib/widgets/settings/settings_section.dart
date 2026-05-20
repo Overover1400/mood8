@@ -28,7 +28,7 @@ class SettingsSection extends StatelessWidget {
                 Text(
                   title.toUpperCase(),
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.6,
@@ -39,7 +39,7 @@ class SettingsSection extends StatelessWidget {
                   Text(
                     subtitle!,
                     style: TextStyle(
-                      color: AppColors.inkFaint,
+                      color: BrandColors.inkFaint(context),
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.4,
@@ -51,7 +51,7 @@ class SettingsSection extends StatelessWidget {
           ),
           Container(
             decoration: BoxDecoration(
-              color: AppColors.bgCard.withValues(alpha: 0.78),
+              color: BrandColors.bgCard(context).withValues(alpha: 0.78),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: AppColors.purple.withValues(alpha: 0.18),

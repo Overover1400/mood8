@@ -173,7 +173,7 @@ class _BoxState extends State<_Box> {
       height: 56,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.7),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: _focused
@@ -205,8 +205,8 @@ class _BoxState extends State<_Box> {
           textAlign: TextAlign.center,
           cursorColor: AppColors.pinkLight,
           maxLength: 1,
-          style: const TextStyle(
-            color: AppColors.ink,
+          style: TextStyle(
+            color: BrandColors.ink(context),
             fontSize: 22,
             fontWeight: FontWeight.w800,
           ),

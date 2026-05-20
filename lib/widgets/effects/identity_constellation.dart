@@ -275,7 +275,7 @@ class _Toast extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 22, vertical: 14),
                       decoration: BoxDecoration(
-                        color: AppColors.bgCard.withValues(alpha: 0.65),
+                        color: BrandColors.bgCard(context).withValues(alpha: 0.65),
                         border: Border.all(
                           color: AppColors.pinkLight.withValues(alpha: 0.45),
                         ),
@@ -284,7 +284,7 @@ class _Toast extends StatelessWidget {
                       child: Text(
                         "You're $pct% $identity.",
                         style: GoogleFonts.instrumentSerif(
-                          color: AppColors.ink,
+                          color: BrandColors.ink(context),
                           fontStyle: FontStyle.italic,
                           fontSize: 22,
                           height: 1.0,

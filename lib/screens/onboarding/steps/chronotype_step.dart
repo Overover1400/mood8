@@ -46,7 +46,7 @@ class _ChronotypeStepState extends State<ChronotypeStep> {
           const SizedBox(height: 8),
           Text(
             "We'll plan around your natural rhythm.",
-            style: TextStyle(color: AppColors.inkDim, fontSize: 14),
+            style: TextStyle(color: BrandColors.inkDim(context), fontSize: 14),
           ).animate().fadeIn(delay: 120.ms, duration: 500.ms),
           const SizedBox(height: 20),
           for (var i = 0; i < Chronotype.values.length; i++) ...[
@@ -102,7 +102,7 @@ class _ChronoCard extends StatelessWidget {
                   ],
                 )
               : null,
-          color: selected ? null : AppColors.bgCard.withValues(alpha: 0.7),
+          color: selected ? null : BrandColors.bgCard(context).withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             color: selected
@@ -127,7 +127,7 @@ class _ChronoCard extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.bg.withValues(alpha: 0.6),
+                color: BrandColors.bg(context).withValues(alpha: 0.6),
               ),
               child: Text(chrono.emoji,
                   style: const TextStyle(fontSize: 28)),
@@ -146,8 +146,8 @@ class _ChronoCard extends StatelessWidget {
                             fontSize: 22,
                             height: 1.0,
                           )
-                        : const TextStyle(
-                            color: AppColors.ink,
+                        : TextStyle(
+                            color: BrandColors.ink(context),
                             fontWeight: FontWeight.w700,
                             fontSize: 18,
                           ),
@@ -158,7 +158,7 @@ class _ChronoCard extends StatelessWidget {
                     style: TextStyle(
                       color: selected
                           ? Colors.white.withValues(alpha: 0.85)
-                          : AppColors.inkSoft,
+                          : BrandColors.inkSoft(context),
                       fontSize: 13,
                     ),
                   ),
@@ -168,7 +168,7 @@ class _ChronoCard extends StatelessWidget {
                     style: TextStyle(
                       color: selected
                           ? AppColors.pinkLight
-                          : AppColors.inkDim,
+                          : BrandColors.inkDim(context),
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.4,

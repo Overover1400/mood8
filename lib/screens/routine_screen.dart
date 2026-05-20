@@ -21,6 +21,7 @@ import '../widgets/freeze_badge.dart';
 import '../widgets/freeze_modal.dart';
 import '../widgets/responsive_container.dart';
 import '../widgets/routine_card_v2.dart';
+import '../widgets/tutorial_overlay.dart';
 
 enum _DayTab { today, tomorrow }
 
@@ -224,6 +225,8 @@ class _RoutineScreenState extends State<RoutineScreen> {
 
   Future<void> _maybePromptFreeze(UserProfile? profile) async {
     if (_freezePromptInFlight || !mounted) return;
+    // First-run sequencing: do not race the tutorial.
+    if (!tutorialCompletedNotifier.value) return;
     if (profile == null || profile.freezesAvailable <= 0) return;
 
     final yesterday =
@@ -429,7 +432,7 @@ class _TabButton extends StatelessWidget {
         child: AnimatedDefaultTextStyle(
           duration: const Duration(milliseconds: 220),
           style: TextStyle(
-            color: selected ? Colors.white : AppColors.inkDim,
+            color: selected ? Colors.white : BrandColors.inkDim(context),
             fontWeight: FontWeight.w700,
             fontSize: 13,
             letterSpacing: 0.3,

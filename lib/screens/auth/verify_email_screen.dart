@@ -106,13 +106,13 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.inkSoft, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: BrandColors.inkSoft(context), size: 18),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
       ),
@@ -137,7 +137,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                 Text.rich(
                   TextSpan(
                     style: TextStyle(
-                      color: AppColors.inkDim,
+                      color: BrandColors.inkDim(context),
                       fontSize: 14,
                       height: 1.5,
                     ),
@@ -146,7 +146,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                       TextSpan(
                         text: widget.email,
                         style: TextStyle(
-                          color: AppColors.inkSoft,
+                          color: BrandColors.inkSoft(context),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -178,7 +178,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                       Text(
                         'Verifying…',
                         style: TextStyle(
-                          color: AppColors.inkSoft,
+                          color: BrandColors.inkSoft(context),
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),

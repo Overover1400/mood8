@@ -40,7 +40,7 @@ class CategoryChip extends StatelessWidget {
                   ],
                 )
               : null,
-          color: selected ? null : AppColors.bgCard.withValues(alpha: 0.6),
+          color: selected ? null : BrandColors.bgCard(context).withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected
@@ -64,13 +64,13 @@ class CategoryChip extends StatelessWidget {
             Icon(
               category.icon,
               size: compact ? 14 : 16,
-              color: selected ? Colors.white : AppColors.inkSoft,
+              color: selected ? Colors.white : BrandColors.inkSoft(context),
             ),
             const SizedBox(width: 6),
             Text(
               category.label,
               style: TextStyle(
-                color: selected ? Colors.white : AppColors.inkSoft,
+                color: selected ? Colors.white : BrandColors.inkSoft(context),
                 fontWeight: FontWeight.w700,
                 fontSize: compact ? 11 : 12,
                 letterSpacing: 0.2,

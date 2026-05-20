@@ -20,7 +20,7 @@ class PremiumBadge extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         gradient: paid ? AppColors.buttonGradient : null,
-        color: paid ? null : AppColors.bgCard.withValues(alpha: 0.7),
+        color: paid ? null : BrandColors.bgCard(context).withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: paid
@@ -43,7 +43,7 @@ class PremiumBadge extends StatelessWidget {
             paid
                 ? Icons.workspace_premium_rounded
                 : Icons.lock_outline_rounded,
-            color: paid ? Colors.white : AppColors.inkDim,
+            color: paid ? Colors.white : BrandColors.inkDim(context),
             size: compact ? 11 : 13,
           ),
           const SizedBox(width: 6),
@@ -57,7 +57,7 @@ class PremiumBadge extends StatelessWidget {
                     letterSpacing: 1.4,
                   )
                 : GoogleFonts.plusJakartaSans(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.4,

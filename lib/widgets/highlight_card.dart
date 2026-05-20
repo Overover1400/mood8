@@ -13,7 +13,7 @@ class HighlightCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.85),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.18),
@@ -32,7 +32,7 @@ class HighlightCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.4,
@@ -47,7 +47,7 @@ class HighlightCard extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.instrumentSerif(
-              color: AppColors.ink,
+              color: BrandColors.ink(context),
               fontStyle: FontStyle.italic,
               fontSize: 19,
               height: 1.1,
@@ -59,8 +59,8 @@ class HighlightCard extends StatelessWidget {
               item.subtitle!,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.inkDim,
+              style: TextStyle(
+                color: BrandColors.inkDim(context),
                 fontSize: 12,
               ),
             ),

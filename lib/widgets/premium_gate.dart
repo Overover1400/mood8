@@ -39,7 +39,7 @@ class PremiumGate extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    AppColors.bgDeep.withValues(alpha: 0.88),
+                    BrandColors.bgDeep(context).withValues(alpha: 0.88),
                   ],
                 ),
               ),
@@ -71,7 +71,7 @@ class PremiumGate extends StatelessWidget {
                   Text(
                     title,
                     style: GoogleFonts.instrumentSerif(
-                      color: AppColors.ink,
+                      color: BrandColors.ink(context),
                       fontStyle: FontStyle.italic,
                       fontSize: 22,
                     ),
@@ -82,7 +82,7 @@ class PremiumGate extends StatelessWidget {
                       description!,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: AppColors.inkDim,
+                        color: BrandColors.inkDim(context),
                         fontSize: 13,
                         height: 1.5,
                       ),

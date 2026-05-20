@@ -55,7 +55,7 @@ class _WearCheckinScreenState extends State<WearCheckinScreen> {
     final score = (_values[_step] * 10).round();
 
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       body: Listener(
         onPointerSignal: (event) {
           if (event is PointerScrollEvent) {
@@ -74,8 +74,8 @@ class _WearCheckinScreenState extends State<WearCheckinScreen> {
               children: [
                 Text(
                   _labels[_step],
-                  style: const TextStyle(
-                    color: AppColors.inkSoft,
+                  style: TextStyle(
+                    color: BrandColors.inkSoft(context),
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
                     letterSpacing: 1.2,
@@ -85,7 +85,7 @@ class _WearCheckinScreenState extends State<WearCheckinScreen> {
                 Text(
                   '$score',
                   style: GoogleFonts.instrumentSerif(
-                    color: AppColors.ink,
+                    color: BrandColors.ink(context),
                     fontStyle: FontStyle.italic,
                     fontSize: 36,
                     height: 1.0,
@@ -130,7 +130,7 @@ class _StepDots extends StatelessWidget {
           height: 6,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(3),
-            color: active ? AppColors.pinkLight : AppColors.inkFaint,
+            color: active ? AppColors.pinkLight : BrandColors.inkFaint(context),
           ),
         );
       }),

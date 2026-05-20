@@ -35,7 +35,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       body: SafeArea(
         child: ValueListenableBuilder<Box<Habit>>(
           valueListenable: _habitListenable,
@@ -49,10 +49,10 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                     orElse: () => _missing(),
                   );
               if (habit.id == 'missing') {
-                return const Center(
+                return Center(
                   child: Text(
                     'This habit no longer exists.',
-                    style: TextStyle(color: AppColors.inkDim),
+                    style: TextStyle(color: BrandColors.inkDim(context)),
                   ),
                 );
               }
@@ -126,7 +126,7 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                         child: Text(
                           'No entries yet. Log the first one above.',
                           style: TextStyle(
-                            color: AppColors.inkDim,
+                            color: BrandColors.inkDim(context),
                             fontSize: 13,
                           ),
                         ),
@@ -169,14 +169,14 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: const Text(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text(
           'Delete habit?',
-          style: TextStyle(color: AppColors.ink),
+          style: TextStyle(color: BrandColors.ink(context)),
         ),
-        content: const Text(
+        content: Text(
           'This removes the habit and all logs for it.',
-          style: TextStyle(color: AppColors.inkSoft),
+          style: TextStyle(color: BrandColors.inkSoft(context)),
         ),
         actions: [
           TextButton(
@@ -214,14 +214,14 @@ class _TopBar extends StatelessWidget {
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: AppColors.inkSoft, size: 18),
+            icon: Icon(Icons.arrow_back_ios_new_rounded,
+                color: BrandColors.inkSoft(context), size: 18),
           ),
           const Spacer(),
           IconButton(
             onPressed: onEdit,
-            icon: const Icon(Icons.edit_outlined,
-                color: AppColors.inkSoft, size: 20),
+            icon: Icon(Icons.edit_outlined,
+                color: BrandColors.inkSoft(context), size: 20),
           ),
           IconButton(
             onPressed: onDelete,
@@ -279,7 +279,7 @@ class _Header extends StatelessWidget {
                 Text(
                   '${habit.identity} · ${habit.frequency.label}',
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.4,
@@ -313,7 +313,7 @@ class _LogRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.85),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.20),
@@ -328,7 +328,7 @@ class _LogRow extends StatelessWidget {
                 Text(
                   'TODAY',
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.6,
@@ -339,8 +339,8 @@ class _LogRow extends StatelessWidget {
                   todayValue >= habit.effectiveTarget
                       ? 'Done — nice.'
                       : 'Log this rep.',
-                  style: const TextStyle(
-                    color: AppColors.ink,
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
@@ -435,7 +435,7 @@ class _StatBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.85),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.18),
@@ -449,7 +449,7 @@ class _StatBox extends StatelessWidget {
           Text(
             value,
             style: GoogleFonts.instrumentSerif(
-              color: AppColors.ink,
+              color: BrandColors.ink(context),
               fontStyle: FontStyle.italic,
               fontSize: 22,
               height: 1.0,
@@ -459,7 +459,7 @@ class _StatBox extends StatelessWidget {
           Text(
             label.toUpperCase(),
             style: TextStyle(
-              color: AppColors.inkDim,
+              color: BrandColors.inkDim(context),
               fontSize: 9,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.4,
@@ -478,7 +478,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) => Text(
         label.toUpperCase(),
         style: TextStyle(
-          color: AppColors.inkDim,
+          color: BrandColors.inkDim(context),
           fontSize: 10,
           fontWeight: FontWeight.w800,
           letterSpacing: 1.6,
@@ -498,7 +498,7 @@ class _LogTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.75),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.16),
@@ -519,15 +519,15 @@ class _LogTile extends StatelessWidget {
                   ? Icons.check_rounded
                   : Icons.access_time_rounded,
               size: 14,
-              color: log.isCompleted ? color : AppColors.inkDim,
+              color: log.isCompleted ? color : BrandColors.inkDim(context),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               date,
-              style: const TextStyle(
-                color: AppColors.ink,
+              style: TextStyle(
+                color: BrandColors.ink(context),
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
@@ -536,7 +536,7 @@ class _LogTile extends StatelessWidget {
           Text(
             '${log.value} / ${log.targetValue}',
             style: GoogleFonts.instrumentSerif(
-              color: AppColors.ink,
+              color: BrandColors.ink(context),
               fontStyle: FontStyle.italic,
               fontSize: 15,
             ),
@@ -545,7 +545,7 @@ class _LogTile extends StatelessWidget {
           Text(
             time,
             style: TextStyle(
-              color: AppColors.inkDim,
+              color: BrandColors.inkDim(context),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),

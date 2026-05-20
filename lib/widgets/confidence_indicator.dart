@@ -40,7 +40,7 @@ class ConfidenceIndicator extends StatelessWidget {
               children: [
                 Container(
                   height: compact ? 5 : 6,
-                  color: AppColors.bg.withValues(alpha: 0.7),
+                  color: BrandColors.bg(context).withValues(alpha: 0.7),
                 ),
                 FractionallySizedBox(
                   widthFactor: width,

@@ -14,7 +14,7 @@ class PeriodComparisonRow extends StatelessWidget {
     final upColor = const Color(0xFF7CE5B0);
     final downColor = const Color(0xFFFF6B81);
     final tone = neutral
-        ? AppColors.inkDim
+        ? BrandColors.inkDim(context)
         : (comparison.isUp ? upColor : downColor);
     final pct = (comparison.changePercent * 100).round();
     final sign = comparison.isUp ? '+' : '';
@@ -22,7 +22,7 @@ class PeriodComparisonRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.85),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.18),
@@ -38,7 +38,7 @@ class PeriodComparisonRow extends StatelessWidget {
                 Text(
                   comparison.metric.toUpperCase(),
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.4,
@@ -51,7 +51,7 @@ class PeriodComparisonRow extends StatelessWidget {
                       TextSpan(
                         text: comparison.previous.toStringAsFixed(1),
                         style: TextStyle(
-                          color: AppColors.inkDim,
+                          color: BrandColors.inkDim(context),
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -59,7 +59,7 @@ class PeriodComparisonRow extends StatelessWidget {
                       TextSpan(
                         text: '  →  ',
                         style: TextStyle(
-                          color: AppColors.inkDim.withValues(alpha: 0.6),
+                          color: BrandColors.inkDim(context).withValues(alpha: 0.6),
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -68,7 +68,7 @@ class PeriodComparisonRow extends StatelessWidget {
                         text:
                             '${comparison.current.toStringAsFixed(1)}${comparison.unit}',
                         style: GoogleFonts.instrumentSerif(
-                          color: AppColors.ink,
+                          color: BrandColors.ink(context),
                           fontStyle: FontStyle.italic,
                           fontSize: 22,
                           height: 1.0,

@@ -42,7 +42,7 @@ class WelcomeStep extends StatelessWidget {
             "Built to help you understand what actually makes you better.",
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: AppColors.inkDim,
+              color: BrandColors.inkDim(context),
               fontSize: 15,
               height: 1.5,
             ),

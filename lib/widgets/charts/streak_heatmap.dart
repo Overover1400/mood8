@@ -16,7 +16,7 @@ class StreakHeatmap extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 20),
         child: Text(
           'Track for a few days to see your streak come alive.',
-          style: TextStyle(color: AppColors.inkDim, fontSize: 13),
+          style: TextStyle(color: BrandColors.inkDim(context), fontSize: 13),
         ),
       );
     }
@@ -37,7 +37,7 @@ class StreakHeatmap extends StatelessWidget {
                     l,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: AppColors.inkDim,
+                      color: BrandColors.inkDim(context),
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.5,
@@ -149,7 +149,7 @@ class _Cell extends StatelessWidget {
       SnackBar(
         content: Text('$label · $value'),
         duration: const Duration(seconds: 2),
-        backgroundColor: AppColors.bgCard,
+        backgroundColor: BrandColors.bgCard(context),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),

@@ -47,8 +47,8 @@ class MoodBottomNav extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.bgCard.withValues(alpha: 0.95),
-              AppColors.bg.withValues(alpha: 0.95),
+              BrandColors.bgCard(context).withValues(alpha: 0.95),
+              BrandColors.bg(context).withValues(alpha: 0.95),
             ],
           ),
           borderRadius: BorderRadius.circular(28),
@@ -135,7 +135,7 @@ class _NavButton extends StatelessWidget {
             Icon(
               item.icon,
               size: 22,
-              color: selected ? Colors.white : AppColors.inkDim,
+              color: selected ? Colors.white : BrandColors.inkDim(context),
             ),
             const SizedBox(height: 2),
             Text(
@@ -143,7 +143,7 @@ class _NavButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : AppColors.inkDim,
+                color: selected ? Colors.white : BrandColors.inkDim(context),
               ),
             ),
           ],

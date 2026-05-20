@@ -31,19 +31,19 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgDeep,
+      backgroundColor: BrandColors.bgDeep(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.inkSoft, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: BrandColors.inkSoft(context), size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Smart reminders',
           style: GoogleFonts.instrumentSerif(
-            color: AppColors.ink,
+            color: BrandColors.ink(context),
             fontStyle: FontStyle.italic,
             fontSize: 22,
           ),
@@ -146,7 +146,7 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
         SnackBar(
           content: const Text(
               'Notifications were not granted. Enable in your browser settings.'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -169,14 +169,14 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
+        backgroundColor: BrandColors.bgCard(context),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(22),
         ),
         title: Text(
           'Allow notifications?',
           style: GoogleFonts.instrumentSerif(
-            color: AppColors.ink,
+            color: BrandColors.ink(context),
             fontStyle: FontStyle.italic,
             fontSize: 22,
           ),
@@ -184,7 +184,7 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
         content: Text(
           'Mood8 sends gentle check-in reminders. Change anytime in settings.',
           style: TextStyle(
-            color: AppColors.inkSoft,
+            color: BrandColors.inkSoft(context),
             fontSize: 14,
             height: 1.5,
           ),
@@ -194,7 +194,7 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
               'Not now',
-              style: TextStyle(color: AppColors.inkDim),
+              style: TextStyle(color: BrandColors.inkDim(context)),
             ),
           ),
           TextButton(
@@ -218,7 +218,7 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
         SnackBar(
           content: const Text(
               'Notifications blocked. Enable in your browser settings.'),
-          backgroundColor: AppColors.bgCard,
+          backgroundColor: BrandColors.bgCard(context),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -267,7 +267,7 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
           SnackBar(
             content: const Text(
                 'Allow notifications first to send a test.'),
-            backgroundColor: AppColors.bgCard,
+            backgroundColor: BrandColors.bgCard(context),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -278,7 +278,7 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Test sent — check your notifications.'),
-            backgroundColor: AppColors.bgCard,
+            backgroundColor: BrandColors.bgCard(context),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -310,7 +310,7 @@ class _SectionLabel extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          color: AppColors.inkDim,
+          color: BrandColors.inkDim(context),
           fontSize: 10,
           letterSpacing: 1.8,
           fontWeight: FontWeight.w800,
@@ -327,7 +327,7 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.75),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.22),
@@ -351,7 +351,7 @@ class _PermissionBanner extends StatelessWidget {
         title: 'Web-only for now',
         body:
             'Notifications work in your browser on this device. Mobile reminders ship with the mobile app.',
-        accent: AppColors.inkDim,
+        accent: BrandColors.inkDim(context),
       );
     }
     if (notif.isGranted) {
@@ -417,7 +417,7 @@ class _Banner extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    color: AppColors.ink,
+                    color: BrandColors.ink(context),
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
@@ -425,7 +425,7 @@ class _Banner extends StatelessWidget {
                 Text(
                   body,
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 12,
                     height: 1.35,
                   ),
@@ -598,7 +598,7 @@ class _TimeRow extends StatelessWidget {
                     Text(
                       _formatMinute(minute),
                       style: GoogleFonts.instrumentSerif(
-                        color: AppColors.ink,
+                        color: BrandColors.ink(context),
                         fontStyle: FontStyle.italic,
                         fontSize: 20,
                         height: 1.0,
@@ -610,7 +610,7 @@ class _TimeRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: AppColors.inkDim,
+                        color: BrandColors.inkDim(context),
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -625,8 +625,8 @@ class _TimeRow extends StatelessWidget {
                   Icons.close_rounded,
                   size: 18,
                   color: canDelete
-                      ? AppColors.inkDim
-                      : AppColors.inkFaint.withValues(alpha: 0.4),
+                      ? BrandColors.inkDim(context)
+                      : BrandColors.inkFaint(context).withValues(alpha: 0.4),
                 ),
               ),
             ],
@@ -665,7 +665,7 @@ class _QuietWindow extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Icon(Icons.arrow_forward_rounded,
-                    color: AppColors.inkDim, size: 16),
+                    color: BrandColors.inkDim(context), size: 16),
                 const SizedBox(width: 10),
                 Expanded(
                   child: _PickerTile(
@@ -715,7 +715,7 @@ class _PickerTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
           decoration: BoxDecoration(
-            color: AppColors.bg.withValues(alpha: 0.55),
+            color: BrandColors.bg(context).withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: AppColors.purple.withValues(alpha: 0.22),
@@ -727,7 +727,7 @@ class _PickerTile extends StatelessWidget {
               Text(
                 label.toUpperCase(),
                 style: TextStyle(
-                  color: AppColors.inkDim,
+                  color: BrandColors.inkDim(context),
                   fontSize: 9,
                   letterSpacing: 1.4,
                   fontWeight: FontWeight.w800,
@@ -737,7 +737,7 @@ class _PickerTile extends StatelessWidget {
               Text(
                 _formatMinute(value),
                 style: GoogleFonts.instrumentSerif(
-                  color: AppColors.ink,
+                  color: BrandColors.ink(context),
                   fontStyle: FontStyle.italic,
                   fontSize: 22,
                   height: 1.0,

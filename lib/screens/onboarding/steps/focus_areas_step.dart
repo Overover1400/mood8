@@ -52,7 +52,7 @@ class _FocusAreasStepState extends State<FocusAreasStep> {
           const SizedBox(height: 8),
           Text(
             "Pick 2–4 areas we'll focus on together.",
-            style: TextStyle(color: AppColors.inkDim, fontSize: 14),
+            style: TextStyle(color: BrandColors.inkDim(context), fontSize: 14),
           ).animate().fadeIn(delay: 120.ms, duration: 500.ms),
           const SizedBox(height: 18),
           Expanded(
@@ -81,7 +81,7 @@ class _FocusAreasStepState extends State<FocusAreasStep> {
             child: Text(
               '${_selected.length} of 4 selected',
               style: TextStyle(
-                color: AppColors.inkDim,
+                color: BrandColors.inkDim(context),
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.6,
@@ -131,7 +131,7 @@ class _FocusRow extends StatelessWidget {
                   ],
                 )
               : null,
-          color: selected ? null : AppColors.bgCard.withValues(alpha: 0.7),
+          color: selected ? null : BrandColors.bgCard(context).withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected
@@ -168,8 +168,8 @@ class _FocusRow extends StatelessWidget {
                 children: [
                   Text(
                     area.label,
-                    style: const TextStyle(
-                      color: AppColors.ink,
+                    style: TextStyle(
+                      color: BrandColors.ink(context),
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -177,8 +177,8 @@ class _FocusRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     area.description,
-                    style: const TextStyle(
-                      color: AppColors.inkDim,
+                    style: TextStyle(
+                      color: BrandColors.inkDim(context),
                       fontSize: 12,
                     ),
                   ),
@@ -194,11 +194,11 @@ class _FocusRow extends StatelessWidget {
                 gradient: selected ? AppColors.buttonGradient : null,
                 color: selected
                     ? null
-                    : AppColors.bg.withValues(alpha: 0.5),
+                    : BrandColors.bg(context).withValues(alpha: 0.5),
                 border: Border.all(
                   color: selected
                       ? Colors.transparent
-                      : AppColors.inkFaint.withValues(alpha: 0.6),
+                      : BrandColors.inkFaint(context).withValues(alpha: 0.6),
                 ),
               ),
               alignment: Alignment.center,
