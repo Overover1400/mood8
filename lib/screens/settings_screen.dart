@@ -32,6 +32,7 @@ import '../widgets/settings/settings_section.dart';
 import '../widgets/settings/settings_tile.dart';
 import 'badges_screen.dart';
 import 'past_recaps_screen.dart';
+import 'patterns_screen.dart';
 import 'premium_screen.dart';
 import 'reminder_settings_screen.dart';
 import '../models/reminder_settings.dart';
@@ -375,6 +376,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onTap: NotificationService().isGranted
                               ? _scheduleEvening
                               : null,
+                        ),
+                      ],
+                    ),
+                    SettingsSection(
+                      title: 'Pattern alerts',
+                      subtitle: 'gentle, opt-in observations',
+                      children: [
+                        SettingsToggle(
+                          icon: Icons.insights_rounded,
+                          title: 'Pattern alerts',
+                          subtitle:
+                              'Mood8 notices things and gently surfaces them',
+                          value: _prefs.patternAlertsEnabled,
+                          onChanged: (v) =>
+                              _prefs.setPatternAlertsEnabled(v),
+                        ),
+                        SettingsToggle(
+                          icon: Icons.local_fire_department_rounded,
+                          title: 'Streaks',
+                          value: _prefs.patternStreaksEnabled,
+                          onChanged: (v) => _prefs
+                              .setPatternCategoryEnabled(_prefs.streaksKey, v),
+                        ),
+                        SettingsToggle(
+                          icon: Icons.favorite_rounded,
+                          title: 'Mood correlations',
+                          value: _prefs.patternMoodEnabled,
+                          onChanged: (v) => _prefs
+                              .setPatternCategoryEnabled(_prefs.moodKey, v),
+                        ),
+                        SettingsToggle(
+                          icon: Icons.calendar_view_week_rounded,
+                          title: 'Day-of-week patterns',
+                          value: _prefs.patternDayOfWeekEnabled,
+                          onChanged: (v) => _prefs
+                              .setPatternCategoryEnabled(_prefs.dayOfWeekKey, v),
+                        ),
+                        SettingsToggle(
+                          icon: Icons.trending_up_rounded,
+                          title: 'Growth observations',
+                          value: _prefs.patternGrowthEnabled,
+                          onChanged: (v) => _prefs
+                              .setPatternCategoryEnabled(_prefs.growthKey, v),
+                        ),
+                        SettingsToggle(
+                          icon: Icons.favorite_border_rounded,
+                          title: 'Gentle check-ins',
+                          subtitle:
+                              'Soft nudges when things look off (opt-out anytime)',
+                          value: _prefs.patternCheckInsEnabled,
+                          onChanged: (v) => _prefs
+                              .setPatternCategoryEnabled(_prefs.checkInsKey, v),
+                        ),
+                        SettingsToggle(
+                          icon: Icons.notifications_active_rounded,
+                          title: 'Pattern notifications',
+                          subtitle:
+                              'Push high-relevance patterns (≤ 1 per week)',
+                          value: _prefs.patternNotificationsEnabled,
+                          onChanged: (v) => _prefs
+                              .setPatternCategoryEnabled(
+                                  _prefs.notificationsKey, v),
+                        ),
+                        SettingsTile(
+                          icon: Icons.menu_open_rounded,
+                          title: 'View patterns history',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const PatternsScreen(),
+                            ),
+                          ),
                         ),
                       ],
                     ),

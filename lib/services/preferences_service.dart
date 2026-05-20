@@ -36,6 +36,13 @@ class PreferencesService extends ChangeNotifier {
   static const _kCheckinMinute = 'mood8.checkinMinute';
   static const _kShowMorningIntention = 'show_morning_intention';
   static const _kShowGratitudeCard = 'show_gratitude_card';
+  static const _kPatternAlertsEnabled = 'mood8.patternAlertsEnabled';
+  static const _kPatternStreaks = 'mood8.patternStreaks';
+  static const _kPatternMood = 'mood8.patternMood';
+  static const _kPatternDayOfWeek = 'mood8.patternDayOfWeek';
+  static const _kPatternGrowth = 'mood8.patternGrowth';
+  static const _kPatternCheckIns = 'mood8.patternCheckIns';
+  static const _kPatternNotifications = 'mood8.patternNotifications';
 
   SharedPreferences? _prefs;
 
@@ -168,6 +175,44 @@ class PreferencesService extends ChangeNotifier {
     await p.setBool(_kShowGratitudeCard, value);
     notifyListeners();
   }
+
+  // ─── Pattern alerts ───────────────────────────────────────────────────
+
+  bool get patternAlertsEnabled =>
+      _prefs?.getBool(_kPatternAlertsEnabled) ?? true;
+  bool get patternStreaksEnabled =>
+      _prefs?.getBool(_kPatternStreaks) ?? true;
+  bool get patternMoodEnabled =>
+      _prefs?.getBool(_kPatternMood) ?? true;
+  bool get patternDayOfWeekEnabled =>
+      _prefs?.getBool(_kPatternDayOfWeek) ?? true;
+  bool get patternGrowthEnabled =>
+      _prefs?.getBool(_kPatternGrowth) ?? true;
+  bool get patternCheckInsEnabled =>
+      _prefs?.getBool(_kPatternCheckIns) ?? true;
+  bool get patternNotificationsEnabled =>
+      _prefs?.getBool(_kPatternNotifications) ?? false;
+
+  Future<void> setPatternAlertsEnabled(bool v) async {
+    final p = await _get();
+    await p.setBool(_kPatternAlertsEnabled, v);
+    notifyListeners();
+  }
+
+  Future<void> setPatternCategoryEnabled(String key, bool v) async {
+    final p = await _get();
+    await p.setBool(key, v);
+    notifyListeners();
+  }
+
+  // Keys exposed so the settings screen can call setPatternCategoryEnabled
+  // without re-hardcoding the strings.
+  String get streaksKey => _kPatternStreaks;
+  String get moodKey => _kPatternMood;
+  String get dayOfWeekKey => _kPatternDayOfWeek;
+  String get growthKey => _kPatternGrowth;
+  String get checkInsKey => _kPatternCheckIns;
+  String get notificationsKey => _kPatternNotifications;
 
   // ─── Init ──────────────────────────────────────────────────────────────
 

@@ -25,6 +25,10 @@ import '../services/haptic_service.dart';
 import '../services/intention_repository.dart';
 import '../services/reminder_service.dart';
 import '../services/weekly_recap_service.dart';
+import '../services/pattern_detection_service.dart';
+import '../models/pattern_alert.dart';
+import '../widgets/pattern_alert_card.dart';
+import 'patterns_screen.dart';
 import '../services/milestone_service.dart';
 import '../services/mood_repository.dart';
 import '../services/onboarding_service.dart';
@@ -80,6 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static bool _intentionPromptShown = false;
 
   bool _showRecapBanner = false;
+  static bool _patternsRanThisSession = false;
 
   @override
   void initState() {
@@ -88,6 +93,52 @@ class _HomeScreenState extends State<HomeScreen> {
     _maybePromptIntention();
     _maybeAwardBadgesOnOpen();
     _maybeShowRecapBanner();
+    _maybeRunPatternDetection();
+  }
+
+  Future<void> _maybeRunPatternDetection() async {
+    if (_patternsRanThisSession) return;
+    _patternsRanThisSession = true;
+    await Future<void>.delayed(const Duration(seconds: 3));
+    if (!mounted) return;
+    try {
+      await PatternDetectionService().detectPatterns();
+    } catch (e) {
+      debugPrint('[Home] pattern detection failed: $e');
+    }
+  }
+
+  void _onPatternAction(PatternAlert a) {
+    HapticService().light();
+    PatternDetectionService().markViewed(a);
+    final route = a.actionRoute;
+    if (route == null) return;
+    if (route == 'coach') {
+      MainNavigation.goToTab(context, kCoachTabIndex);
+    } else if (route == 'habits') {
+      MainNavigation.goToTab(context, kHabitsTabIndex);
+    } else if (route == 'progress') {
+      MainNavigation.goToTab(context, kProgressTabIndex);
+    } else if (route.startsWith('habit:')) {
+      final id = route.substring('habit:'.length);
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => HabitDetailScreen(habitId: id),
+        ),
+      );
+    }
+  }
+
+  void _onPatternDismiss(PatternAlert a) {
+    HapticService().selection();
+    PatternDetectionService().dismiss(a);
+  }
+
+  void _openPatternsScreen() {
+    HapticService().light();
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const PatternsScreen()),
+    );
   }
 
   Future<void> _maybeShowRecapBanner() async {
@@ -360,6 +411,33 @@ class _HomeScreenState extends State<HomeScreen> {
                                 end: 0,
                                 curve: Curves.easeOutCubic),
                       ],
+                      ValueListenableBuilder<Box<PatternAlert>>(
+                        valueListenable:
+                            PatternDetectionService().watch(),
+                        builder: (context, _, _) {
+                          final unread = PatternDetectionService()
+                              .all()
+                              .where((a) => a.isUnread)
+                              .take(3)
+                              .toList();
+                          if (unread.isEmpty) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 18),
+                            child: _PatternsCarousel(
+                              alerts: unread,
+                              onAction: _onPatternAction,
+                              onDismiss: _onPatternDismiss,
+                              onSeeAll: _openPatternsScreen,
+                            )
+                                .animate()
+                                .fadeIn(duration: 450.ms)
+                                .slideY(
+                                    begin: -0.04,
+                                    end: 0,
+                                    curve: Curves.easeOutCubic),
+                          );
+                        },
+                      ),
                       ValueListenableBuilder<Box<MorningIntention>>(
                         valueListenable:
                             _intentions.watchIntentions(),
@@ -1399,6 +1477,66 @@ class _IntentionCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PatternsCarousel extends StatelessWidget {
+  const _PatternsCarousel({
+    required this.alerts,
+    required this.onAction,
+    required this.onDismiss,
+    required this.onSeeAll,
+  });
+
+  final List<PatternAlert> alerts;
+  final void Function(PatternAlert) onAction;
+  final void Function(PatternAlert) onDismiss;
+  final VoidCallback onSeeAll;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, right: 4, bottom: 10),
+          child: Row(
+            children: [
+              Text(
+                'PATTERNS NOTICED',
+                style: TextStyle(
+                  color: AppColors.inkDim,
+                  fontSize: 10,
+                  letterSpacing: 1.8,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: onSeeAll,
+                behavior: HitTestBehavior.opaque,
+                child: Text(
+                  'See all',
+                  style: TextStyle(
+                    color: AppColors.purpleLight,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        for (var i = 0; i < alerts.length; i++) ...[
+          PatternAlertCard(
+            alert: alerts[i],
+            onAction: () => onAction(alerts[i]),
+            onDismiss: () => onDismiss(alerts[i]),
+          ),
+          if (i < alerts.length - 1) const SizedBox(height: 10),
+        ],
+      ],
     );
   }
 }

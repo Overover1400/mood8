@@ -13,6 +13,7 @@ import '../models/insight.dart';
 import '../models/insight_type.dart';
 import '../models/mood_entry.dart';
 import '../models/morning_intention.dart';
+import '../models/pattern_alert.dart';
 import '../models/reflection.dart';
 import '../models/reminder_settings.dart';
 import '../models/routine_category.dart';
@@ -38,6 +39,7 @@ class DatabaseService {
   static const String badgeBoxName = 'earned_badges';
   static const String reminderSettingsBoxName = 'reminder_settings';
   static const String weeklyRecapBoxName = 'weekly_recaps';
+  static const String patternAlertBoxName = 'pattern_alerts';
 
   bool _initialized = false;
   late Box<MoodEntry> _moodBox;
@@ -53,6 +55,7 @@ class DatabaseService {
   late Box<EarnedBadge> _badgeBox;
   late Box<ReminderSettings> _reminderSettingsBox;
   late Box<WeeklyRecap> _weeklyRecapBox;
+  late Box<PatternAlert> _patternAlertBox;
 
   Box<MoodEntry> get moodBox => _moodBox;
   Box<RoutineItem> get routineBox => _routineBox;
@@ -67,6 +70,7 @@ class DatabaseService {
   Box<EarnedBadge> get badgeBox => _badgeBox;
   Box<ReminderSettings> get reminderSettingsBox => _reminderSettingsBox;
   Box<WeeklyRecap> get weeklyRecapBox => _weeklyRecapBox;
+  Box<PatternAlert> get patternAlertBox => _patternAlertBox;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -135,6 +139,15 @@ class DatabaseService {
     if (!Hive.isAdapterRegistered(20)) {
       Hive.registerAdapter(WeeklyRecapAdapter());
     }
+    if (!Hive.isAdapterRegistered(21)) {
+      Hive.registerAdapter(PatternAlertAdapter());
+    }
+    if (!Hive.isAdapterRegistered(22)) {
+      Hive.registerAdapter(PatternCategoryAdapter());
+    }
+    if (!Hive.isAdapterRegistered(23)) {
+      Hive.registerAdapter(PatternSeverityAdapter());
+    }
 
     _moodBox = await Hive.openBox<MoodEntry>(moodBoxName);
     _routineBox = await Hive.openBox<RoutineItem>(routineBoxName);
@@ -153,6 +166,8 @@ class DatabaseService {
         await Hive.openBox<ReminderSettings>(reminderSettingsBoxName);
     _weeklyRecapBox =
         await Hive.openBox<WeeklyRecap>(weeklyRecapBoxName);
+    _patternAlertBox =
+        await Hive.openBox<PatternAlert>(patternAlertBoxName);
     _initialized = true;
   }
 
@@ -171,6 +186,7 @@ class DatabaseService {
     await _badgeBox.close();
     await _reminderSettingsBox.close();
     await _weeklyRecapBox.close();
+    await _patternAlertBox.close();
     _initialized = false;
   }
 }
