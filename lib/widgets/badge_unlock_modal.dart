@@ -9,8 +9,10 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/earned_badge.dart';
+import '../models/sfx_type.dart';
 import '../services/badge_definitions.dart';
 import '../services/haptic_service.dart';
+import '../services/sfx_service.dart';
 import '../theme/app_theme.dart';
 
 /// Looks up the catalog-side const [IconData] for a stored badge. Using the
@@ -38,6 +40,7 @@ Future<void> showBadgeUnlockQueue(
 
 Future<void> _showOne(BuildContext context, EarnedBadge badge) {
   HapticService().heavy();
+  SfxService().fire(SfxType.streakMilestone);
   return Navigator.of(context).push(
     PageRouteBuilder<void>(
       opaque: false,
