@@ -800,7 +800,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onTap: () async {
                             await resetTutorial();
                             if (!context.mounted) return;
-                            await showTutorial(context);
+                            showTutorial(context);
                           },
                         ),
                         SettingsTile(

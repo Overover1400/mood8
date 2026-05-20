@@ -339,7 +339,7 @@ class _HeaderBar extends StatelessWidget {
               Text(
                 'Your daily flow',
                 style: TextStyle(
-                  color: AppColors.inkDim,
+                  color: BrandColors.inkDim(context),
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
@@ -368,7 +368,7 @@ class _TabToggle extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.7),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.20),
@@ -462,7 +462,7 @@ class _ProgressCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.85),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.20),
@@ -478,8 +478,8 @@ class _ProgressCard extends StatelessWidget {
                   isFuture
                       ? '$total scheduled'
                       : '$completed of $total complete',
-                  style: const TextStyle(
-                    color: AppColors.ink,
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
                   ),
@@ -505,7 +505,7 @@ class _ProgressCard extends StatelessWidget {
               children: [
                 Container(
                   height: 10,
-                  color: AppColors.bg.withValues(alpha: 0.7),
+                  color: BrandColors.bg(context).withValues(alpha: 0.7),
                 ),
                 AnimatedFractionallySizedBox(
                   duration: const Duration(milliseconds: 600),
@@ -684,7 +684,7 @@ class _GroupHeader extends StatelessWidget {
           Text(
             label.toUpperCase(),
             style: TextStyle(
-              color: AppColors.inkDim,
+              color: BrandColors.inkDim(context),
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.8,

@@ -47,7 +47,7 @@ class _MainNavigationState extends State<MainNavigation> {
     // mounted home screen instead of an empty void.
     await Future<void>.delayed(const Duration(milliseconds: 1200));
     if (!mounted) return;
-    await showTutorial(context);
+    showTutorial(context);
   }
 
   Future<void> _loadTab() async {

@@ -146,14 +146,14 @@ class _CoachScreenState extends State<CoachScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: const Text(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text(
           'Regenerate reflection?',
-          style: TextStyle(color: AppColors.ink),
+          style: TextStyle(color: BrandColors.ink(context)),
         ),
-        content: const Text(
+        content: Text(
           'This replaces today’s reflection with a fresh one.',
-          style: TextStyle(color: AppColors.inkSoft),
+          style: TextStyle(color: BrandColors.inkSoft(context)),
         ),
         actions: [
           TextButton(
@@ -261,7 +261,7 @@ class _CoachHeader extends StatelessWidget {
                 Text(
                   'A quiet, honest second opinion.',
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.3,
@@ -289,7 +289,7 @@ class _TabToggle extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: AppColors.bgCard.withValues(alpha: 0.7),
+          color: BrandColors.bgCard(context).withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
             color: AppColors.purple.withValues(alpha: 0.20),
@@ -427,7 +427,7 @@ class _GeneratingPanel extends StatelessWidget {
             'Mood8 is connecting the dots from today’s\nmoods, energy, and routines.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: AppColors.inkDim,
+              color: BrandColors.inkDim(context),
               fontSize: 13,
               height: 1.5,
             ),
@@ -449,7 +449,7 @@ class _EmptyReflection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.75),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.20),
@@ -481,7 +481,7 @@ class _EmptyReflection extends StatelessWidget {
           Text(
             'Once a day, Mood8 reads your check-in, your routines, and your streak — and writes you a short, honest note about how the day went.',
             style: TextStyle(
-              color: AppColors.inkDim,
+              color: BrandColors.inkDim(context),
               fontSize: 13,
               height: 1.5,
             ),
@@ -638,14 +638,14 @@ class _ChatTabState extends State<_ChatTab> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.bgCard,
-        title: const Text(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text(
           'Clear chat?',
-          style: TextStyle(color: AppColors.ink),
+          style: TextStyle(color: BrandColors.ink(context)),
         ),
-        content: const Text(
+        content: Text(
           'This starts a fresh conversation. Past messages are removed.',
-          style: TextStyle(color: AppColors.inkSoft),
+          style: TextStyle(color: BrandColors.inkSoft(context)),
         ),
         actions: [
           TextButton(
@@ -767,7 +767,7 @@ class _ChatEmpty extends StatelessWidget {
           child: Text(
             'STARTERS',
             style: TextStyle(
-              color: AppColors.inkDim,
+              color: BrandColors.inkDim(context),
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.6,
@@ -796,7 +796,7 @@ class _StarterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         decoration: BoxDecoration(
-          color: AppColors.bgCard.withValues(alpha: 0.7),
+          color: BrandColors.bgCard(context).withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: AppColors.purple.withValues(alpha: 0.22),
@@ -810,15 +810,15 @@ class _StarterChip extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(
-                  color: AppColors.inkSoft,
+                style: TextStyle(
+                  color: BrandColors.inkSoft(context),
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
             Icon(Icons.arrow_forward_rounded,
-                color: AppColors.inkDim, size: 16),
+                color: BrandColors.inkDim(context), size: 16),
           ],
         ),
       ),
@@ -850,13 +850,13 @@ class _Composer extends StatelessWidget {
             onPressed: sending ? null : onClear,
             tooltip: 'Clear chat',
             icon: Icon(Icons.delete_outline_rounded,
-                color: AppColors.inkDim, size: 20),
+                color: BrandColors.inkDim(context), size: 20),
           ),
         Expanded(
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
-              color: AppColors.bgCard.withValues(alpha: 0.7),
+              color: BrandColors.bgCard(context).withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: AppColors.purple.withValues(alpha: 0.22),
@@ -871,11 +871,11 @@ class _Composer extends StatelessWidget {
               onSubmitted: onSend,
               enabled: !sending,
               cursorColor: AppColors.pinkLight,
-              style: const TextStyle(color: AppColors.ink, fontSize: 14),
+              style: TextStyle(color: BrandColors.ink(context), fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Message Mood8…',
                 hintStyle: TextStyle(
-                  color: AppColors.inkDim.withValues(alpha: 0.8),
+                  color: BrandColors.inkDim(context).withValues(alpha: 0.8),
                 ),
                 isDense: true,
                 contentPadding:

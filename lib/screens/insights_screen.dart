@@ -215,7 +215,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                                 child: Text(
                                   'No insights matching this filter.',
                                   style: TextStyle(
-                                    color: AppColors.inkDim,
+                                    color: BrandColors.inkDim(context),
                                     fontSize: 13,
                                   ),
                                 ),
@@ -282,7 +282,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Marked as actioned.'),
-        backgroundColor: AppColors.bgCard,
+        backgroundColor: BrandColors.bgCard(context),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
         shape: RoundedRectangleBorder(
@@ -363,7 +363,7 @@ class _TopBar extends StatelessWidget {
               padding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.bgCard.withValues(alpha: 0.85),
+                color: BrandColors.bgCard(context).withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: AppColors.purple.withValues(alpha: 0.22),
@@ -389,7 +389,7 @@ class _TopBar extends StatelessWidget {
                   Text(
                     refreshing ? 'Refreshing…' : 'Refresh',
                     style: TextStyle(
-                      color: AppColors.inkSoft,
+                      color: BrandColors.inkSoft(context),
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.3,
@@ -424,7 +424,7 @@ class _Header extends StatelessWidget {
         Text(
           'What we’ve discovered about you',
           style: TextStyle(
-            color: AppColors.inkDim,
+            color: BrandColors.inkDim(context),
             fontSize: 12,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.4,
@@ -473,7 +473,7 @@ class _FilterStrip extends StatelessWidget {
                 gradient: selected ? AppColors.buttonGradient : null,
                 color: selected
                     ? null
-                    : AppColors.bgCard.withValues(alpha: 0.7),
+                    : BrandColors.bgCard(context).withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(
                   color: selected

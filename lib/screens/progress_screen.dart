@@ -412,7 +412,7 @@ class _Header extends StatelessWidget {
         Text(
           'Your journey so far',
           style: TextStyle(
-            color: AppColors.inkDim,
+            color: BrandColors.inkDim(context),
             fontSize: 12,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.4,
@@ -436,7 +436,7 @@ class _RangeSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppColors.bgCard.withValues(alpha: 0.7),
+        color: BrandColors.bgCard(context).withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
           color: AppColors.purple.withValues(alpha: 0.20),
@@ -598,7 +598,7 @@ class _HeroCard extends StatelessWidget {
                   TextSpan(
                     text: text,
                     style: GoogleFonts.instrumentSerif(
-                      color: AppColors.ink,
+                      color: BrandColors.ink(context),
                       fontStyle: FontStyle.italic,
                       fontSize: 26,
                       height: 1.0,
@@ -607,7 +607,7 @@ class _HeroCard extends StatelessWidget {
                   TextSpan(
                     text: suffix,
                     style: TextStyle(
-                      color: AppColors.inkDim,
+                      color: BrandColors.inkDim(context),
                       fontWeight: FontWeight.w700,
                       fontSize: 11,
                       letterSpacing: 0.4,
@@ -621,7 +621,7 @@ class _HeroCard extends StatelessWidget {
           Text(
             label.toUpperCase(),
             style: TextStyle(
-              color: AppColors.inkDim,
+              color: BrandColors.inkDim(context),
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.4,
@@ -666,7 +666,7 @@ class _Section extends StatelessWidget {
         Container(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
           decoration: BoxDecoration(
-            color: AppColors.bgCard.withValues(alpha: 0.78),
+            color: BrandColors.bgCard(context).withValues(alpha: 0.78),
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
               color: AppColors.purple.withValues(alpha: 0.18),
@@ -692,7 +692,7 @@ class _EmptyHint extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Text(
         text,
-        style: TextStyle(color: AppColors.inkDim, fontSize: 13),
+        style: TextStyle(color: BrandColors.inkDim(context), fontSize: 13),
       ),
     );
   }
@@ -715,7 +715,7 @@ class _HabitRingCard extends StatelessWidget {
         width: 140,
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
         decoration: BoxDecoration(
-          color: AppColors.bg.withValues(alpha: 0.55),
+          color: BrandColors.bg(context).withValues(alpha: 0.55),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: color.withValues(alpha: 0.22),
@@ -730,8 +730,8 @@ class _HabitRingCard extends StatelessWidget {
               stats.habit.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.ink,
+              style: TextStyle(
+                color: BrandColors.ink(context),
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
@@ -748,7 +748,7 @@ class _HabitRingCard extends StatelessWidget {
             Text(
               '🔥 ${stats.streak}d streak',
               style: TextStyle(
-                color: AppColors.inkDim,
+                color: BrandColors.inkDim(context),
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.3,
@@ -781,7 +781,7 @@ class _BadgesPill extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
           decoration: BoxDecoration(
-            color: AppColors.bgCard.withValues(alpha: 0.7),
+            color: BrandColors.bgCard(context).withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: AppColors.purple.withValues(alpha: 0.22),
@@ -814,7 +814,7 @@ class _BadgesPill extends StatelessWidget {
                 child: Text(
                   'Achievements',
                   style: TextStyle(
-                    color: AppColors.inkSoft,
+                    color: BrandColors.inkSoft(context),
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.3,
@@ -902,7 +902,7 @@ class _GratitudeStat extends StatelessWidget {
                 Text(
                   'GRATITUDE',
                   style: TextStyle(
-                    color: AppColors.inkDim,
+                    color: BrandColors.inkDim(context),
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.6,
@@ -916,7 +916,7 @@ class _GratitudeStat extends StatelessWidget {
                     Text(
                       '$streak',
                       style: GoogleFonts.instrumentSerif(
-                        color: AppColors.ink,
+                        color: BrandColors.ink(context),
                         fontStyle: FontStyle.italic,
                         fontSize: 24,
                         height: 1.0,
@@ -925,7 +925,7 @@ class _GratitudeStat extends StatelessWidget {
                     Text(
                       ' day streak',
                       style: TextStyle(
-                        color: AppColors.inkSoft,
+                        color: BrandColors.inkSoft(context),
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
                         letterSpacing: 0.3,
@@ -942,7 +942,7 @@ class _GratitudeStat extends StatelessWidget {
               Text(
                 'THIS MONTH',
                 style: TextStyle(
-                  color: AppColors.inkFaint,
+                  color: BrandColors.inkFaint(context),
                   fontSize: 9,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.4,
