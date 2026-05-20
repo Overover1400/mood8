@@ -46,6 +46,20 @@ class AppLightTheme {
         elevation: 0,
         foregroundColor: AppLightColors.ink,
       ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppLightColors.bgCard,
+        contentTextStyle: const TextStyle(
+          color: AppLightColors.ink,
+          fontSize: 13.5,
+          fontWeight: FontWeight.w600,
+        ),
+        actionTextColor: AppColors.purple,
+        behavior: SnackBarBehavior.floating,
+        elevation: 8,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
     );
   }
 

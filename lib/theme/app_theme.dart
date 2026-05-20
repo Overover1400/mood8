@@ -48,6 +48,43 @@ class AppColors {
   );
 }
 
+/// Theme-aware surface + text colors. Pass a [BuildContext] — the helper
+/// reads `Theme.of(context).brightness` and returns the dark or light
+/// token. Use for scaffold backgrounds, primary on-surface text, and any
+/// element that should invert with the user's theme preference.
+///
+/// Brand accents (purple/pink/blue/gradients) stay the same across themes
+/// and live on [AppColors] as before.
+class BrandColors {
+  BrandColors._();
+
+  static const _lightBgDeep = Color(0xFFFAF5FF);
+  static const _lightBg = Color(0xFFF3E8FF);
+  static const _lightBgCard = Color(0xFFFFFFFF);
+  static const _lightInk = Color(0xFF1F1338);
+  static const _lightInkSoft = Color(0xFF4C1D95);
+  static const _lightInkDim = Color(0xFF6B5680);
+  static const _lightInkFaint = Color(0xFFA78BB8);
+
+  static bool _isLight(BuildContext c) =>
+      Theme.of(c).brightness == Brightness.light;
+
+  static Color bgDeep(BuildContext c) =>
+      _isLight(c) ? _lightBgDeep : AppColors.bgDeep;
+  static Color bg(BuildContext c) =>
+      _isLight(c) ? _lightBg : AppColors.bg;
+  static Color bgCard(BuildContext c) =>
+      _isLight(c) ? _lightBgCard : AppColors.bgCard;
+  static Color ink(BuildContext c) =>
+      _isLight(c) ? _lightInk : AppColors.ink;
+  static Color inkSoft(BuildContext c) =>
+      _isLight(c) ? _lightInkSoft : AppColors.inkSoft;
+  static Color inkDim(BuildContext c) =>
+      _isLight(c) ? _lightInkDim : AppColors.inkDim;
+  static Color inkFaint(BuildContext c) =>
+      _isLight(c) ? _lightInkFaint : AppColors.inkFaint;
+}
+
 class AppTheme {
   static ThemeData get dark {
     final base = ThemeData.dark(useMaterial3: true);
@@ -66,6 +103,20 @@ class AppTheme {
       iconTheme: const IconThemeData(color: AppColors.inkSoft),
       splashFactory: NoSplash.splashFactory,
       highlightColor: Colors.transparent,
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.bgCard,
+        contentTextStyle: const TextStyle(
+          color: AppColors.ink,
+          fontSize: 13.5,
+          fontWeight: FontWeight.w600,
+        ),
+        actionTextColor: AppColors.pinkLight,
+        behavior: SnackBarBehavior.floating,
+        elevation: 8,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
     );
   }
 
