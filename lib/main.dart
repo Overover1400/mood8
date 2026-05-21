@@ -77,6 +77,11 @@ Future<void> main() async {
   runApp(const Mood8App());
 }
 
+/// Global key so the resume-time premium refresh can surface a snackbar
+/// even when no specific screen is in scope.
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+
 class Mood8App extends StatefulWidget {
   const Mood8App({super.key});
 
@@ -108,6 +113,24 @@ class _Mood8AppState extends State<Mood8App> with WidgetsBindingObserver {
     } else if (state == AppLifecycleState.resumed) {
       // ignore: discarded_futures
       SyncService().pullChanges();
+      // Premium status may have flipped server-side while we were
+      // backgrounded — e.g. a Stripe checkout webhook fired while the
+      // user was in the Stripe browser tab. Refresh + announce.
+      // ignore: discarded_futures
+      _refreshPremiumOnResume();
+    }
+  }
+
+  Future<void> _refreshPremiumOnResume() async {
+    final pendingCheckout =
+        await SubscriptionService().consumeCheckoutInProgress();
+    final justUnlocked = await SubscriptionService().refreshStatus();
+    // Pending flag + no flip yet? Webhook might still be propagating.
+    // Try once more after a short delay. After that, the user can hit
+    // the paywall "Already paid? Refresh" button.
+    if (pendingCheckout && !justUnlocked && !SubscriptionService().isPremium) {
+      await Future<void>.delayed(const Duration(seconds: 3));
+      await SubscriptionService().refreshStatus();
     }
   }
 
@@ -122,6 +145,7 @@ class _Mood8AppState extends State<Mood8App> with WidgetsBindingObserver {
           themeMode: themeMode,
           theme: AppLightTheme.theme,
           darkTheme: AppTheme.dark,
+          scaffoldMessengerKey: rootScaffoldMessengerKey,
           home: const AuthGate(),
         );
       },
@@ -166,6 +190,27 @@ class _AuthGateState extends State<AuthGate> {
     super.initState();
     _loadSkip();
     _maybeHandleCheckoutReturn();
+    SubscriptionService().premiumJustUnlockedNotifier
+        .addListener(_onPremiumJustUnlocked);
+  }
+
+  @override
+  void dispose() {
+    SubscriptionService().premiumJustUnlockedNotifier
+        .removeListener(_onPremiumJustUnlocked);
+    super.dispose();
+  }
+
+  void _onPremiumJustUnlocked() {
+    if (!SubscriptionService().premiumJustUnlockedNotifier.value) return;
+    // Show via the root ScaffoldMessenger so it works regardless of
+    // which screen is mounted when the resume hook fires.
+    rootScaffoldMessengerKey.currentState?.showSnackBar(
+      const SnackBar(
+        content: Text('Welcome to Mood8 Premium ✨ Thanks for being here.'),
+        duration: Duration(seconds: 4),
+      ),
+    );
   }
 
   void _maybeHandleCheckoutReturn() {

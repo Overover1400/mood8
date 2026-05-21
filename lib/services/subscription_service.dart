@@ -21,6 +21,18 @@ class SubscriptionService extends ChangeNotifier {
 
   static const String _kTierKey = 'mood8.subscriptionTier';
   static const String _kExpiresKey = 'mood8.subscriptionExpiresAt';
+  // Flipped to true while a Stripe checkout flow is mid-air (the user
+  // has tapped "Start Premium" and we've launched the checkout URL).
+  // On the next AppLifecycleState.resumed we force a status refresh
+  // and announce the premium unlock if it just happened. Cleared after
+  // consumption either way.
+  static const String _kCheckoutInProgressKey = 'mood8.checkoutInProgress';
+
+  /// Fires `true` exactly once after a refresh in which the user just
+  /// transitioned from non-premium to premium. AuthGate listens to
+  /// surface a "Welcome to Premium ✨" snackbar.
+  final ValueNotifier<bool> premiumJustUnlockedNotifier =
+      ValueNotifier<bool>(false);
 
   final http.Client _client = http.Client();
 
@@ -132,12 +144,15 @@ class SubscriptionService extends ChangeNotifier {
 
   /// Pulls the canonical state from /api/subscription/status and updates
   /// local mirror. Safe to call repeatedly. No-op when not signed in.
-  Future<void> refreshStatus() async {
+  /// Returns `true` if this call observed a fresh free→premium upgrade
+  /// (so callers can surface a celebration); `false` otherwise.
+  Future<bool> refreshStatus() async {
     final token = _bearer;
     if (token == null) {
       debugPrint('[Subscription] refreshStatus: no token, skipping');
-      return;
+      return false;
     }
+    final wasPremium = isPremium;
     try {
       final res = await _client
           .get(
@@ -147,13 +162,13 @@ class SubscriptionService extends ChangeNotifier {
           .timeout(_timeout);
       if (res.statusCode < 200 || res.statusCode >= 300) {
         debugPrint('[Subscription] status ${res.statusCode}: ${res.body}');
-        return;
+        return false;
       }
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      final isPremium = body['is_premium'] as bool? ?? false;
+      final apiIsPremium = body['is_premium'] as bool? ?? false;
       final type = body['premium_type'] as String?;
       final expiresIso = body['premium_expires_at'] as String?;
-      if (!isPremium) {
+      if (!apiIsPremium) {
         _tier = SubscriptionTier.free;
         _expiresAt = null;
       } else if (type == 'lifetime') {
@@ -166,17 +181,57 @@ class SubscriptionService extends ChangeNotifier {
       await _persist();
       notifyListeners();
       debugPrint(
-          '[Subscription] refreshed · isPremium=$isPremium · type=$type · expires=$expiresIso');
+          '[Subscription] refreshed · isPremium=$apiIsPremium · type=$type · expires=$expiresIso');
+      final justUnlocked = !wasPremium && isPremium;
+      if (justUnlocked) {
+        // Pulse the notifier so AuthGate can show its celebration.
+        // Reset to false synchronously afterwards so it can fire again
+        // if the user ever cancels + re-subscribes later.
+        premiumJustUnlockedNotifier.value = true;
+        premiumJustUnlockedNotifier.value = false;
+      }
+      return justUnlocked;
     } on TimeoutException {
       debugPrint('[Subscription] refreshStatus timeout');
+      return false;
     } catch (e) {
       debugPrint('[Subscription] refreshStatus error: $e');
+      return false;
+    }
+  }
+
+  /// Mark the checkout flow as "in progress" so the next app resume
+  /// forces a status refresh. Best-effort — pref store failures are
+  /// non-fatal (the resume hook ALSO refreshes unconditionally).
+  Future<void> _markCheckoutInProgress() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kCheckoutInProgressKey, true);
+    } catch (e) {
+      debugPrint('[Subscription] markCheckoutInProgress failed: $e');
+    }
+  }
+
+  /// Read + clear the checkout-in-progress flag in one shot. Returns
+  /// `true` if the flag was set (i.e. the user just came back from
+  /// Stripe checkout), `false` otherwise.
+  Future<bool> consumeCheckoutInProgress() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final v = prefs.getBool(_kCheckoutInProgressKey) ?? false;
+      if (v) await prefs.remove(_kCheckoutInProgressKey);
+      return v;
+    } catch (e) {
+      debugPrint('[Subscription] consumeCheckoutInProgress failed: $e');
+      return false;
     }
   }
 
   /// Returns the Stripe Checkout URL for the given plan, or null on
   /// failure. Caller is responsible for opening it (web: same-tab or
-  /// new-tab redirect; mobile: in-app or external browser).
+  /// new-tab redirect; mobile: in-app or external browser). Also flips
+  /// a "checkout in progress" pref so the next app resume forces a
+  /// premium refresh and announces the unlock if it happened.
   Future<String?> startCheckout(String plan) async {
     if (_bearer == null) return null;
     try {
@@ -193,7 +248,11 @@ class SubscriptionService extends ChangeNotifier {
         return null;
       }
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      return body['checkout_url'] as String?;
+      final url = body['checkout_url'] as String?;
+      if (url != null) {
+        await _markCheckoutInProgress();
+      }
+      return url;
     } catch (e) {
       debugPrint('[Subscription] startCheckout error: $e');
       return null;
