@@ -10,7 +10,14 @@ android {
     // have to move MainActivity.kt on disk. The user-visible `applicationId`
     // is what Play Store + the launcher use.
     namespace = "app.mood8.mood8"
-    compileSdk = 34
+    // 36 = Android 16. url_launcher_android 6.3.29 pulls in
+    // androidx.browser:browser:1.9.0 + androidx.core:core(-ktx):1.17.0,
+    // all of which require compileSdk >= 36 (CheckAarMetadata refuses
+    // the build otherwise). compileSdk is independent of targetSdk:
+    // bumping it just lets us *compile against* newer APIs, without
+    // opting in to new runtime behavior — that's still gated by
+    // targetSdk below.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
