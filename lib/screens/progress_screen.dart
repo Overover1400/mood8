@@ -21,6 +21,7 @@ import '../services/milestone_service.dart';
 import '../services/mood_repository.dart';
 import 'badges_screen.dart';
 import 'share_progress_screen.dart';
+import 'year_in_review_screen.dart';
 import '../theme/app_theme.dart';
 import '../widgets/animated_number.dart';
 import '../widgets/charts/habit_ring.dart';
@@ -31,6 +32,7 @@ import '../widgets/charts/time_of_day_chart.dart';
 import '../widgets/highlight_card.dart';
 import '../widgets/period_comparison.dart';
 import '../widgets/responsive_container.dart';
+import '../widgets/tutorial_targets.dart';
 import 'habit_detail_screen.dart';
 
 class ProgressScreen extends StatefulWidget {
@@ -285,7 +287,19 @@ class _ProgressScreenState extends State<ProgressScreen> {
             ),
           ],
           const SizedBox(height: 28),
+          _YearInReviewCta(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const YearInReviewScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
           _ShareProgressCta(
+            key: TutorialTargets.shareProgress,
             onTap: () {
               HapticFeedback.lightImpact();
               Navigator.of(context).push(
@@ -978,8 +992,91 @@ class _GratitudeStat extends StatelessWidget {
   }
 }
 
+class _YearInReviewCta extends StatelessWidget {
+  const _YearInReviewCta({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.purple.withValues(alpha: 0.30),
+              AppColors.pink.withValues(alpha: 0.20),
+              AppColors.blueAccent.withValues(alpha: 0.18),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: AppColors.purpleLight.withValues(alpha: 0.45),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.pink.withValues(alpha: 0.22),
+              blurRadius: 28,
+              spreadRadius: -6,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppColors.orbGradient,
+              ),
+              child: const Icon(
+                Icons.auto_stories_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Your Year in Review',
+                    style: GoogleFonts.instrumentSerif(
+                      color: BrandColors.ink(context),
+                      fontStyle: FontStyle.italic,
+                      fontSize: 22,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Swipe through your year, story by story.',
+                    style: TextStyle(
+                      color: BrandColors.inkSoft(context),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: BrandColors.inkSoft(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ShareProgressCta extends StatelessWidget {
-  const _ShareProgressCta({required this.onTap});
+  const _ShareProgressCta({super.key, required this.onTap});
   final VoidCallback onTap;
 
   @override

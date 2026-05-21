@@ -39,7 +39,19 @@ class _ShareProgressScreenState extends State<ShareProgressScreen> {
   }
 
   Future<void> _loadData() async {
-    final d = await ShareService().buildCurrentSnapshot();
+    final d =
+        await ShareService().buildCurrentSnapshot(template: _template);
+    if (!mounted) return;
+    setState(() => _data = d);
+  }
+
+  Future<void> _onTemplateChanged(ShareCardTemplate t) async {
+    if (t == _template) return;
+    setState(() {
+      _template = t;
+      _data = null;
+    });
+    final d = await ShareService().buildCurrentSnapshot(template: t);
     if (!mounted) return;
     setState(() => _data = d);
   }
@@ -72,6 +84,9 @@ class _ShareProgressScreenState extends State<ShareProgressScreen> {
         return '${d.streakDays}-day streak on Mood8 🔥 — mood8.app';
       case ShareCardTemplate.identityProgress:
         return 'Becoming who I want to be — mood8.app';
+      case ShareCardTemplate.yearInReview:
+        final year = _data?.weekEnd.year ?? DateTime.now().year;
+        return 'My $year on Mood8 ✨ — mood8.app';
     }
   }
 
@@ -105,7 +120,7 @@ class _ShareProgressScreenState extends State<ShareProgressScreen> {
             ),
             _TemplatePicker(
               current: _template,
-              onSelect: (t) => setState(() => _template = t),
+              onSelect: _onTemplateChanged,
             ),
             const SizedBox(height: 10),
             _FormatToggle(

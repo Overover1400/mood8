@@ -6,6 +6,7 @@ import '../widgets/effects/cosmic_bloom.dart';
 import '../widgets/effects/identity_constellation.dart';
 import '../widgets/effects/phoenix_rise.dart';
 import '../widgets/effects/premium_bloom.dart';
+import 'overlay_coordinator.dart';
 import 'subscription_service.dart';
 
 /// Central celebration facade. Each method spawns the right premium widget
@@ -265,6 +266,7 @@ class EffectsService extends ChangeNotifier {
     late OverlayEntry entry;
     entry = OverlayEntry(builder: (_) => builder(entry));
     _active += 1;
+    OverlayCoordinator().push();
     overlay.insert(entry);
     // Safety net for paused / background tabs.
     Future<void>.delayed(fallbackTimeout, () => _remove(entry));
@@ -276,5 +278,6 @@ class EffectsService extends ChangeNotifier {
       entry.remove();
     } catch (_) {}
     _active = (_active - 1).clamp(0, _maxConcurrent);
+    OverlayCoordinator().pop();
   }
 }

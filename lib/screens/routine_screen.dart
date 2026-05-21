@@ -19,6 +19,7 @@ import '../widgets/badge_unlock_modal.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/freeze_badge.dart';
 import '../widgets/freeze_modal.dart';
+import '../widgets/tutorial_targets.dart';
 import '../widgets/responsive_container.dart';
 import '../widgets/routine_card_v2.dart';
 import '../widgets/tutorial_overlay.dart';
@@ -208,7 +209,10 @@ class _RoutineScreenState extends State<RoutineScreen> {
           Positioned(
             right: 24,
             bottom: 110,
-            child: _Fab(onTap: () => _openSheet(context))
+            child: _Fab(
+              key: TutorialTargets.addRoutine,
+              onTap: () => _openSheet(context),
+            )
                 .animate()
                 .fadeIn(delay: 250.ms, duration: 400.ms)
                 .scaleXY(begin: 0.7, end: 1.0, curve: Curves.easeOutBack),
@@ -700,7 +704,7 @@ class _GroupHeader extends StatelessWidget {
 }
 
 class _Fab extends StatelessWidget {
-  const _Fab({required this.onTap});
+  const _Fab({super.key, required this.onTap});
   final VoidCallback onTap;
 
   @override

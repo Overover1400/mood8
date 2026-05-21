@@ -71,8 +71,10 @@ class UserProfile extends HiveObject {
     this.lastFreezeReplenish,
     int? totalFreezesUsed,
     this.updatedAt,
+    bool? tutorialCompleted,
   })  : freezesAvailable = freezesAvailable ?? 1,
-        totalFreezesUsed = totalFreezesUsed ?? 0;
+        totalFreezesUsed = totalFreezesUsed ?? 0,
+        tutorialCompleted = tutorialCompleted ?? false;
 
   @HiveField(0)
   String name;
@@ -103,4 +105,11 @@ class UserProfile extends HiveObject {
 
   @HiveField(9)
   DateTime? updatedAt;
+
+  /// Synced once-per-user flag for the welcome tutorial. The
+  /// SharedPreferences key `tutorial_completed` is the device-local
+  /// cache; on login the synced value here is canonical and used to
+  /// re-hydrate the cache.
+  @HiveField(10)
+  bool tutorialCompleted;
 }

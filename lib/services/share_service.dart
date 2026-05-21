@@ -13,6 +13,7 @@ import 'habit_repository.dart';
 import 'mood_repository.dart';
 import 'score_service.dart';
 import 'user_repository.dart';
+import 'year_in_review_service.dart';
 
 /// Renders [ShareCard] to a PNG at its canonical resolution and routes
 /// it through the native share sheet (mobile) or a web download.
@@ -24,7 +25,16 @@ class ShareService {
   /// Build a [ShareCardData] from the user's current Hive state.
   /// Reads the same data sources that ProgressScreen / HomeScreen
   /// already use, so the numbers on the card match the in-app numbers.
-  Future<ShareCardData> buildCurrentSnapshot() async {
+  ///
+  /// For [ShareCardTemplate.yearInReview] the snapshot covers the
+  /// user's full calendar year instead of the last 7 days, sourced
+  /// from [YearInReviewService] so the card matches the YIR story.
+  Future<ShareCardData> buildCurrentSnapshot({
+    ShareCardTemplate template = ShareCardTemplate.weekRecap,
+  }) async {
+    if (template == ShareCardTemplate.yearInReview) {
+      return _buildYearSnapshot();
+    }
     final user = UserRepository().getCurrentUser();
     final moods = MoodRepository();
     final habits = HabitRepository();
@@ -65,6 +75,29 @@ class ShareService {
       identities: user?.identities ?? const [],
       weekStart: weekStart,
       weekEnd: today,
+    );
+  }
+
+  /// Year-scale snapshot used by the Year in Review share template.
+  /// Repurposes ShareCardData's existing fields:
+  ///   streakDays      → longest streak of the year
+  ///   habitsCompleted → total habits checked off all year
+  ///   avgMood         → year average
+  ///   disciplineScore → days active (label is overridden in _StatRow)
+  ///   weekStart/End   → first and last day of the recap window
+  Future<ShareCardData> _buildYearSnapshot() async {
+    final now = DateTime.now();
+    final year = now.month == 1 ? now.year - 1 : now.year;
+    final yir = await YearInReviewService().generateForYear(year);
+    return ShareCardData(
+      userName: yir.userName,
+      streakDays: yir.longestStreakDays,
+      avgMood: yir.avgMood,
+      habitsCompleted: yir.totalHabitsCompleted,
+      disciplineScore: yir.daysActive,
+      identities: yir.identities,
+      weekStart: yir.windowStart,
+      weekEnd: yir.windowEnd,
     );
   }
 

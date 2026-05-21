@@ -567,6 +567,7 @@ class _UserProfileCodec implements _EntityCodec {
             ? _iso(p.lastFreezeReplenish!)
             : null,
         'totalFreezesUsed': p.totalFreezesUsed,
+        'tutorialCompleted': p.tutorialCompleted,
         'updatedAt': _iso(upd),
       });
     }
@@ -587,6 +588,7 @@ class _UserProfileCodec implements _EntityCodec {
       (c) => c.name == (json['chronotype'] ?? 'balanced'),
       orElse: () => Chronotype.balanced,
     );
+    final existing = _box.get(_key);
     final profile = UserProfile(
       name: json['name'] as String? ?? 'friend',
       identities:
@@ -600,8 +602,27 @@ class _UserProfileCodec implements _EntityCodec {
       lastFreezeReplenish: _parseDate(json['lastFreezeReplenish']),
       totalFreezesUsed: (json['totalFreezesUsed'] as num?)?.toInt(),
       updatedAt: _parseDate(json['updatedAt']),
+      // Sticky: once true on either side, stays true. The server is
+      // canonical only as a "yes already seen" signal — we don't want
+      // to un-complete the tutorial for a user whose local state has
+      // it true but whose server row hasn't received the push yet.
+      tutorialCompleted: (json['tutorialCompleted'] as bool? ?? false) ||
+          (existing?.tutorialCompleted ?? false),
     );
     await _box.put(_key, profile);
+    // After a remote pull marks the user as tutorial-completed,
+    // hydrate the device-local SharedPreferences cache so the next
+    // app launch on this device skips the tutorial too.
+    if (profile.tutorialCompleted) {
+      await _hydrateTutorialPref();
+    }
+  }
+
+  Future<void> _hydrateTutorialPref() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('tutorial_completed', true);
+    } catch (_) {/* best-effort */}
   }
 
   @override

@@ -5,8 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../screens/main_navigation.dart';
 import '../services/haptic_service.dart';
+import '../services/overlay_coordinator.dart';
+import '../services/sync_service.dart';
+import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
 import 'bottom_nav.dart';
+import 'tutorial_targets.dart';
 
 const String _kTutorialCompletedPrefKey = 'tutorial_completed';
 
@@ -18,19 +22,32 @@ final ValueNotifier<bool> tutorialCompletedNotifier =
     ValueNotifier<bool>(false);
 
 /// Loads the persisted flag into [tutorialCompletedNotifier]. Call once
-/// on app boot before any screen reads it.
+/// on app boot before any screen reads it. The synced UserProfile field
+/// (when present) takes priority over the device-local pref so a user
+/// who completed the tutorial on another device doesn't see it again.
 Future<void> warmUpTutorialState() async {
+  bool seen = false;
   try {
-    final prefs = await SharedPreferences.getInstance();
-    tutorialCompletedNotifier.value =
-        prefs.getBool(_kTutorialCompletedPrefKey) ?? false;
-  } catch (_) {
-    tutorialCompletedNotifier.value = false;
+    final synced = UserRepository().getCurrentUser()?.tutorialCompleted;
+    if (synced == true) seen = true;
+  } catch (_) {/* user not loaded yet */}
+  if (!seen) {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      seen = prefs.getBool(_kTutorialCompletedPrefKey) ?? false;
+    } catch (_) {}
   }
+  tutorialCompletedNotifier.value = seen;
 }
 
-/// Returns true if the user has already seen (or skipped) the tutorial.
+/// Returns true if the user has already seen (or skipped) the tutorial
+/// — either on this device or on any other device (via UserProfile sync).
 Future<bool> isTutorialCompleted() async {
+  try {
+    if (UserRepository().getCurrentUser()?.tutorialCompleted == true) {
+      return true;
+    }
+  } catch (_) {}
   try {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_kTutorialCompletedPrefKey) ?? false;
@@ -45,6 +62,18 @@ Future<void> markTutorialCompleted() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kTutorialCompletedPrefKey, true);
   } catch (_) {/* best effort */}
+  // Flip the synced field too so registering / signing in on another
+  // device keeps the tutorial dismissed. UserRepository tags the row
+  // with updatedAt so SyncService picks it up on the next push.
+  try {
+    final user = UserRepository().getCurrentUser();
+    if (user != null && !user.tutorialCompleted) {
+      user.tutorialCompleted = true;
+      await UserRepository().saveUser(user);
+      // Debounced push catches the change without a full sync round-trip.
+      SyncService().debouncedPush();
+    }
+  } catch (_) {/* offline / not signed in */}
 }
 
 Future<void> resetTutorial() async {
@@ -52,6 +81,16 @@ Future<void> resetTutorial() async {
   try {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kTutorialCompletedPrefKey, false);
+  } catch (_) {}
+  // Mirror to the synced profile so "Replay tutorial" actually replays
+  // across devices the next time the user signs in elsewhere.
+  try {
+    final user = UserRepository().getCurrentUser();
+    if (user != null && user.tutorialCompleted) {
+      user.tutorialCompleted = false;
+      await UserRepository().saveUser(user);
+      SyncService().debouncedPush();
+    }
   } catch (_) {}
 }
 
@@ -62,70 +101,138 @@ class _TutorialStep {
     required this.label,
     required this.title,
     required this.body,
+    this.targetKey,
   });
-  final int tabIndex; // 0..5 — also the spotlight target inside bottom nav
+  /// Tab to switch to before showing this step. Also the fallback
+  /// spotlight target (the bottom-nav button for this tab) if
+  /// [targetKey] is null or its widget isn't yet mounted.
+  final int tabIndex;
   final IconData icon;
   final String label;
   final String title;
   final String body;
+  /// Optional in-screen widget to spotlight, picked up from
+  /// [TutorialTargets]. When the target is on-screen we compute its
+  /// rect from the RenderBox; otherwise we degrade to the tab-nav
+  /// spotlight so the step still reads.
+  final GlobalKey? targetKey;
 }
 
-const List<_TutorialStep> _kSteps = [
-  _TutorialStep(
-    tabIndex: 0,
-    icon: Icons.today_rounded,
-    label: 'TODAY',
-    title: 'Your daily moment.',
-    body:
-        'Check in with your mood and energy, run through your routines, and feel the shape of your day.',
-  ),
-  _TutorialStep(
-    tabIndex: kHabitsTabIndex,
-    icon: Icons.check_circle_outline_rounded,
-    label: 'HABITS',
-    title: 'Small votes, big identity.',
-    body:
-        'Each habit is a quiet vote for who you are becoming. Tap to complete, hold to edit.',
-  ),
-  _TutorialStep(
-    tabIndex: kRoutineTabIndex,
-    icon: Icons.schedule_rounded,
-    label: 'ROUTINE',
-    title: 'A flow that fits you.',
-    body:
-        "Lay out the rhythm of your day. We'll surface what's next and celebrate when it's done.",
-  ),
-  _TutorialStep(
-    tabIndex: kCoachTabIndex,
-    icon: Icons.chat_bubble_outline_rounded,
-    label: 'COACH',
-    title: 'Quiet, warm, available.',
-    body:
-        'Ask the coach anything. Get a nightly reflection that reads your day with care.',
-  ),
-  _TutorialStep(
-    tabIndex: kInsightsTabIndex,
-    icon: Icons.auto_awesome_rounded,
-    label: 'INSIGHTS',
-    title: 'Patterns made visible.',
-    body:
-        'Mood8 surfaces the patterns behind your mood — what lifts you, what drains you.',
-  ),
-  _TutorialStep(
-    tabIndex: kProgressTabIndex,
-    icon: Icons.bar_chart_rounded,
-    label: 'PROGRESS',
-    title: 'Identity in motion.',
-    body:
-        'Streaks, completion rates, identity progress — the long view of who you are becoming.',
-  ),
-];
+List<_TutorialStep> get _kSteps => <_TutorialStep>[
+      // ── Tab overview ────────────────────────────────────────────────
+      _TutorialStep(
+        tabIndex: 0,
+        icon: Icons.today_rounded,
+        label: 'TODAY',
+        title: 'Your daily moment.',
+        body:
+            'Check in with your mood and energy, run through your routines, and feel the shape of your day.',
+      ),
+      _TutorialStep(
+        tabIndex: 0,
+        icon: Icons.tune_rounded,
+        label: 'MOOD CHECK-IN',
+        title: 'Three sliders, ten seconds.',
+        body:
+            'Slide Mood, Energy, and Focus to wherever you are right now. Save and you’re done.',
+        targetKey: TutorialTargets.moodSliders,
+      ),
+      _TutorialStep(
+        tabIndex: 0,
+        icon: Icons.favorite_rounded,
+        label: 'GRATITUDE',
+        title: 'Three things, daily.',
+        body:
+            'Tap to log what you’re grateful for. Tiny, repeatable, identity-shaping.',
+        targetKey: TutorialTargets.gratitudeCard,
+      ),
+      _TutorialStep(
+        tabIndex: kHabitsTabIndex,
+        icon: Icons.check_circle_outline_rounded,
+        label: 'HABITS',
+        title: 'Small votes, big identity.',
+        body:
+            'Each habit is a quiet vote for who you are becoming. Tap to complete, hold to edit.',
+      ),
+      _TutorialStep(
+        tabIndex: kHabitsTabIndex,
+        icon: Icons.add_rounded,
+        label: 'ADD A HABIT',
+        title: 'Build one in seconds.',
+        body:
+            'The + button opens a quick sheet: name, identity, cadence. That’s the whole flow.',
+        targetKey: TutorialTargets.addHabit,
+      ),
+      _TutorialStep(
+        tabIndex: kRoutineTabIndex,
+        icon: Icons.schedule_rounded,
+        label: 'ROUTINE',
+        title: 'A flow that fits you.',
+        body:
+            "Lay out the rhythm of your day. We'll surface what's next and celebrate when it's done.",
+      ),
+      _TutorialStep(
+        tabIndex: kRoutineTabIndex,
+        icon: Icons.add_rounded,
+        label: 'ADD A ROUTINE',
+        title: 'Stack your day.',
+        body:
+            'Tap + to drop a new ritual into your timeline — meditate, write, walk, anything.',
+        targetKey: TutorialTargets.addRoutine,
+      ),
+      _TutorialStep(
+        tabIndex: kCoachTabIndex,
+        icon: Icons.chat_bubble_outline_rounded,
+        label: 'COACH',
+        title: 'Quiet, warm, available.',
+        body:
+            'Ask the coach anything. Get a nightly reflection that reads your day with care.',
+      ),
+      _TutorialStep(
+        tabIndex: kInsightsTabIndex,
+        icon: Icons.auto_awesome_rounded,
+        label: 'INSIGHTS',
+        title: 'Patterns made visible.',
+        body:
+            'Mood8 surfaces the patterns behind your mood — what lifts you, what drains you.',
+      ),
+      _TutorialStep(
+        tabIndex: kProgressTabIndex,
+        icon: Icons.bar_chart_rounded,
+        label: 'PROGRESS',
+        title: 'Identity in motion.',
+        body:
+            'Streaks, completion rates, identity progress — the long view of who you are becoming.',
+      ),
+      _TutorialStep(
+        tabIndex: kProgressTabIndex,
+        icon: Icons.ios_share_rounded,
+        label: 'SHARE',
+        title: 'Make it visible.',
+        body:
+            'Export a beautiful card of your week — for your story, feed, or fridge.',
+        targetKey: TutorialTargets.shareProgress,
+      ),
+      _TutorialStep(
+        tabIndex: 0,
+        icon: Icons.settings_rounded,
+        label: 'SETTINGS',
+        title: 'It’s your space.',
+        body:
+            'Tap your avatar to customize the experience, manage your account, and upgrade to Premium.',
+        targetKey: TutorialTargets.settingsButton,
+      ),
+    ];
 
 /// Mounts the tutorial as a floating overlay above MainNavigation so the
 /// app's bottom nav + tab body remain interactive (we drive them) while
 /// the tutorial dims everything except the highlighted spot. Fire and
 /// forget — the entry removes itself on Skip or final Next.
-void showTutorial(BuildContext context) {
+void showTutorial(BuildContext context) async {
+  // Wait for any in-flight reward/celebration overlay to dismiss FIRST
+  // so the tutorial spotlight isn't buried under confetti / orbs.
+  await OverlayCoordinator().whenIdle();
+  if (!context.mounted) return;
   HapticService().light();
   final overlay = Overlay.of(context, rootOverlay: true);
   late OverlayEntry entry;
@@ -172,6 +279,13 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
   void _switchToCurrentTab() {
     final step = _kSteps[_index];
     MainNavigation.goToTab(context, step.tabIndex);
+    // Force one more rebuild on the next frame so the freshly-mounted
+    // tab's TutorialTargets GlobalKeys have a RenderBox to read from.
+    // Without this, the first frame after a tab switch falls back to
+    // the nav-bar geometry even when an in-screen target is available.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   void _next() {
@@ -196,11 +310,38 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
     widget.onSkip();
   }
 
-  /// Computes the on-screen rect of the currently-spotlit bottom nav tab.
+  /// Spotlight rect for the current step. Prefers the step's
+  /// [TutorialTargets] GlobalKey when its widget is mounted; falls back
+  /// to the bottom-nav tab geometry when the target isn't on-screen yet.
+  Rect _spotlightRectFor(BuildContext context, _TutorialStep step) {
+    final keyed = _rectForKey(step.targetKey);
+    if (keyed != null) return keyed;
+    return _navTabRect(context, step.tabIndex);
+  }
+
+  Rect? _rectForKey(GlobalKey? key) {
+    if (key == null) return null;
+    final ctx = key.currentContext;
+    if (ctx == null) return null;
+    final render = ctx.findRenderObject();
+    if (render is! RenderBox || !render.attached) return null;
+    final offset = render.localToGlobal(Offset.zero);
+    final size = render.size;
+    // Pad the rect a touch so the spotlight reads as breathing room
+    // around the target, not skin-tight to its edge.
+    return Rect.fromLTWH(
+      offset.dx - 6,
+      offset.dy - 6,
+      size.width + 12,
+      size.height + 12,
+    );
+  }
+
+  /// Fallback geometry: rect of the bottom-nav tab button for [tabIndex].
   /// Bottom nav is a 66px-tall Container with 12px L/R + 12px bottom outer
   /// padding, holding 6 equal-width tabs. Each tab has 2px horizontal
   /// margin so the actual highlight is slightly inset.
-  Rect _spotlightRectFor(BuildContext context, int tabIndex) {
+  Rect _navTabRect(BuildContext context, int tabIndex) {
     final media = MediaQuery.of(context);
     final w = media.size.width;
     final h = media.size.height;
@@ -211,7 +352,6 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
     final innerW = w - navOuterPad * 2;
     final tabW = innerW / tabCount;
     final navTop = h - navHeight - navOuterPad - bottomInset;
-    // The _NavButton inside has horizontal margin: 2 and vertical: 7.
     return Rect.fromLTWH(
       navOuterPad + tabIndex * tabW + 2,
       navTop + 7,
@@ -224,7 +364,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
   Widget build(BuildContext context) {
     final step = _kSteps[_index];
     final isLast = _index == _kSteps.length - 1;
-    final spotlight = _spotlightRectFor(context, step.tabIndex);
+    final spotlight = _spotlightRectFor(context, step);
     return Material(
       type: MaterialType.transparency,
       child: Stack(
@@ -284,13 +424,12 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
               ],
             ),
           ),
-          // Explanation card — anchored near the bottom, above the bottom nav
-          Positioned(
-            left: 16,
-            right: 16,
-            // Sit just above the spotlight; clamp so it doesn't crowd the
-            // top inset on tiny screens.
-            bottom: MediaQuery.of(context).size.height - spotlight.top + 16,
+          // Explanation card. Default position is just above the
+          // spotlight; if the spotlight sits high on the screen (above
+          // ~35% from the top) we instead place the card BELOW it so we
+          // don't try to fit a card in 100px of space.
+          _PositionedStepCard(
+            spotlight: spotlight,
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 320),
               transitionBuilder: (child, animation) {
@@ -316,6 +455,39 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Places the explanation card relative to the spotlight: above if the
+/// spotlight is in the lower half of the screen, below if it's in the
+/// upper half. Either side clamps to safe area + 16px breathing room.
+class _PositionedStepCard extends StatelessWidget {
+  const _PositionedStepCard({
+    required this.spotlight,
+    required this.child,
+  });
+  final Rect spotlight;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final h = media.size.height;
+    final placeAbove = spotlight.top > h * 0.40;
+    if (placeAbove) {
+      return Positioned(
+        left: 16,
+        right: 16,
+        bottom: (h - spotlight.top + 16).clamp(16.0, h * 0.95),
+        child: child,
+      );
+    }
+    return Positioned(
+      left: 16,
+      right: 16,
+      top: (spotlight.bottom + 16).clamp(media.padding.top + 56, h - 200),
+      child: child,
     );
   }
 }

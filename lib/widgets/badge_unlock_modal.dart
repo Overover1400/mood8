@@ -13,6 +13,7 @@ import '../models/share_card_data.dart';
 import '../screens/share_progress_screen.dart';
 import '../services/badge_definitions.dart';
 import '../services/haptic_service.dart';
+import '../services/overlay_coordinator.dart';
 import '../services/sfx_service.dart';
 import '../theme/app_theme.dart';
 
@@ -31,11 +32,16 @@ Future<void> showBadgeUnlockQueue(
   List<EarnedBadge> badges,
 ) async {
   if (badges.isEmpty) return;
-  for (final badge in badges) {
-    if (!context.mounted) return;
-    await _showOne(context, badge);
-    // Tiny breath between celebrations so they don't smash together.
-    await Future<void>.delayed(const Duration(milliseconds: 250));
+  OverlayCoordinator().push();
+  try {
+    for (final badge in badges) {
+      if (!context.mounted) return;
+      await _showOne(context, badge);
+      // Tiny breath between celebrations so they don't smash together.
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+  } finally {
+    OverlayCoordinator().pop();
   }
 }
 

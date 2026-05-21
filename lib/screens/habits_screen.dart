@@ -16,6 +16,7 @@ import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_habit_sheet.dart';
 import '../widgets/badge_unlock_modal.dart';
+import '../widgets/tutorial_targets.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/freeze_badge.dart';
 import '../widgets/freeze_modal.dart';
@@ -179,7 +180,10 @@ class _HabitsScreenState extends State<HabitsScreen> {
           Positioned(
             right: 24,
             bottom: 110,
-            child: _Fab(onTap: _openSheet)
+            child: _Fab(
+              key: TutorialTargets.addHabit,
+              onTap: _openSheet,
+            )
                 .animate()
                 .fadeIn(delay: 200.ms, duration: 350.ms)
                 .scaleXY(begin: 0.7, end: 1.0, curve: Curves.easeOutBack),
@@ -638,7 +642,7 @@ class _GroupHeader extends StatelessWidget {
 }
 
 class _Fab extends StatelessWidget {
-  const _Fab({required this.onTap});
+  const _Fab({super.key, required this.onTap});
   final VoidCallback onTap;
 
   @override

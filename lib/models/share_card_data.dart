@@ -27,6 +27,7 @@ enum ShareCardTemplate {
   weekRecap,
   streakMilestone,
   identityProgress,
+  yearInReview,
 }
 
 enum ShareCardFormat {
@@ -54,6 +55,8 @@ extension ShareCardTemplateX on ShareCardTemplate {
         return 'Streak';
       case ShareCardTemplate.identityProgress:
         return 'Identity';
+      case ShareCardTemplate.yearInReview:
+        return 'Year in review';
     }
   }
 }

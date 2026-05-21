@@ -155,6 +155,8 @@ class _Content extends StatelessWidget {
         return '${data.streakDays}-day streak';
       case ShareCardTemplate.identityProgress:
         return 'Becoming';
+      case ShareCardTemplate.yearInReview:
+        return 'My ${data.weekEnd.year}';
     }
   }
 
@@ -167,6 +169,8 @@ class _Content extends StatelessWidget {
       case ShareCardTemplate.identityProgress:
         final shown = data.identities.take(2).join(' · ');
         return shown.isEmpty ? 'My identity in motion.' : shown;
+      case ShareCardTemplate.yearInReview:
+        return 'A year of becoming, on Mood8.';
     }
   }
 
@@ -381,6 +385,18 @@ class _HeroStat extends StatelessWidget {
         ],
       );
     }
+    if (template == ShareCardTemplate.yearInReview) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _HeroNumber(
+            value: '${data.habitsCompleted}',
+            unit: '',
+            label: 'Habits completed',
+          ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -482,16 +498,26 @@ class _StatRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final stats = <(String, String)>[];
-    // Streak template doesn't repeat the streak in the secondary row.
-    if (template != ShareCardTemplate.streakMilestone) {
-      stats.add(('${data.streakDays}', 'Streak'));
+    if (template == ShareCardTemplate.yearInReview) {
+      // Year card already shows habits in the hero; secondary tiles
+      // surface the rest of the year-scale stats.
+      stats.add(('${data.streakDays}', 'Longest streak'));
+      if (data.avgMood != null) {
+        stats.add((data.avgMood!.toStringAsFixed(1), 'Avg mood'));
+      }
+      stats.add(('${data.disciplineScore}', 'Days active'));
     } else {
-      stats.add(('${data.disciplineScore}%', 'Discipline'));
+      // Streak template doesn't repeat the streak in the secondary row.
+      if (template != ShareCardTemplate.streakMilestone) {
+        stats.add(('${data.streakDays}', 'Streak'));
+      } else {
+        stats.add(('${data.disciplineScore}%', 'Discipline'));
+      }
+      if (data.avgMood != null) {
+        stats.add((data.avgMood!.toStringAsFixed(1), 'Avg mood'));
+      }
+      stats.add(('${data.habitsCompleted}', 'Habits this week'));
     }
-    if (data.avgMood != null) {
-      stats.add((data.avgMood!.toStringAsFixed(1), 'Avg mood'));
-    }
-    stats.add(('${data.habitsCompleted}', 'Habits this week'));
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

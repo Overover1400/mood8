@@ -36,6 +36,7 @@ import 'patterns_screen.dart';
 import 'paywall_screen.dart';
 import 'premium_screen.dart';
 import 'share_progress_screen.dart';
+import 'year_in_review_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'reminder_settings_screen.dart';
 import '../services/sync_service.dart';
@@ -729,6 +730,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     SettingsSection(
                       title: 'Data & privacy',
                       children: [
+                        SettingsTile(
+                          icon: Icons.auto_stories_rounded,
+                          title: 'Your Year in Review',
+                          subtitle:
+                              'A swipeable look back at your year on Mood8',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const YearInReviewScreen(),
+                            ),
+                          ),
+                        ),
                         SettingsTile(
                           icon: Icons.ios_share_rounded,
                           title: 'Share my progress',

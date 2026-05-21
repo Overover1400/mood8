@@ -30,6 +30,8 @@ import '../models/pattern_alert.dart';
 import '../widgets/pattern_alert_card.dart';
 import 'patterns_screen.dart';
 import '../widgets/tutorial_overlay.dart';
+import '../widgets/tutorial_targets.dart';
+import 'year_in_review_screen.dart';
 import '../services/milestone_service.dart';
 import '../services/mood_repository.dart';
 import '../services/onboarding_service.dart';
@@ -90,8 +92,15 @@ class _HomeScreenState extends State<HomeScreen> {
   static bool _patternsRanThisSession = false;
   bool _intentionPromptDispatched = false;
   bool _showGuestNudge = false;
+  bool _showYirBanner = false;
   static const String _kGuestNudgeDismissedKey =
       'mood8.guestNudge.dismissedAtIso';
+  // SharedPreferences key gating the December YIR banner. We append
+  // the recap year (e.g. mood8.yir.bannerDismissed.2026) so the user
+  // sees a fresh prompt every year and a dismissal in 2026 doesn't
+  // suppress the 2027 banner.
+  static const String _kYirBannerDismissedPrefix =
+      'mood8.yir.bannerDismissed.';
 
   @override
   void initState() {
@@ -123,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _intentionPromptDispatched = true;
     _maybePromptIntention();
     _maybeShowRecapBanner();
+    _maybeShowYirBanner();
   }
 
   Future<void> _maybeShowGuestNudge() async {
@@ -221,6 +231,41 @@ class _HomeScreenState extends State<HomeScreen> {
     if (prefs.getBool(key) ?? false) return;
     if (!mounted) return;
     setState(() => _showRecapBanner = true);
+  }
+
+  /// Only shows during December — the YIR is a December moment.
+  /// Dismissable; the dismissed flag is keyed to the year so next year's
+  /// banner pops fresh.
+  Future<void> _maybeShowYirBanner() async {
+    final now = DateTime.now();
+    if (now.month != 12) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool('$_kYirBannerDismissedPrefix${now.year}') ?? false) {
+        return;
+      }
+    } catch (_) {/* read failure → show by default */}
+    if (!mounted) return;
+    setState(() => _showYirBanner = true);
+  }
+
+  Future<void> _openYearInReview() async {
+    HapticService().light();
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const YearInReviewScreen(),
+      ),
+    );
+  }
+
+  Future<void> _dismissYirBanner() async {
+    HapticService().selection();
+    final year = DateTime.now().year;
+    setState(() => _showYirBanner = false);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('$_kYirBannerDismissedPrefix$year', true);
+    } catch (_) {}
   }
 
   Future<void> _openRecap() async {
@@ -497,6 +542,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                 end: 0,
                                 curve: Curves.easeOutCubic),
                       ],
+                      if (_showYirBanner) ...[
+                        const SizedBox(height: 18),
+                        _YirBanner(
+                          onTap: _openYearInReview,
+                          onDismiss: _dismissYirBanner,
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms)
+                            .slideY(
+                                begin: -0.05,
+                                end: 0,
+                                curve: Curves.easeOutCubic),
+                      ],
                       ValueListenableBuilder<Box<PatternAlert>>(
                         valueListenable:
                             PatternDetectionService().watch(),
@@ -597,6 +655,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             final logged = entry != null &&
                                 entry.nonEmptyItems.isNotEmpty;
                             return _GratitudeCard(
+                              key: TutorialTargets.gratitudeCard,
                               logged: logged,
                               previewItem: logged
                                   ? entry.nonEmptyItems.first
@@ -980,6 +1039,7 @@ class _Header extends StatelessWidget {
         ],
         const SizedBox(width: 10),
         ColorAvatar(
+          key: TutorialTargets.settingsButton,
           name: name,
           size: 38,
           onTap: onOpenSettings,
@@ -1041,25 +1101,30 @@ class _MoodHeroCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 22),
-          GlowSlider(
-            label: 'Mood',
-            icon: Icons.favorite_rounded,
-            value: mood,
-            onChanged: onMood,
-          ),
-          const SizedBox(height: 16),
-          GlowSlider(
-            label: 'Energy',
-            icon: Icons.bolt_rounded,
-            value: energy,
-            onChanged: onEnergy,
-          ),
-          const SizedBox(height: 16),
-          GlowSlider(
-            label: 'Focus',
-            icon: Icons.center_focus_strong_rounded,
-            value: focus,
-            onChanged: onFocus,
+          Column(
+            key: TutorialTargets.moodSliders,
+            children: [
+              GlowSlider(
+                label: 'Mood',
+                icon: Icons.favorite_rounded,
+                value: mood,
+                onChanged: onMood,
+              ),
+              const SizedBox(height: 16),
+              GlowSlider(
+                label: 'Energy',
+                icon: Icons.bolt_rounded,
+                value: energy,
+                onChanged: onEnergy,
+              ),
+              const SizedBox(height: 16),
+              GlowSlider(
+                label: 'Focus',
+                icon: Icons.center_focus_strong_rounded,
+                value: focus,
+                onChanged: onFocus,
+              ),
+            ],
           ),
         ],
       ),
@@ -1860,6 +1925,107 @@ class _RecapBanner extends StatelessWidget {
   }
 }
 
+class _YirBanner extends StatelessWidget {
+  const _YirBanner({required this.onTap, required this.onDismiss});
+  final VoidCallback onTap;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final year = DateTime.now().year;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.purple.withValues(alpha: 0.45),
+                AppColors.pink.withValues(alpha: 0.30),
+                AppColors.blueAccent.withValues(alpha: 0.25),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppColors.purpleLight.withValues(alpha: 0.55),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.purple.withValues(alpha: 0.32),
+                blurRadius: 26,
+                spreadRadius: -6,
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppColors.orbGradient,
+                ),
+                child: const Icon(
+                  Icons.auto_stories_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'YEAR IN REVIEW',
+                      style: TextStyle(
+                        color: AppColors.pinkLight,
+                        fontSize: 10,
+                        letterSpacing: 1.8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Your $year is ready ✨',
+                      style: GoogleFonts.instrumentSerif(
+                        color: BrandColors.ink(context),
+                        fontStyle: FontStyle.italic,
+                        fontSize: 18,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_rounded,
+                color: AppColors.pinkLight,
+                size: 18,
+              ),
+              IconButton(
+                tooltip: 'Dismiss',
+                onPressed: onDismiss,
+                icon: Icon(
+                  Icons.close_rounded,
+                  color: BrandColors.inkDim(context),
+                  size: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _IntentionNudge extends StatelessWidget {
   const _IntentionNudge({required this.onTap});
   final VoidCallback onTap;
@@ -1914,6 +2080,7 @@ class _IntentionNudge extends StatelessWidget {
 
 class _GratitudeCard extends StatelessWidget {
   const _GratitudeCard({
+    super.key,
     required this.logged,
     required this.onTap,
     this.previewItem,
