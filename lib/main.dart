@@ -77,8 +77,39 @@ Future<void> main() async {
   runApp(const Mood8App());
 }
 
-class Mood8App extends StatelessWidget {
+class Mood8App extends StatefulWidget {
   const Mood8App({super.key});
+
+  @override
+  State<Mood8App> createState() => _Mood8AppState();
+}
+
+class _Mood8AppState extends State<Mood8App> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Flush pending writes on background; catch other-device changes on
+    // resume. Both fire-and-forget so framework lifecycle isn't blocked.
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      // ignore: discarded_futures
+      SyncService().pushChanges();
+    } else if (state == AppLifecycleState.resumed) {
+      // ignore: discarded_futures
+      SyncService().pullChanges();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

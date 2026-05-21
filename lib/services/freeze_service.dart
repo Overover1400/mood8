@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'sync_service.dart';
+
 import '../models/habit.dart';
 import '../models/routine_item.dart';
 import '../models/user_profile.dart';
@@ -33,7 +35,9 @@ class FreezeService {
 
     if (last == null) {
       profile.lastFreezeReplenish = now;
+      profile.updatedAt = now;
       await profile.save();
+      SyncService().debouncedPush();
       return;
     }
 
@@ -51,7 +55,9 @@ class FreezeService {
         '[FreezeService] replenish · +$sundaysPassed (cap $max) · ${profile.freezesAvailable} → $next');
     profile.freezesAvailable = next;
     profile.lastFreezeReplenish = now;
+    profile.updatedAt = now;
     await profile.save();
+    SyncService().debouncedPush();
   }
 
   bool _crossedSunday(DateTime start, DateTime end) {
@@ -89,8 +95,12 @@ class FreezeService {
     habit.frozenDates.add(d);
     profile.freezesAvailable -= 1;
     profile.totalFreezesUsed += 1;
+    final now = DateTime.now();
+    habit.updatedAt = now;
+    profile.updatedAt = now;
     await habit.save();
     await profile.save();
+    SyncService().debouncedPush();
     debugPrint(
         '[FreezeService] froze habit ${habit.id} on $d · remaining=${profile.freezesAvailable}');
     return true;
@@ -108,8 +118,12 @@ class FreezeService {
     routine.frozenDates.add(d);
     profile.freezesAvailable -= 1;
     profile.totalFreezesUsed += 1;
+    final now = DateTime.now();
+    routine.updatedAt = now;
+    profile.updatedAt = now;
     await routine.save();
     await profile.save();
+    SyncService().debouncedPush();
     debugPrint(
         '[FreezeService] froze routine ${routine.id} on $d · remaining=${profile.freezesAvailable}');
     return true;

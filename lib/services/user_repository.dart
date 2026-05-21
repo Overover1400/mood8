@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/user_profile.dart';
 import 'database_service.dart';
+import 'sync_service.dart';
 
 class UserRepository {
   UserRepository({DatabaseService? db})
@@ -18,7 +19,9 @@ class UserRepository {
 
   Future<void> saveUser(UserProfile profile) async {
     try {
+      profile.updatedAt = DateTime.now();
       await _box.put(userKey, profile);
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('UserRepository.saveUser failed: $e\n$st');
       rethrow;
@@ -27,7 +30,9 @@ class UserRepository {
 
   Future<void> clear() async {
     try {
+      await SyncService().recordTombstone('user_profile', userKey);
       await _box.delete(userKey);
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('UserRepository.clear failed: $e\n$st');
       rethrow;

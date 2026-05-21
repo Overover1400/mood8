@@ -8,6 +8,7 @@ import '../models/habit_log.dart';
 import '../models/habit_type.dart';
 import '../models/routine_category.dart';
 import 'database_service.dart';
+import 'sync_service.dart';
 
 class HabitRepository {
   HabitRepository({DatabaseService? db})
@@ -50,9 +51,11 @@ class HabitRepository {
       targetUnit: targetUnit,
       frequencyDays: frequencyDays,
       sortOrder: sortOrder ?? _habitBox.length,
+      updatedAt: DateTime.now(),
     );
     try {
       await _habitBox.put(habit.id, habit);
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('HabitRepository.addHabit failed: $e\n$st');
       rethrow;
@@ -62,7 +65,9 @@ class HabitRepository {
 
   Future<void> updateHabit(Habit habit) async {
     try {
+      habit.updatedAt = DateTime.now();
       await _habitBox.put(habit.id, habit);
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('HabitRepository.updateHabit failed: $e\n$st');
       rethrow;
@@ -71,12 +76,20 @@ class HabitRepository {
 
   Future<void> deleteHabit(String id) async {
     try {
+      // Tombstone the habit and every log that belongs to it BEFORE the
+      // Hive delete so sync can propagate the soft-delete to other devices.
+      await SyncService().recordTombstone('habit', id);
       await _habitBox.delete(id);
-      final logKeys = _logBox.values
+      final logsToDelete = _logBox.values
           .where((l) => l.habitId == id)
-          .map((l) => l.id)
           .toList();
-      if (logKeys.isNotEmpty) await _logBox.deleteAll(logKeys);
+      for (final l in logsToDelete) {
+        await SyncService().recordTombstone('habit_log', l.id);
+      }
+      if (logsToDelete.isNotEmpty) {
+        await _logBox.deleteAll(logsToDelete.map((l) => l.id));
+      }
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('HabitRepository.deleteHabit failed: $e\n$st');
       rethrow;
@@ -87,7 +100,9 @@ class HabitRepository {
     final h = _habitBox.get(id);
     if (h == null) return;
     h.isArchived = true;
+    h.updatedAt = DateTime.now();
     await h.save();
+    SyncService().debouncedPush();
   }
 
   List<Habit> getAllHabits() {
@@ -114,10 +129,13 @@ class HabitRepository {
     final adjustedNew = newIndex > oldIndex ? newIndex - 1 : newIndex;
     final moved = list.removeAt(oldIndex);
     list.insert(adjustedNew.clamp(0, list.length), moved);
+    final now = DateTime.now();
     for (var i = 0; i < list.length; i++) {
       list[i].sortOrder = i;
+      list[i].updatedAt = now;
       await list[i].save();
     }
+    SyncService().debouncedPush();
   }
 
   ValueListenable<Box<Habit>> watchHabits() => _habitBox.listenable();
@@ -140,8 +158,10 @@ class HabitRepository {
       existing.value = value;
       existing.targetValue = target;
       existing.timestamp = DateTime.now();
+      existing.updatedAt = DateTime.now();
       if (note != null) existing.note = note;
       await existing.save();
+      SyncService().debouncedPush();
       return existing;
     }
 
@@ -153,9 +173,11 @@ class HabitRepository {
       targetValue: target,
       timestamp: DateTime.now(),
       note: note,
+      updatedAt: DateTime.now(),
     );
     try {
       await _logBox.put(log.id, log);
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('HabitRepository.logHabit failed: $e\n$st');
       rethrow;

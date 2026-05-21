@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../models/routine_category.dart';
 import '../models/routine_item.dart';
 import 'database_service.dart';
+import 'sync_service.dart';
 
 class RoutineRepository {
   RoutineRepository({DatabaseService? db})
@@ -31,11 +32,13 @@ class RoutineRepository {
       category: category,
       meta: meta,
       sortOrder: sortOrder ?? _box.length,
+      updatedAt: DateTime.now(),
     );
     debugPrint('==> addRoutine called: "${item.title}" (id=${item.id})');
     debugPrint('==> Box length before: ${_box.length}');
     try {
       await _box.put(item.id, item);
+      SyncService().debouncedPush();
       debugPrint('==> Box length after: ${_box.length}');
       debugPrint(
           '==> All items: ${_box.values.map((e) => e.title).toList()}');
@@ -48,7 +51,9 @@ class RoutineRepository {
 
   Future<void> updateRoutine(RoutineItem item) async {
     try {
+      item.updatedAt = DateTime.now();
       await _box.put(item.id, item);
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('RoutineRepository.updateRoutine failed: $e\n$st');
       rethrow;
@@ -57,7 +62,9 @@ class RoutineRepository {
 
   Future<void> deleteRoutine(String id) async {
     try {
+      await SyncService().recordTombstone('routine_item', id);
       await _box.delete(id);
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('RoutineRepository.deleteRoutine failed: $e\n$st');
       rethrow;
@@ -101,8 +108,10 @@ class RoutineRepository {
     if (item == null) return;
     item.isCompleted = true;
     item.completedAt = DateTime.now();
+    item.updatedAt = DateTime.now();
     try {
       await item.save();
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('RoutineRepository.markComplete failed: $e\n$st');
       rethrow;
@@ -115,10 +124,13 @@ class RoutineRepository {
     final adjustedNew = newIndex > oldIndex ? newIndex - 1 : newIndex;
     final moved = items.removeAt(oldIndex);
     items.insert(adjustedNew.clamp(0, items.length), moved);
+    final now = DateTime.now();
     for (var i = 0; i < items.length; i++) {
       items[i].sortOrder = i;
+      items[i].updatedAt = now;
       await items[i].save();
     }
+    SyncService().debouncedPush();
   }
 
   ValueListenable<Box<RoutineItem>> watchRoutines() => _box.listenable();

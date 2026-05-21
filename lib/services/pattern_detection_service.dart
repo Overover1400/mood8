@@ -18,6 +18,7 @@ import 'mood_repository.dart';
 import 'notification_service.dart';
 import 'preferences_service.dart';
 import 'reflection_repository.dart';
+import 'sync_service.dart';
 
 /// Detects meaningful patterns in user behavior and surfaces them as
 /// gentle [PatternAlert]s. Pure-Dart math; the only AI hop is *phrasing*
@@ -114,10 +115,12 @@ class PatternDetectionService {
         detectedAt: now,
         relevanceScore: f.relevance,
         dedupeKey: f.dedupeKey,
+        updatedAt: now,
       );
       await _box.put(alert.id, alert);
       saved.add(alert);
     }
+    if (saved.isNotEmpty) SyncService().debouncedPush();
 
     await _markRanToday();
     // Optional push notification for the top high-relevance alert.
@@ -139,13 +142,17 @@ class PatternDetectionService {
 
   Future<void> dismiss(PatternAlert a) async {
     a.dismissedAt = DateTime.now();
+    a.updatedAt = DateTime.now();
     await a.save();
+    SyncService().debouncedPush();
   }
 
   Future<void> markViewed(PatternAlert a) async {
     if (a.viewedAt != null) return;
     a.viewedAt = DateTime.now();
+    a.updatedAt = DateTime.now();
     await a.save();
+    SyncService().debouncedPush();
   }
 
   // ─── Detectors ────────────────────────────────────────────────────────

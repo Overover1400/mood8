@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/mood_entry.dart';
 import 'database_service.dart';
+import 'sync_service.dart';
 
 class MoodRepository {
   MoodRepository({DatabaseService? db})
@@ -28,9 +29,11 @@ class MoodRepository {
       energy: energy,
       focus: focus,
       note: note,
+      updatedAt: DateTime.now(),
     );
     try {
       await _box.put(entry.id, entry);
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('MoodRepository.addEntry failed: $e\n$st');
       rethrow;
@@ -78,7 +81,9 @@ class MoodRepository {
 
   Future<void> deleteEntry(String id) async {
     try {
+      await SyncService().recordTombstone('mood_entry', id);
       await _box.delete(id);
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('MoodRepository.deleteEntry failed: $e\n$st');
       rethrow;

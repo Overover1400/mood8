@@ -9,6 +9,7 @@ import '../models/reminder_settings.dart';
 import 'database_service.dart';
 import 'mood_repository.dart';
 import 'notification_service.dart';
+import 'sync_service.dart';
 
 /// Owns the scheduling lifecycle for "smart reminders" — daily mood
 /// check-in nudges that consult quiet hours and smart-skip rules before
@@ -61,7 +62,9 @@ class ReminderService extends ChangeNotifier {
   /// Persists a fresh settings record. Cancels and reschedules so changes
   /// take effect immediately.
   Future<void> updateSettings(ReminderSettings settings) async {
+    settings.updatedAt = DateTime.now();
     await _box.put(ReminderSettings.boxKey, settings);
+    SyncService().debouncedPush();
     await scheduleAllReminders();
     notifyListeners();
   }

@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/gratitude_entry.dart';
 import 'database_service.dart';
+import 'sync_service.dart';
 
 class GratitudeRepository {
   GratitudeRepository({DatabaseService? db})
@@ -47,8 +48,10 @@ class GratitudeRepository {
       createdAt: now,
     ).items;
     if (existing == null) entry.createdAt = now;
+    entry.updatedAt = now;
     try {
       await _box.put(entry.id, entry);
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('GratitudeRepository.saveEntry failed: $e\n$st');
       rethrow;

@@ -37,6 +37,7 @@ import 'paywall_screen.dart';
 import 'premium_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'reminder_settings_screen.dart';
+import '../services/sync_service.dart';
 import '../widgets/tutorial_overlay.dart';
 import '../models/reminder_settings.dart';
 import '../services/reminder_service.dart';
@@ -182,6 +183,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: Text("Couldn't save that — check your connection."),
       ),
     );
+  }
+
+  Future<void> _confirmRestoreFromCloud() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text(
+          'Restore from cloud?',
+          style: TextStyle(color: BrandColors.ink(context)),
+        ),
+        content: Text(
+          'This re-downloads all your data from the server. Anything on '
+          'this device that hasn\'t synced yet will be lost. '
+          "It's safe to use if your data ever looks wrong.",
+          style: TextStyle(color: BrandColors.inkSoft(context)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Restore',
+              style: TextStyle(color: AppColors.pinkLight),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    // Show progress via a tiny modal sheet.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: CircularProgressIndicator(strokeWidth: 2.4),
+        ),
+      ),
+    );
+    try {
+      final applied = await SyncService().fullRestore();
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Restored $applied records from cloud.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Restore failed: $e')),
+      );
+    }
   }
 
   Future<void> _openBillingPortal() async {
@@ -676,6 +736,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               Navigator.of(context).push(MaterialPageRoute(
                             builder: (_) => const DataPrivacyScreen(),
                           )),
+                        ),
+                        SettingsTile(
+                          icon: Icons.cloud_download_rounded,
+                          title: 'Restore from cloud',
+                          subtitle:
+                              'Re-download all your data from the server',
+                          onTap: _confirmRestoreFromCloud,
                         ),
                       ],
                     ),

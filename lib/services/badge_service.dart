@@ -7,6 +7,7 @@ import '../models/badge_category.dart';
 import '../models/earned_badge.dart';
 import 'badge_definitions.dart';
 import 'database_service.dart';
+import 'sync_service.dart';
 import 'habit_repository.dart';
 import 'mood_repository.dart';
 import 'routine_repository.dart';
@@ -100,9 +101,11 @@ class BadgeService {
         colorHex: def.gradientEnd.toARGB32(),
         unlockedAt: now,
         category: def.category,
+        updatedAt: now,
       );
       try {
         await _box.put(earned.id, earned);
+        SyncService().debouncedPush();
         newlyEarned.add(earned);
         debugPrint(
             '[BadgeService] 🏆 unlocked ${def.key} · ${def.title} (count=$current)');

@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/chat_message.dart';
 import 'database_service.dart';
+import 'sync_service.dart';
 
 class ChatRepository {
   ChatRepository({DatabaseService? db})
@@ -46,9 +47,11 @@ class ChatRepository {
       content: content,
       timestamp: DateTime.now(),
       conversationId: conversationId,
+      updatedAt: DateTime.now(),
     );
     try {
       await _box.put(msg.id, msg);
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('ChatRepository.addMessage failed: $e\n$st');
       rethrow;
@@ -78,7 +81,11 @@ class ChatRepository {
         .map((m) => m.id)
         .toList();
     try {
+      for (final k in keys) {
+        await SyncService().recordTombstone('chat_message', k);
+      }
       await _box.deleteAll(keys);
+      SyncService().debouncedPush();
       final prefs = await SharedPreferences.getInstance();
       final newId = _uuid.v4();
       await prefs.setString(_conversationKey, newId);

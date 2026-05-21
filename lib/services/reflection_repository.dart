@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/reflection.dart';
 import 'database_service.dart';
+import 'sync_service.dart';
 
 class ReflectionRepository {
   ReflectionRepository({DatabaseService? db})
@@ -37,9 +38,11 @@ class ReflectionRepository {
     existing.suggestion = suggestion;
     existing.identityScores = identityScores;
     existing.generatedAt = DateTime.now();
+    existing.updatedAt = DateTime.now();
 
     try {
       await _box.put(existing.id, existing);
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('ReflectionRepository.saveReflection failed: $e\n$st');
       rethrow;

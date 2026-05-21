@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/weekly_recap.dart';
 import 'auth_service.dart';
 import 'database_service.dart';
+import 'sync_service.dart';
 import 'gratitude_repository.dart';
 import 'habit_repository.dart';
 import 'intention_repository.dart';
@@ -312,8 +313,10 @@ class WeeklyRecapService {
         },
         generatedAt: DateTime.now(),
         emailSent: body['email_sent'] as bool? ?? false,
+        updatedAt: DateTime.now(),
       );
       await _box.put(recap.id, recap);
+      SyncService().debouncedPush();
       debugPrint(
           '[Recap] saved ${recap.id} · email=${recap.emailSent}');
       return recap;

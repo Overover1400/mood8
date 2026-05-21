@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/morning_intention.dart';
 import 'database_service.dart';
+import 'sync_service.dart';
 
 class IntentionRepository {
   IntentionRepository({DatabaseService? db})
@@ -56,10 +57,12 @@ class IntentionRepository {
     entry.date = today;
     entry.text = text;
     entry.wasSkipped = skipped;
+    entry.updatedAt = now;
     // Keep first createdAt — only set on brand-new.
     if (existing == null) entry.createdAt = now;
     try {
       await _box.put(entry.id, entry);
+      SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('IntentionRepository._upsert failed: $e\n$st');
       rethrow;
