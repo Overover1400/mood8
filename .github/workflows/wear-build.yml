@@ -51,17 +51,33 @@ jobs:
         run: flutter analyze
         continue-on-error: true
 
-      # Same NDK license trap as the phone workflow — flutter pins
-      # ndk;28.2.x which the GH runner has not pre-accepted.
+      # Same NDK trap as the phone workflow — Flutter pins ndk;28.2.x
+      # which is not pre-installed on the GH runner.
       - name: Accept Android SDK licenses
-        run: yes | flutter doctor --android-licenses || true
+        run: |
+          yes | flutter doctor --android-licenses || true
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+
+      - name: Install required Android NDK
+        run: |
+          NDK_VERSION="28.2.13676358"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${NDK_VERSION}"
 
       - name: Build Wear APK (unsigned release)
         run: |
-          flutter build apk --release \
+          set -o pipefail
+          flutter build apk --release --verbose \
             --target=lib/main_wear.dart \
             --build-name=0.1.${{ github.run_number }} \
-            --build-number=${{ github.run_number }}
+            --build-number=${{ github.run_number }} 2>&1 | tee /tmp/wear-build.log
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wear-build-log-${{ github.run_number }}
+          path: /tmp/wear-build.log
+          retention-days: 14
 
       - name: Rename APK
         run: |

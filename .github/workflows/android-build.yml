@@ -51,19 +51,42 @@ jobs:
         run: flutter analyze
         continue-on-error: true
 
-      # Accept all installed Android SDK licenses BEFORE the build attempts
-      # to auto-install the NDK that flutter.ndkVersion requires. Without
-      # this, Gradle dies with `LicenceNotAcceptedException: ndk;28.2.x`
-      # because the GH runner image ships some Android SDK packages but
-      # not the exact NDK Flutter pins.
+      # Accept ALL Android SDK licenses up front. flutter doctor only
+      # accepts licenses for packages already on disk; the build trips on
+      # ndk;28.2.x which the GH runner doesn't ship, so we also accept via
+      # sdkmanager which covers not-yet-installed packages.
       - name: Accept Android SDK licenses
-        run: yes | flutter doctor --android-licenses || true
+        run: |
+          yes | flutter doctor --android-licenses || true
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+
+      # Pre-install the exact NDK Flutter pins. Gradle CAN auto-install
+      # it but only AFTER licenses are accepted for that specific package
+      # — and the runner image misses the SHA for new NDK lines until
+      # we run sdkmanager --licenses (above). Doing it explicitly here
+      # surfaces install errors as a clean step failure instead of a
+      # cryptic Gradle stack trace.
+      - name: Install required Android NDK
+        run: |
+          NDK_VERSION="28.2.13676358"
+          echo "Installing ndk;${NDK_VERSION}"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${NDK_VERSION}"
+          ls -la "$ANDROID_HOME/ndk/" || true
 
       - name: Build APK (release, debug-signed)
         run: |
-          flutter build apk --release \
+          set -o pipefail
+          flutter build apk --release --verbose \
             --build-name=0.1.${{ github.run_number }} \
-            --build-number=${{ github.run_number }}
+            --build-number=${{ github.run_number }} 2>&1 | tee /tmp/apk-build.log
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ github.run_number }}
+          path: /tmp/apk-build.log
+          retention-days: 14
 
       - name: Build App Bundle (release, debug-signed)
         run: |
