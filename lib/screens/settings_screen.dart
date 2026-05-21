@@ -38,6 +38,7 @@ import 'premium_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'reminder_settings_screen.dart';
 import '../services/sync_service.dart';
+import 'auth/register_screen.dart';
 import '../widgets/tutorial_overlay.dart';
 import '../models/reminder_settings.dart';
 import '../services/reminder_service.dart';
@@ -753,6 +754,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           valueListenable:
                               AuthService().currentUserNotifier,
                           builder: (context, authUser, _) {
+                            if (authUser != null && authUser.isGuest) {
+                              return SettingsTile(
+                                icon: Icons.cloud_outlined,
+                                title: 'Register your account',
+                                subtitle:
+                                    "You're using Mood8 as a guest — "
+                                    'register to keep your data safe across devices',
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const RegisterScreen(),
+                                  ),
+                                ),
+                              );
+                            }
                             if (authUser != null) {
                               return SettingsTile(
                                 icon: Icons.verified_user_outlined,

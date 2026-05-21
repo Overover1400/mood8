@@ -84,6 +84,9 @@ class AuthService {
     required String name,
   }) async {
     debugPrint('[AuthService] register → $email');
+    // sendBearer: true → if we currently hold a guest JWT, the backend
+    // upgrades that account in place (same user_id, same data) instead
+    // of creating a fresh row.
     return _post(
       path: '/auth/register',
       body: {'email': email.trim(), 'password': password, 'name': name.trim()},
@@ -92,7 +95,45 @@ class AuthService {
             'Check your email for a verification code.',
       ),
       fallbackError: "Couldn't create your account. Try again.",
+      sendBearer: true,
     );
+  }
+
+  /// Creates an anonymous user row on the server and stores the JWT
+  /// locally so sync works for "Try without account" users. The same
+  /// account upgrades to a full account when the guest later registers.
+  Future<AuthResult> createGuestAccount() async {
+    debugPrint('[AuthService] createGuestAccount');
+    try {
+      final res = await _client
+          .post(
+            Uri.parse('$_baseUrl/auth/guest'),
+            headers: const {'content-type': 'application/json'},
+            body: '{}',
+          )
+          .timeout(_timeout);
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        return AuthResult.fail(_friendlyError(res,
+            fallback: "Couldn't start a guest session."));
+      }
+      final json = _decode(res.body);
+      final token = json['token'] as String?;
+      if (token == null || token.isEmpty) {
+        return AuthResult.fail('Server response missing token.');
+      }
+      final user = AuthUser.fromJson(_extractUser(json));
+      _token = token;
+      await _saveToken(token);
+      await _saveUser(user);
+      currentUserNotifier.value = user;
+      debugPrint(
+          '[AuthService] guest session started · user=${user.id} · email=${user.email}');
+      return AuthResult.ok(user: user, token: token);
+    } on TimeoutException {
+      return AuthResult.fail("Mood8 didn't reply in time. Try again.");
+    } catch (e) {
+      return AuthResult.fail(_networkError(e));
+    }
   }
 
   Future<AuthResult> verify({
@@ -205,13 +246,22 @@ class AuthService {
     required Map<String, dynamic> body,
     required FutureOr<AuthResult> Function(Map<String, dynamic>) onSuccess,
     required String fallbackError,
+    bool sendBearer = false,
   }) async {
     try {
       debugPrint('[AuthService] POST $path');
+      final headers = <String, String>{
+        'content-type': 'application/json',
+      };
+      // Used by register-from-guest so the backend can upgrade the
+      // existing user row in place instead of creating a new one.
+      if (sendBearer && _token != null) {
+        headers['authorization'] = 'Bearer $_token';
+      }
       final res = await _client
           .post(
             Uri.parse('$_baseUrl$path'),
-            headers: const {'content-type': 'application/json'},
+            headers: headers,
             body: jsonEncode(body),
           )
           .timeout(_timeout);

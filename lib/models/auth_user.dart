@@ -5,6 +5,7 @@ class AuthUser {
     required this.name,
     this.isPremium = false,
     this.isVerified = false,
+    this.isGuest = false,
     this.createdAt,
   });
 
@@ -13,6 +14,7 @@ class AuthUser {
   final String name;
   final bool isPremium;
   final bool isVerified;
+  final bool isGuest;
   final DateTime? createdAt;
 
   AuthUser copyWith({
@@ -21,6 +23,7 @@ class AuthUser {
     String? name,
     bool? isPremium,
     bool? isVerified,
+    bool? isGuest,
     DateTime? createdAt,
   }) =>
       AuthUser(
@@ -29,6 +32,7 @@ class AuthUser {
         name: name ?? this.name,
         isPremium: isPremium ?? this.isPremium,
         isVerified: isVerified ?? this.isVerified,
+        isGuest: isGuest ?? this.isGuest,
         createdAt: createdAt ?? this.createdAt,
       );
 
@@ -38,6 +42,7 @@ class AuthUser {
         'name': name,
         'is_premium': isPremium,
         'is_verified': isVerified,
+        'is_guest': isGuest,
         if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
       };
 
@@ -58,6 +63,7 @@ class AuthUser {
               json['email_verified'] ??
               false) as bool? ??
           false,
+      isGuest: (json['is_guest'] ?? false) as bool? ?? false,
       createdAt: created,
     );
   }

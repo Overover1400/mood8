@@ -57,6 +57,8 @@ import '../widgets/settings/color_avatar.dart';
 import 'habit_detail_screen.dart';
 import 'main_navigation.dart';
 import 'settings_screen.dart';
+import 'auth/register_screen.dart';
+import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -87,6 +89,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showRecapBanner = false;
   static bool _patternsRanThisSession = false;
   bool _intentionPromptDispatched = false;
+  bool _showGuestNudge = false;
+  static const String _kGuestNudgeDismissedKey =
+      'mood8.guestNudge.dismissedAtIso';
 
   @override
   void initState() {
@@ -94,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadSuggestion();
     _maybeAwardBadgesOnOpen();
     _maybeRunPatternDetection();
+    _maybeShowGuestNudge();
     // Tutorial-gated prompts: intention + recap banner only after the
     // tutorial completes (or if it was already completed in a prior
     // session). The notifier listener fires both immediately (if the
@@ -117,6 +123,49 @@ class _HomeScreenState extends State<HomeScreen> {
     _intentionPromptDispatched = true;
     _maybePromptIntention();
     _maybeShowRecapBanner();
+  }
+
+  Future<void> _maybeShowGuestNudge() async {
+    // Show the "register to keep your data safe" nudge if (a) the user
+    // is a guest, and (b) they haven't dismissed it in the last 3 days.
+    // We re-show after 3 days so it's noticeable but not annoying.
+    final user = AuthService().currentUserNotifier.value;
+    if (user == null || !user.isGuest) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final iso = prefs.getString(_kGuestNudgeDismissedKey);
+      if (iso != null) {
+        final dismissed = DateTime.tryParse(iso);
+        if (dismissed != null &&
+            DateTime.now().difference(dismissed) <
+                const Duration(days: 3)) {
+          return;
+        }
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() => _showGuestNudge = true);
+  }
+
+  Future<void> _dismissGuestNudge() async {
+    HapticService().selection();
+    setState(() => _showGuestNudge = false);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _kGuestNudgeDismissedKey,
+        DateTime.now().toIso8601String(),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _openGuestRegister() async {
+    HapticService().light();
+    if (!mounted) return;
+    setState(() => _showGuestNudge = false);
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+    );
   }
 
   Future<void> _maybeRunPatternDetection() async {
@@ -422,6 +471,19 @@ class _HomeScreenState extends State<HomeScreen> {
                           return const SizedBox.shrink();
                         },
                       ),
+                      if (_showGuestNudge) ...[
+                        const SizedBox(height: 18),
+                        _GuestNudgeBanner(
+                          onTap: _openGuestRegister,
+                          onDismiss: _dismissGuestNudge,
+                        )
+                            .animate()
+                            .fadeIn(duration: 400.ms)
+                            .slideY(
+                                begin: -0.05,
+                                end: 0,
+                                curve: Curves.easeOutCubic),
+                      ],
                       if (_showRecapBanner) ...[
                         const SizedBox(height: 18),
                         _RecapBanner(
@@ -1573,6 +1635,121 @@ class _PatternsCarousel extends StatelessWidget {
           if (i < alerts.length - 1) const SizedBox(height: 10),
         ],
       ],
+    );
+  }
+}
+
+class _GuestNudgeBanner extends StatelessWidget {
+  const _GuestNudgeBanner({required this.onTap, required this.onDismiss});
+  final VoidCallback onTap;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.blueAccent.withValues(alpha: 0.30),
+                AppColors.purple.withValues(alpha: 0.20),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppColors.blueAccent.withValues(alpha: 0.55),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.blueAccent.withValues(alpha: 0.28),
+                blurRadius: 20,
+                spreadRadius: -6,
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.blueAccent.withValues(alpha: 0.85),
+                      AppColors.purple.withValues(alpha: 0.25),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                child: const Icon(
+                  Icons.cloud_outlined,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'GUEST ACCOUNT',
+                      style: TextStyle(
+                        color: AppColors.blueAccent,
+                        fontSize: 10,
+                        letterSpacing: 1.8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Register to keep your data safe',
+                      style: GoogleFonts.instrumentSerif(
+                        color: BrandColors.ink(context),
+                        fontStyle: FontStyle.italic,
+                        fontSize: 18,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Without an account, uninstalling Mood8 loses everything.",
+                      style: TextStyle(
+                        color: BrandColors.inkDim(context),
+                        fontSize: 11.5,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_rounded,
+                color: AppColors.blueAccent,
+                size: 18,
+              ),
+              IconButton(
+                tooltip: 'Dismiss',
+                onPressed: onDismiss,
+                icon: Icon(
+                  Icons.close_rounded,
+                  color: BrandColors.inkDim(context),
+                  size: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

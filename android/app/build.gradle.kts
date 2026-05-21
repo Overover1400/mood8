@@ -24,9 +24,14 @@ android {
 
     defaultConfig {
         applicationId = "com.mood8.app"
-        // 23 = Android 6.0. Required by flutter_secure_storage and a sensible
-        // floor for modern crypto / runtime permissions.
-        minSdk = 23
+        // 24 = Android 7.0. Required by url_launcher_android 6.3.29 which
+        // raised its plugin minSdk to 24 — without this override the
+        // manifest merger refuses the build with "uses-sdk:minSdkVersion
+        // X cannot be smaller than version 24 declared in library
+        // [:url_launcher_android]". 24 still covers ~98% of active
+        // Android devices and is a sensible floor for modern crypto +
+        // runtime permissions.
+        minSdk = 24
         targetSdk = 34
         // Version is sourced from pubspec.yaml (`version: x.y.z+code`).
         versionCode = flutter.versionCode

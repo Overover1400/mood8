@@ -205,6 +205,15 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _onBypass() async {
+    // Try-without-account now creates a real (anonymous) server account
+    // so the user's data syncs. If the network call fails we still let
+    // them through locally — they can register later to fix it.
+    if (AuthService().token == null) {
+      final result = await AuthService().createGuestAccount();
+      if (!result.success) {
+        debugPrint('[AuthGate] guest create failed: ${result.message}');
+      }
+    }
     setState(() => _skipAuth = true);
     try {
       final prefs = await SharedPreferences.getInstance();
