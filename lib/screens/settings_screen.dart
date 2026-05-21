@@ -35,6 +35,7 @@ import 'past_recaps_screen.dart';
 import 'patterns_screen.dart';
 import 'paywall_screen.dart';
 import 'premium_screen.dart';
+import 'share_progress_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'reminder_settings_screen.dart';
 import '../services/sync_service.dart';
@@ -728,6 +729,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     SettingsSection(
                       title: 'Data & privacy',
                       children: [
+                        SettingsTile(
+                          icon: Icons.ios_share_rounded,
+                          title: 'Share my progress',
+                          subtitle:
+                              'A beautiful card for your story or feed',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const ShareProgressScreen(),
+                            ),
+                          ),
+                        ),
                         SettingsTile(
                           icon: Icons.shield_outlined,
                           title: 'Data & privacy',

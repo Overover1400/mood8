@@ -6,10 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
-
+import '../models/badge_category.dart';
 import '../models/earned_badge.dart';
 import '../models/sfx_type.dart';
+import '../models/share_card_data.dart';
+import '../screens/share_progress_screen.dart';
 import '../services/badge_definitions.dart';
 import '../services/haptic_service.dart';
 import '../services/sfx_service.dart';
@@ -98,15 +99,18 @@ class _BadgeUnlockModalState extends State<BadgeUnlockModal> {
 
   Future<void> _share() async {
     HapticService().light();
-    final text =
-        "I just earned the '${widget.badge.title}' badge on Mood8 — "
-        "${widget.badge.description} https://mood8.app";
-    try {
-      await Share.share(text, subject: 'Mood8 milestone');
-    } catch (_) {
-      // share_plus throws on web in some browser/device combos; the dialog
-      // just won't appear — no user-facing error needed.
-    }
+    // Open the visual share-card flow — streak badges land on the
+    // dedicated streak-milestone template; everything else gets the
+    // generic week-recap card.
+    final template = widget.badge.category == BadgeCategory.streak
+        ? ShareCardTemplate.streakMilestone
+        : ShareCardTemplate.weekRecap;
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ShareProgressScreen(initialTemplate: template),
+      ),
+    );
   }
 
   @override

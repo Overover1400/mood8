@@ -20,6 +20,7 @@ import '../services/habit_repository.dart';
 import '../services/milestone_service.dart';
 import '../services/mood_repository.dart';
 import 'badges_screen.dart';
+import 'share_progress_screen.dart';
 import '../theme/app_theme.dart';
 import '../widgets/animated_number.dart';
 import '../widgets/charts/habit_ring.dart';
@@ -283,6 +284,17 @@ class _ProgressScreenState extends State<ProgressScreen> {
               ),
             ),
           ],
+          const SizedBox(height: 28),
+          _ShareProgressCta(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ShareProgressScreen(),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -961,6 +973,81 @@ class _GratitudeStat extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ShareProgressCta extends StatelessWidget {
+  const _ShareProgressCta({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+        decoration: BoxDecoration(
+          gradient: AppColors.softGradient,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: AppColors.pinkLight.withValues(alpha: 0.32),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.purple.withValues(alpha: 0.18),
+              blurRadius: 24,
+              spreadRadius: -6,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppColors.buttonGradient,
+              ),
+              child: const Icon(
+                Icons.ios_share_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Share your progress',
+                    style: GoogleFonts.instrumentSerif(
+                      color: BrandColors.ink(context),
+                      fontStyle: FontStyle.italic,
+                      fontSize: 22,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'A beautiful card for your story or feed.',
+                    style: TextStyle(
+                      color: BrandColors.inkSoft(context),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: BrandColors.inkSoft(context),
+            ),
+          ],
+        ),
       ),
     );
   }

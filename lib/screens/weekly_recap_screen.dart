@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
-
+import '../models/share_card_data.dart';
 import '../models/weekly_recap.dart';
 import '../services/haptic_service.dart';
 import '../services/weekly_recap_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/responsive_container.dart';
+import 'share_progress_screen.dart';
 
 class WeeklyRecapScreen extends StatefulWidget {
   const WeeklyRecapScreen({
@@ -95,24 +95,16 @@ class _WeeklyRecapScreenState extends State<WeeklyRecapScreen> {
   Future<void> _share() async {
     if (_recap == null) return;
     HapticService().light();
-    final r = _recap!;
-    final text = [
-      "My Mood8 week in review · ${DateFormat('MMM d').format(r.weekStart)} – ${DateFormat('MMM d').format(r.weekEnd)}",
-      "",
-      r.narrative,
-      "",
-      if (r.patterns.isNotEmpty) ...[
-        "Patterns:",
-        ...r.patterns.map((p) => "  - $p"),
-        "",
-      ],
-      "Looking ahead: ${r.lookingAhead}",
-      "",
-      "https://mood8.app",
-    ].join("\n");
-    try {
-      await Share.share(text, subject: 'My Mood8 week');
-    } catch (_) {}
+    // Prefer the visual card flow — far more shareable than plain text
+    // and represents the brand on social. The previous plain-text share
+    // is retired in favour of the image.
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const ShareProgressScreen(
+          initialTemplate: ShareCardTemplate.weekRecap,
+        ),
+      ),
+    );
   }
 
   @override
