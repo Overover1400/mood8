@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build phone APK + App Bundle
@@ -87,6 +90,34 @@ jobs:
           name: build-log-${{ github.run_number }}
           path: /tmp/apk-build.log
           retention-days: 14
+
+      # Also push the log to a long-lived `ci-logs` branch so it can be
+      # inspected via `git fetch origin ci-logs:ci-logs && cat ci-logs/...`
+      # without needing artifact-download auth.
+      - name: Push log to ci-logs branch on failure
+        if: failure()
+        run: |
+          set -e
+          mkdir -p /tmp/_logs
+          cp /tmp/apk-build.log /tmp/_logs/run-${{ github.run_number }}.log || true
+          cd /tmp
+          rm -rf logs-repo
+          git clone --depth=1 --branch ci-logs "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" logs-repo || git clone --depth=1 "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" logs-repo
+          cd logs-repo
+          git config user.email "ci@mood8.app"
+          git config user.name "ci"
+          git checkout ci-logs 2>/dev/null || git checkout --orphan ci-logs
+          # If first time on orphan, clear working tree
+          if [ ! -f .gitkeep ]; then
+            git rm -rf . 2>/dev/null || true
+            echo "ci log dumps" > README.md
+            touch .gitkeep
+          fi
+          mkdir -p phone
+          cp /tmp/_logs/run-${{ github.run_number }}.log phone/run-${{ github.run_number }}.log
+          git add -A
+          git commit -m "phone log: run ${{ github.run_number }} (sha ${{ github.sha }})"
+          git push origin ci-logs
 
       - name: Build App Bundle (release, debug-signed)
         run: |
