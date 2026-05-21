@@ -198,6 +198,13 @@ class AuthService {
     );
   }
 
+  /// Fires the new prestige badge name once when the server-reported
+  /// `profile_badge` for the current user changes (e.g. cron just
+  /// promoted them past a threshold). Pulse-cleared back to null so a
+  /// later upgrade can fire again.
+  final ValueNotifier<String?> prestigeUnlockedNotifier =
+      ValueNotifier<String?>(null);
+
   Future<AuthResult> refreshMe() async {
     final t = _token;
     if (t == null) return AuthResult.fail('Not signed in.');
@@ -215,9 +222,24 @@ class AuthService {
       }
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final body = _decode(res.body);
+        final previousBadge = currentUserNotifier.value?.profileBadge;
         final user = AuthUser.fromJson(_extractUser(body));
         await _saveUser(user);
         currentUserNotifier.value = user;
+        // Detect a prestige promotion since the last refresh on this
+        // device. Skipped on the first /me of a session (previousBadge
+        // is null in the cold-start case, but the persisted cache in
+        // _saveUser/initialize means the second refresh has a
+        // baseline). We pulse the notifier so AuthGate can show the
+        // full-screen celebration once.
+        if (user.profileBadge != null &&
+            user.profileBadge!.isNotEmpty &&
+            user.profileBadge != previousBadge &&
+            previousBadge != null) {
+          prestigeUnlockedNotifier.value = user.profileBadge;
+          // Clear on the next microtask so listeners can re-arm.
+          Future.microtask(() => prestigeUnlockedNotifier.value = null);
+        }
         return AuthResult.ok(user: user);
       }
       return AuthResult.fail(_friendlyError(res));

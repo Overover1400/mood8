@@ -1,16 +1,20 @@
 import 'dart:async';
+import 'dart:math' as math;
 
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/challenge.dart';
+import '../../services/auth_service.dart';
 import '../../services/challenge_service.dart';
 import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/challenges/rank_insignia.dart';
 import '../../widgets/challenges/user_badge_chip.dart';
 import '../../widgets/responsive_container.dart';
+import 'badge_legend_screen.dart';
 import 'join_requests_screen.dart';
 
 class ChallengeDetailScreen extends StatefulWidget {
@@ -141,9 +145,14 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
           const SnackBar(content: Text('Already logged for today.')),
         );
       } else if (result.wasOnTime) {
+        HapticService().medium();
         await showDialog<void>(
           context: context,
-          builder: (_) => _RankUpDialog(rankName: result.rankName),
+          barrierColor: Colors.black.withValues(alpha: 0.78),
+          builder: (_) => _RankUpDialog(
+            rankIndex: result.rankIndex,
+            rankName: result.rankName,
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -152,6 +161,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
           )),
         );
       }
+      // The cron may have advanced a prestige tier in the meantime;
+      // refresh /me so prestigeUnlockedNotifier can fire if so.
+      // ignore: discarded_futures
+      AuthService().refreshMe();
       _load();
     } catch (e) {
       if (!mounted) return;
@@ -374,8 +387,27 @@ class _TopBar extends StatelessWidget {
           color: BrandColors.bgCard(context),
           onSelected: (v) {
             if (v == 'report') onReport();
+            if (v == 'legend') {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const BadgeLegendScreen(),
+                ),
+              );
+            }
           },
           itemBuilder: (ctx) => [
+            PopupMenuItem(
+              value: 'legend',
+              child: Row(
+                children: [
+                  Icon(Icons.shield_rounded,
+                      color: AppColors.purpleLight, size: 18),
+                  const SizedBox(width: 8),
+                  Text('Badges & ranks',
+                      style: TextStyle(color: BrandColors.ink(context))),
+                ],
+              ),
+            ),
             PopupMenuItem(
               value: 'report',
               child: Row(
@@ -917,89 +949,216 @@ class _ParticipantTile extends StatelessWidget {
   }
 }
 
-class _RankUpDialog extends StatelessWidget {
-  const _RankUpDialog({required this.rankName});
+class _RankUpDialog extends StatefulWidget {
+  const _RankUpDialog({required this.rankIndex, required this.rankName});
+  final int rankIndex;
   final String rankName;
+  @override
+  State<_RankUpDialog> createState() => _RankUpDialogState();
+}
+
+class _RankUpDialogState extends State<_RankUpDialog> {
+  late final ConfettiController _confetti = ConfettiController(
+    duration: const Duration(milliseconds: 1400),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _confetti.play();
+    });
+  }
+
+  @override
+  void dispose() {
+    _confetti.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              BrandColors.bgCard(context),
-              BrandColors.bg(context),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: AppColors.pinkLight.withValues(alpha: 0.55),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: AppColors.orbGradient,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.topCenter,
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 22),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  BrandColors.bgCard(context),
+                  BrandColors.bg(context),
+                ],
               ),
-              child: const Icon(Icons.military_tech_rounded,
-                  color: Colors.white, size: 36),
-            )
-                .animate()
-                .scaleXY(begin: 0.6, end: 1.0, duration: 360.ms)
-                .fadeIn(),
-            const SizedBox(height: 16),
-            Text(
-              'Rank up.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.instrumentSerif(
-                color: BrandColors.inkSoft(context),
-                fontStyle: FontStyle.italic,
-                fontSize: 24,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: AppColors.pinkLight.withValues(alpha: 0.55),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'You advanced to $rankName.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.instrumentSerif(
-                color: BrandColors.ink(context),
-                fontStyle: FontStyle.italic,
-                fontSize: 32,
-                foreground: Paint()
-                  ..shader = AppColors.primaryGradient
-                      .createShader(const Rect.fromLTWH(0, 0, 240, 50)),
-              ),
-            ),
-            const SizedBox(height: 18),
-            GestureDetector(
-              onTap: () => Navigator.of(context).maybePop(),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 28, vertical: 12),
-                decoration: BoxDecoration(
-                  gradient: AppColors.buttonGradient,
-                  borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.pink.withValues(alpha: 0.55),
+                  blurRadius: 60,
+                  spreadRadius: -10,
                 ),
-                child: const Text(
-                  'Continue',
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _GlowingInsignia(rankIndex: widget.rankIndex)
+                    .animate()
+                    .fadeIn(duration: 320.ms)
+                    .scaleXY(
+                      begin: 0.55, end: 1.0,
+                      duration: 540.ms,
+                      curve: Curves.easeOutBack,
+                    ),
+                const SizedBox(height: 18),
+                Text(
+                  'RANK UP',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.pinkLight,
+                    fontSize: 11,
+                    letterSpacing: 2.4,
                     fontWeight: FontWeight.w800,
                   ),
-                ),
+                ).animate(delay: 200.ms).fadeIn(duration: 400.ms),
+                const SizedBox(height: 6),
+                Text(
+                  'You advanced to',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.instrumentSerif(
+                    color: BrandColors.inkSoft(context),
+                    fontStyle: FontStyle.italic,
+                    fontSize: 22,
+                    height: 1.0,
+                  ),
+                ).animate(delay: 320.ms).fadeIn(duration: 400.ms),
+                const SizedBox(height: 4),
+                Text(
+                  widget.rankName,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.instrumentSerif(
+                    color: BrandColors.ink(context),
+                    fontStyle: FontStyle.italic,
+                    fontSize: 40,
+                    height: 1.05,
+                    foreground: Paint()
+                      ..shader = AppColors.primaryGradient.createShader(
+                        const Rect.fromLTWH(0, 0, 280, 60),
+                      ),
+                  ),
+                )
+                    .animate(delay: 440.ms)
+                    .fadeIn(duration: 500.ms)
+                    .slideY(
+                      begin: 0.18,
+                      end: 0,
+                      curve: Curves.easeOutCubic,
+                    ),
+                const SizedBox(height: 22),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).maybePop(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 14),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.buttonGradient,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.pink.withValues(alpha: 0.45),
+                          blurRadius: 18,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: const Text(
+                      'Continue',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ).animate(delay: 700.ms).fadeIn(duration: 400.ms),
+              ],
+            ),
+          ),
+          // Confetti emitter positioned just above the dialog.
+          Positioned(
+            top: -8,
+            child: ConfettiWidget(
+              confettiController: _confetti,
+              blastDirection: math.pi / 2, // straight down
+              blastDirectionality: BlastDirectionality.explosive,
+              maxBlastForce: 16,
+              minBlastForce: 5,
+              emissionFrequency: 0.05,
+              numberOfParticles: 26,
+              gravity: 0.25,
+              shouldLoop: false,
+              colors: const [
+                Color(0xFFA855F7),
+                Color(0xFFC084FC),
+                Color(0xFFEC4899),
+                Color(0xFFF472B6),
+                Color(0xFFFFE08A),
+                Color(0xFFFFFFFF),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Cinematic version of [RankInsigniaArt] for the rank-up dialog — the
+/// medallion sits over a layered radial glow that pulses softly.
+class _GlowingInsignia extends StatelessWidget {
+  const _GlowingInsignia({required this.rankIndex});
+  final int rankIndex;
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 140,
+      height: 140,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 140,
+            height: 140,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  AppColors.pinkLight.withValues(alpha: 0.45),
+                  AppColors.purple.withValues(alpha: 0.25),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.45, 1.0],
               ),
             ),
-          ],
-        ),
+          )
+              .animate(onPlay: (c) => c.repeat(reverse: true))
+              .scaleXY(
+                begin: 0.94,
+                end: 1.06,
+                duration: 1600.ms,
+                curve: Curves.easeInOut,
+              ),
+          RankInsigniaArt(rankIndex: rankIndex, size: 96),
+        ],
       ),
     );
   }

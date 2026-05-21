@@ -8,6 +8,7 @@ import 'models/user_profile.dart';
 import 'screens/auth/welcome_screen.dart';
 import 'screens/main_navigation.dart';
 import 'screens/onboarding/onboarding_flow.dart';
+import 'screens/challenges/prestige_unlock_screen.dart';
 import 'screens/paywall_screen.dart';
 import 'services/auth_service.dart';
 import 'services/database_service.dart';
@@ -138,6 +139,11 @@ class _Mood8AppState extends State<Mood8App> with WidgetsBindingObserver {
       await Future<void>.delayed(const Duration(seconds: 3));
       await SubscriptionService().refreshStatus();
     }
+    // Also pull /me so the prestige-badge notifier fires if the
+    // challenge cron just promoted the user past a threshold while
+    // the app was backgrounded.
+    // ignore: discarded_futures
+    AuthService().refreshMe();
   }
 
   @override
@@ -200,6 +206,8 @@ class _AuthGateState extends State<AuthGate> {
         .addListener(_onPremiumJustUnlocked);
     EffectsService().premiumEffectHintNotifier
         .addListener(_onPremiumEffectHint);
+    AuthService().prestigeUnlockedNotifier
+        .addListener(_onPrestigeUnlocked);
   }
 
   @override
@@ -208,7 +216,28 @@ class _AuthGateState extends State<AuthGate> {
         .removeListener(_onPremiumJustUnlocked);
     EffectsService().premiumEffectHintNotifier
         .removeListener(_onPremiumEffectHint);
+    AuthService().prestigeUnlockedNotifier
+        .removeListener(_onPrestigeUnlocked);
     super.dispose();
+  }
+
+  void _onPrestigeUnlocked() {
+    final badge = AuthService().prestigeUnlockedNotifier.value;
+    if (badge == null || badge.isEmpty) return;
+    final ctx = rootScaffoldMessengerKey.currentContext;
+    if (ctx == null) return;
+    // Full-screen celebration — bigger than the rank-up dialog.
+    showGeneralDialog<void>(
+      context: ctx,
+      barrierDismissible: false,
+      barrierLabel: 'Prestige unlock',
+      barrierColor: Colors.black.withValues(alpha: 0.92),
+      transitionDuration: const Duration(milliseconds: 320),
+      pageBuilder: (_, _, _) => PrestigeUnlockScreen(badge: badge),
+      transitionBuilder: (_, anim, _, child) {
+        return FadeTransition(opacity: anim, child: child);
+      },
+    );
   }
 
   void _onPremiumJustUnlocked() {

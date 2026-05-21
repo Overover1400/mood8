@@ -7,6 +7,9 @@ class AuthUser {
     this.isVerified = false,
     this.isGuest = false,
     this.createdAt,
+    this.creatorScore = 0,
+    this.challengesCompleted = 0,
+    this.profileBadge,
   });
 
   final String id;
@@ -16,6 +19,9 @@ class AuthUser {
   final bool isVerified;
   final bool isGuest;
   final DateTime? createdAt;
+  final int creatorScore;
+  final int challengesCompleted;
+  final String? profileBadge;
 
   AuthUser copyWith({
     String? id,
@@ -25,6 +31,9 @@ class AuthUser {
     bool? isVerified,
     bool? isGuest,
     DateTime? createdAt,
+    int? creatorScore,
+    int? challengesCompleted,
+    String? profileBadge,
   }) =>
       AuthUser(
         id: id ?? this.id,
@@ -34,6 +43,9 @@ class AuthUser {
         isVerified: isVerified ?? this.isVerified,
         isGuest: isGuest ?? this.isGuest,
         createdAt: createdAt ?? this.createdAt,
+        creatorScore: creatorScore ?? this.creatorScore,
+        challengesCompleted: challengesCompleted ?? this.challengesCompleted,
+        profileBadge: profileBadge ?? this.profileBadge,
       );
 
   Map<String, dynamic> toJson() => {
@@ -43,6 +55,9 @@ class AuthUser {
         'is_premium': isPremium,
         'is_verified': isVerified,
         'is_guest': isGuest,
+        'creator_score': creatorScore,
+        'challenges_completed': challengesCompleted,
+        if (profileBadge != null) 'profile_badge': profileBadge,
         if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
       };
 
@@ -65,6 +80,10 @@ class AuthUser {
           false,
       isGuest: (json['is_guest'] ?? false) as bool? ?? false,
       createdAt: created,
+      creatorScore: (json['creator_score'] as num?)?.toInt() ?? 0,
+      challengesCompleted:
+          (json['challenges_completed'] as num?)?.toInt() ?? 0,
+      profileBadge: json['profile_badge'] as String?,
     );
   }
 }

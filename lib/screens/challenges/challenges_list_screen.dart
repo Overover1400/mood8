@@ -8,6 +8,7 @@ import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/challenges/challenge_card.dart';
 import '../../widgets/responsive_container.dart';
+import 'badge_legend_screen.dart';
 import 'challenge_detail_screen.dart';
 import 'create_challenge_screen.dart';
 import 'my_challenges_screen.dart';
@@ -185,6 +186,16 @@ class _Header extends StatelessWidget {
                 height: 1.0,
               ),
             ),
+          ),
+          IconButton(
+            tooltip: 'Badges & ranks',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const BadgeLegendScreen(),
+              ),
+            ),
+            icon: Icon(Icons.info_outline_rounded,
+                color: BrandColors.inkSoft(context)),
           ),
           IconButton(
             tooltip: 'My challenges',
