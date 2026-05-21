@@ -70,6 +70,7 @@ class UserProfile extends HiveObject {
     int? freezesAvailable,
     this.lastFreezeReplenish,
     int? totalFreezesUsed,
+    this.updatedAt,
   })  : freezesAvailable = freezesAvailable ?? 1,
         totalFreezesUsed = totalFreezesUsed ?? 0;
 
@@ -99,4 +100,7 @@ class UserProfile extends HiveObject {
 
   @HiveField(8)
   int totalFreezesUsed;
+
+  @HiveField(9)
+  DateTime? updatedAt;
 }

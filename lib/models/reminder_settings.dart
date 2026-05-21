@@ -18,6 +18,7 @@ class ReminderSettings extends HiveObject {
     bool? quietHoursEnabled,
     int? quietStart,
     int? quietEnd,
+    this.updatedAt,
   })  : enabled = enabled ?? true,
         // Defaults: 09:00, 14:00, 20:00.
         reminderTimes = reminderTimes ?? const <int>[540, 840, 1200],
@@ -47,6 +48,9 @@ class ReminderSettings extends HiveObject {
 
   @HiveField(5)
   int quietEnd;
+
+  @HiveField(6)
+  DateTime? updatedAt;
 
   ReminderSettings copyWith({
     bool? enabled,

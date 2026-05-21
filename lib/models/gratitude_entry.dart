@@ -9,6 +9,7 @@ class GratitudeEntry extends HiveObject {
     required this.date,
     required List<String> items,
     required this.createdAt,
+    this.updatedAt,
   }) : items = _normalize(items);
 
   @HiveField(0)
@@ -23,6 +24,9 @@ class GratitudeEntry extends HiveObject {
 
   @HiveField(3)
   DateTime createdAt;
+
+  @HiveField(4)
+  DateTime? updatedAt;
 
   bool get isEmpty => items.every((s) => s.trim().isEmpty);
 

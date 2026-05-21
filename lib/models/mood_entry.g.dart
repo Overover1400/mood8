@@ -23,13 +23,14 @@ class MoodEntryAdapter extends TypeAdapter<MoodEntry> {
       energy: fields[3] as double,
       focus: fields[4] as double,
       note: fields[5] as String?,
+      updatedAt: fields[6] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, MoodEntry obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +42,9 @@ class MoodEntryAdapter extends TypeAdapter<MoodEntry> {
       ..writeByte(4)
       ..write(obj.focus)
       ..writeByte(5)
-      ..write(obj.note);
+      ..write(obj.note)
+      ..writeByte(6)
+      ..write(obj.updatedAt);
   }
 
   @override

@@ -23,13 +23,14 @@ class ReflectionAdapter extends TypeAdapter<Reflection> {
       generatedAt: fields[4] as DateTime,
       suggestion: fields[3] as String?,
       identityScores: (fields[5] as Map?)?.cast<String, double>(),
+      updatedAt: fields[6] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Reflection obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +42,9 @@ class ReflectionAdapter extends TypeAdapter<Reflection> {
       ..writeByte(4)
       ..write(obj.generatedAt)
       ..writeByte(5)
-      ..write(obj.identityScores);
+      ..write(obj.identityScores)
+      ..writeByte(6)
+      ..write(obj.updatedAt);
   }
 
   @override

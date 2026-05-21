@@ -25,6 +25,7 @@ class Habit extends HiveObject {
     this.sortOrder = 0,
     this.isArchived = false,
     List<DateTime>? frozenDates,
+    this.updatedAt,
   }) : frozenDates = frozenDates ?? <DateTime>[];
 
   @HiveField(0)
@@ -74,6 +75,9 @@ class Habit extends HiveObject {
 
   @HiveField(15)
   List<DateTime> frozenDates;
+
+  @HiveField(16)
+  DateTime? updatedAt;
 
   bool isFrozenOn(DateTime date) {
     for (final d in frozenDates) {

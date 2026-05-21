@@ -10,6 +10,7 @@ class ChatMessage extends HiveObject {
     required this.content,
     required this.timestamp,
     required this.conversationId,
+    this.updatedAt,
   });
 
   @HiveField(0)
@@ -26,6 +27,9 @@ class ChatMessage extends HiveObject {
 
   @HiveField(4)
   String conversationId;
+
+  @HiveField(5)
+  DateTime? updatedAt;
 
   bool get isUser => role == 'user';
   bool get isAssistant => role == 'assistant';

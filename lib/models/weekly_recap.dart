@@ -19,6 +19,7 @@ class WeeklyRecap extends HiveObject {
     required Map<String, dynamic>? stats,
     required this.generatedAt,
     this.emailSent = false,
+    this.updatedAt,
   })  : patterns = List<String>.from(patterns ?? const <String>[]),
         gratitudeThemes =
             List<String>.from(gratitudeThemes ?? const <String>[]),
@@ -59,6 +60,9 @@ class WeeklyRecap extends HiveObject {
 
   @HiveField(10)
   bool emailSent;
+
+  @HiveField(11)
+  DateTime? updatedAt;
 
   int statInt(String key) => (stats[key] as num?)?.toInt() ?? 0;
 }

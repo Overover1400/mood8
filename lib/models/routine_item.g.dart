@@ -27,13 +27,14 @@ class RoutineItemAdapter extends TypeAdapter<RoutineItem> {
       completedAt: fields[7] as DateTime?,
       sortOrder: fields[8] as int,
       frozenDates: (fields[9] as List?)?.cast<DateTime>(),
+      updatedAt: fields[10] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, RoutineItem obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,7 +54,9 @@ class RoutineItemAdapter extends TypeAdapter<RoutineItem> {
       ..writeByte(8)
       ..write(obj.sortOrder)
       ..writeByte(9)
-      ..write(obj.frozenDates);
+      ..write(obj.frozenDates)
+      ..writeByte(10)
+      ..write(obj.updatedAt);
   }
 
   @override

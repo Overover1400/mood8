@@ -25,13 +25,14 @@ class EarnedBadgeAdapter extends TypeAdapter<EarnedBadge> {
       colorHex: fields[5] as int,
       unlockedAt: fields[6] as DateTime,
       category: fields[7] as BadgeCategory,
+      updatedAt: fields[8] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, EarnedBadge obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,7 +48,9 @@ class EarnedBadgeAdapter extends TypeAdapter<EarnedBadge> {
       ..writeByte(6)
       ..write(obj.unlockedAt)
       ..writeByte(7)
-      ..write(obj.category);
+      ..write(obj.category)
+      ..writeByte(8)
+      ..write(obj.updatedAt);
   }
 
   @override

@@ -26,13 +26,14 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       freezesAvailable: fields[6] as int?,
       lastFreezeReplenish: fields[7] as DateTime?,
       totalFreezesUsed: fields[8] as int?,
+      updatedAt: fields[9] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserProfile obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -50,7 +51,9 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
       ..writeByte(7)
       ..write(obj.lastFreezeReplenish)
       ..writeByte(8)
-      ..write(obj.totalFreezesUsed);
+      ..write(obj.totalFreezesUsed)
+      ..writeByte(9)
+      ..write(obj.updatedAt);
   }
 
   @override

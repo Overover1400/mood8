@@ -10,6 +10,7 @@ class MorningIntention extends HiveObject {
     required this.text,
     required this.createdAt,
     this.wasSkipped = false,
+    this.updatedAt,
   });
 
   @HiveField(0)
@@ -26,4 +27,7 @@ class MorningIntention extends HiveObject {
 
   @HiveField(4)
   bool wasSkipped;
+
+  @HiveField(5)
+  DateTime? updatedAt;
 }

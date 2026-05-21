@@ -19,6 +19,7 @@ class EarnedBadge extends HiveObject {
     required this.colorHex,
     required this.unlockedAt,
     required this.category,
+    this.updatedAt,
   });
 
   @HiveField(0)
@@ -48,4 +49,7 @@ class EarnedBadge extends HiveObject {
 
   @HiveField(7)
   BadgeCategory category;
+
+  @HiveField(8)
+  DateTime? updatedAt;
 }

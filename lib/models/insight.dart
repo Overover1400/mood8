@@ -22,6 +22,7 @@ class Insight extends HiveObject {
     this.actionText,
     this.aiExplanation,
     this.dismissed = false,
+    this.updatedAt,
   });
 
   @HiveField(0)
@@ -65,6 +66,9 @@ class Insight extends HiveObject {
 
   @HiveField(13)
   bool dismissed;
+
+  @HiveField(14)
+  DateTime? updatedAt;
 
   String get confidenceLabel {
     final c = confidence.abs();

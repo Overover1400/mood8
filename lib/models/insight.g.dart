@@ -31,13 +31,14 @@ class InsightAdapter extends TypeAdapter<Insight> {
       actionText: fields[10] as String?,
       aiExplanation: fields[11] as String?,
       dismissed: fields[13] as bool,
+      updatedAt: fields[14] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Insight obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -65,7 +66,9 @@ class InsightAdapter extends TypeAdapter<Insight> {
       ..writeByte(12)
       ..write(obj.discoveredAt)
       ..writeByte(13)
-      ..write(obj.dismissed);
+      ..write(obj.dismissed)
+      ..writeByte(14)
+      ..write(obj.updatedAt);
   }
 
   @override

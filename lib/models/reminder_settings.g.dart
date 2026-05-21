@@ -23,13 +23,14 @@ class ReminderSettingsAdapter extends TypeAdapter<ReminderSettings> {
       quietHoursEnabled: fields[3] as bool?,
       quietStart: fields[4] as int?,
       quietEnd: fields[5] as int?,
+      updatedAt: fields[6] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ReminderSettings obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.enabled)
       ..writeByte(1)
@@ -41,7 +42,9 @@ class ReminderSettingsAdapter extends TypeAdapter<ReminderSettings> {
       ..writeByte(4)
       ..write(obj.quietStart)
       ..writeByte(5)
-      ..write(obj.quietEnd);
+      ..write(obj.quietEnd)
+      ..writeByte(6)
+      ..write(obj.updatedAt);
   }
 
   @override

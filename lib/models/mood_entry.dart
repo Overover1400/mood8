@@ -11,6 +11,7 @@ class MoodEntry extends HiveObject {
     required this.energy,
     required this.focus,
     this.note,
+    this.updatedAt,
   });
 
   @HiveField(0)
@@ -30,6 +31,11 @@ class MoodEntry extends HiveObject {
 
   @HiveField(5)
   String? note;
+
+  /// Last-write-wins timestamp for cloud sync. Nullable for backward
+  /// compat — coalesces to [timestamp] when missing.
+  @HiveField(6)
+  DateTime? updatedAt;
 
   double get averageScore => (mood + energy + focus) / 3.0;
 }

@@ -17,6 +17,7 @@ class RoutineItem extends HiveObject {
     this.completedAt,
     this.sortOrder = 0,
     List<DateTime>? frozenDates,
+    this.updatedAt,
   }) : frozenDates = frozenDates ?? <DateTime>[];
 
   @HiveField(0)
@@ -48,6 +49,9 @@ class RoutineItem extends HiveObject {
 
   @HiveField(9)
   List<DateTime> frozenDates;
+
+  @HiveField(10)
+  DateTime? updatedAt;
 
   bool isFrozenOn(DateTime date) {
     for (final d in frozenDates) {

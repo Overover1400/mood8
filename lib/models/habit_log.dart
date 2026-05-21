@@ -12,6 +12,7 @@ class HabitLog extends HiveObject {
     required this.targetValue,
     required this.timestamp,
     this.note,
+    this.updatedAt,
   });
 
   @HiveField(0)
@@ -34,6 +35,9 @@ class HabitLog extends HiveObject {
 
   @HiveField(6)
   DateTime timestamp;
+
+  @HiveField(7)
+  DateTime? updatedAt;
 
   bool get isCompleted => value >= targetValue;
 

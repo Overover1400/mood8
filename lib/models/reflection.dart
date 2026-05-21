@@ -11,6 +11,7 @@ class Reflection extends HiveObject {
     required this.generatedAt,
     this.suggestion,
     this.identityScores,
+    this.updatedAt,
   });
 
   @HiveField(0)
@@ -30,4 +31,7 @@ class Reflection extends HiveObject {
 
   @HiveField(5)
   Map<String, double>? identityScores;
+
+  @HiveField(6)
+  DateTime? updatedAt;
 }

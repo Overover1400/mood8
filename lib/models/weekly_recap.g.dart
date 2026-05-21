@@ -28,13 +28,14 @@ class WeeklyRecapAdapter extends TypeAdapter<WeeklyRecap> {
       stats: (fields[8] as Map?)?.cast<String, dynamic>(),
       generatedAt: fields[9] as DateTime,
       emailSent: fields[10] as bool,
+      updatedAt: fields[11] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, WeeklyRecap obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -56,7 +57,9 @@ class WeeklyRecapAdapter extends TypeAdapter<WeeklyRecap> {
       ..writeByte(9)
       ..write(obj.generatedAt)
       ..writeByte(10)
-      ..write(obj.emailSent);
+      ..write(obj.emailSent)
+      ..writeByte(11)
+      ..write(obj.updatedAt);
   }
 
   @override

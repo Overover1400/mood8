@@ -58,6 +58,7 @@ class PatternAlert extends HiveObject {
     this.dismissedAt,
     this.viewedAt,
     String? dedupeKey,
+    this.updatedAt,
   }) : dedupeKey = dedupeKey ?? '${category.name}.$id';
 
   @HiveField(0)
@@ -101,6 +102,9 @@ class PatternAlert extends HiveObject {
   /// category + id but detectors can override.
   @HiveField(11)
   String dedupeKey;
+
+  @HiveField(12)
+  DateTime? updatedAt;
 
   bool get isDismissed => dismissedAt != null;
   bool get isViewed => viewedAt != null;

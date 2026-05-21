@@ -24,13 +24,14 @@ class HabitLogAdapter extends TypeAdapter<HabitLog> {
       targetValue: fields[4] as int,
       timestamp: fields[6] as DateTime,
       note: fields[5] as String?,
+      updatedAt: fields[7] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, HabitLog obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class HabitLogAdapter extends TypeAdapter<HabitLog> {
       ..writeByte(5)
       ..write(obj.note)
       ..writeByte(6)
-      ..write(obj.timestamp);
+      ..write(obj.timestamp)
+      ..writeByte(7)
+      ..write(obj.updatedAt);
   }
 
   @override

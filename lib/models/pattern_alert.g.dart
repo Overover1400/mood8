@@ -29,13 +29,14 @@ class PatternAlertAdapter extends TypeAdapter<PatternAlert> {
       dismissedAt: fields[8] as DateTime?,
       viewedAt: fields[9] as DateTime?,
       dedupeKey: fields[11] as String?,
+      updatedAt: fields[12] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, PatternAlert obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -59,7 +60,9 @@ class PatternAlertAdapter extends TypeAdapter<PatternAlert> {
       ..writeByte(10)
       ..write(obj.relevanceScore)
       ..writeByte(11)
-      ..write(obj.dedupeKey);
+      ..write(obj.dedupeKey)
+      ..writeByte(12)
+      ..write(obj.updatedAt);
   }
 
   @override

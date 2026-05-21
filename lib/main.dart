@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,6 +14,7 @@ import 'services/effects_service.dart';
 import 'services/freeze_service.dart';
 import 'services/haptic_service.dart';
 import 'services/reminder_service.dart';
+import 'services/sync_service.dart';
 import 'widgets/tutorial_overlay.dart';
 import 'services/preferences_service.dart';
 import 'services/routine_repository.dart';
@@ -54,10 +56,24 @@ Future<void> main() async {
   // Both services degrade silently when assets or capabilities are missing.
   HapticService().initialize();
   SfxService().initialize();
+  // Cloud sync: open the tombstone box, then schedule a pull + periodic
+  // sync if the user is already signed in. Fresh-install logins run
+  // fullRestore via AuthGate's post-login flow instead.
+  await SyncService.warmUp();
   // Refresh subscription status in the background — local cache covers
   // the first frame; the server has the canonical state.
   // ignore: discarded_futures
   SubscriptionService().refreshStatus();
+  if (AuthService().token != null) {
+    // Existing session — do an initial-upload migration (for beta users
+    // who had local data before sync shipped), then a normal pull.
+    // ignore: discarded_futures
+    SyncService().migrateInitialUploadIfNeeded().then((_) {
+      // ignore: discarded_futures
+      SyncService().pullChanges();
+    });
+    SyncService().startPeriodicSync();
+  }
   runApp(const Mood8App());
 }
 
@@ -107,6 +123,12 @@ class _AuthGateState extends State<AuthGate> {
   bool _skipAuth = false;
   bool _checked = false;
   static bool _checkoutReturnHandled = false;
+  // Sync-after-login lifecycle:
+  //   null  = not yet decided
+  //   true  = restore is currently running, show the loading veneer
+  //   false = done, render normally
+  String? _lastSyncedUserEmail;
+  bool _restoreInFlight = false;
 
   @override
   void initState() {
@@ -172,11 +194,89 @@ class _AuthGateState extends State<AuthGate> {
       builder: (context, user, _) {
         debugPrint(
             '[AuthGate] rebuild · user=${user?.email ?? 'null'} · skipAuth=$_skipAuth');
+        if (user != null && user.email != _lastSyncedUserEmail) {
+          // A user just signed in (or switched accounts). Kick off the
+          // restore flow once per user-email.
+          _lastSyncedUserEmail = user.email;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _runPostLoginSync();
+          });
+        }
+        if (_restoreInFlight) {
+          return const _RestoringScreen();
+        }
         if (user != null || _skipAuth) {
           return const _Root();
         }
         return WelcomeScreen(onBypass: _onBypass);
       },
+    );
+  }
+
+  Future<void> _runPostLoginSync() async {
+    if (_restoreInFlight) return;
+    setState(() => _restoreInFlight = true);
+    try {
+      final hasLocal = SyncService().hasLocalUserData();
+      if (!hasLocal) {
+        // Fresh install (or device wipe) → pull everything down.
+        debugPrint('[AuthGate] fresh install → fullRestore');
+        await SyncService().fullRestore();
+      } else {
+        // Existing local data → one-time push for legacy beta users
+        // who had data pre-sync, then a normal merge pull.
+        debugPrint('[AuthGate] existing data → migrate + sync');
+        await SyncService().migrateInitialUploadIfNeeded();
+        await SyncService().syncNow();
+      }
+      SyncService().startPeriodicSync();
+    } catch (e) {
+      debugPrint('[AuthGate] post-login sync failed: $e');
+    } finally {
+      if (mounted) setState(() => _restoreInFlight = false);
+    }
+  }
+}
+
+class _RestoringScreen extends StatelessWidget {
+  const _RestoringScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0612),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 38,
+              height: 38,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.4,
+                valueColor: AlwaysStoppedAnimation(Color(0xFFF472B6)),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Bringing your world back…',
+              style: GoogleFonts.instrumentSerif(
+                color: const Color(0xFFFAF5FF),
+                fontStyle: FontStyle.italic,
+                fontSize: 22,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Restoring your habits, moods, and memories.",
+              style: TextStyle(
+                color: Color(0xFFA78BB8),
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
