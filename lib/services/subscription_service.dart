@@ -232,14 +232,24 @@ class SubscriptionService extends ChangeNotifier {
   /// new-tab redirect; mobile: in-app or external browser). Also flips
   /// a "checkout in progress" pref so the next app resume forces a
   /// premium refresh and announces the unlock if it happened.
-  Future<String?> startCheckout(String plan) async {
+  ///
+  /// On native mobile, pass [returnUrl] = `mood8://checkout-complete`
+  /// so Stripe's hosted-checkout success/cancel redirects deep-link
+  /// directly back into the app (handled by the AndroidManifest
+  /// intent-filter + the app_links listener). On web, leave null so
+  /// the server falls back to `https://mood8.app/?checkout=success`.
+  Future<String?> startCheckout(String plan, {String? returnUrl}) async {
     if (_bearer == null) return null;
     try {
+      final payload = <String, dynamic>{'plan': plan};
+      if (returnUrl != null) {
+        payload['return_url'] = returnUrl;
+      }
       final res = await _client
           .post(
             Uri.parse('$_baseUrl/stripe/create-checkout-session'),
             headers: _authHeaders,
-            body: jsonEncode({'plan': plan}),
+            body: jsonEncode(payload),
           )
           .timeout(_timeout);
       if (res.statusCode < 200 || res.statusCode >= 300) {

@@ -43,6 +43,18 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Deep link return path for Stripe checkout. Stripe's
+                 success_url / cancel_url on mobile is mood8://checkout-complete
+                 — verified that Stripe-hosted checkout accepts custom-scheme
+                 redirects (subscription + payment mode both). Android opens
+                 our MainActivity in singleTop mode and app_links forwards the
+                 URI to Flutter via onAppLink. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="mood8" />
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

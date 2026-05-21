@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../services/deep_link_service.dart' show kDeepLinkReturnUrl;
 
 import '../services/haptic_service.dart';
 import '../services/subscription_service.dart';
@@ -32,7 +35,11 @@ class _PaywallScreenState extends State<PaywallScreen> {
       _error = null;
     });
     HapticService().light();
-    final url = await SubscriptionService().startCheckout(_selectedPlan);
+    // Native clients deep-link back; web stays on the existing
+    // ?checkout=success page handled by AuthGate.
+    final returnUrl = kIsWeb ? null : kDeepLinkReturnUrl;
+    final url = await SubscriptionService()
+        .startCheckout(_selectedPlan, returnUrl: returnUrl);
     if (!mounted) return;
     if (url == null) {
       setState(() {

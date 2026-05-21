@@ -6,6 +6,7 @@ import '../widgets/effects/cosmic_bloom.dart';
 import '../widgets/effects/identity_constellation.dart';
 import '../widgets/effects/phoenix_rise.dart';
 import '../widgets/effects/premium_bloom.dart';
+import 'subscription_service.dart';
 
 /// Central celebration facade. Each method spawns the right premium widget
 /// in the root [Overlay], handles its own queueing, and degrades gracefully
@@ -19,7 +20,17 @@ class EffectsService extends ChangeNotifier {
   static const _kIntensityKey = 'mood8.effects.intensity';
   static const _kMilestonesKey = 'mood8.effects.celebrateMilestones';
   static const _kBatterySaverKey = 'mood8.effects.batterySaverAware';
+  // One-shot hint for free users the first time a premium-only effect
+  // (Cosmic/Phoenix/Constellation) would have fired. After consumption
+  // we just play the free fallback and stay silent.
+  static const _kPremiumHintShownKey = 'mood8.effects.premiumHintShown';
   static const int _maxConcurrent = 2;
+
+  /// Fires once with the paywall context note the first time a free
+  /// user hits a premium-effect moment. Surfaced via a snackbar/banner
+  /// near where the event happened.
+  final ValueNotifier<String?> premiumEffectHintNotifier =
+      ValueNotifier<String?>(null);
 
   EffectsIntensity _intensity = EffectsIntensity.normal;
   bool _celebrateMilestones = true;
@@ -104,6 +115,14 @@ class EffectsService extends ChangeNotifier {
     String? userName,
   }) async {
     if (!_canPlay(context)) return;
+    if (!SubscriptionService().isPremium) {
+      // Free users: still acknowledge the moment with the lightweight
+      // PremiumBloom (the same effect that fires for habit completion),
+      // and surface a one-time hint about premium effects.
+      // ignore: discarded_futures
+      _maybeShowPremiumHint();
+      return celebrateHabitComplete(context: context);
+    }
     await _insert(
       context,
       (entry) => CosmicBloom(
@@ -134,6 +153,11 @@ class EffectsService extends ChangeNotifier {
       await celebrateHabitComplete(context: context, origin: flameOrigin);
       return;
     }
+    if (!SubscriptionService().isPremium) {
+      // ignore: discarded_futures
+      _maybeShowPremiumHint();
+      return celebrateHabitComplete(context: context, origin: flameOrigin);
+    }
     await _insert(
       context,
       (entry) => PhoenixRise(
@@ -157,6 +181,11 @@ class EffectsService extends ChangeNotifier {
       await celebrateHabitComplete(context: context);
       return;
     }
+    if (!SubscriptionService().isPremium) {
+      // ignore: discarded_futures
+      _maybeShowPremiumHint();
+      return celebrateHabitComplete(context: context);
+    }
     await _insert(
       context,
       (entry) => IdentityConstellation(
@@ -168,6 +197,28 @@ class EffectsService extends ChangeNotifier {
       fallbackTimeout:
           _scaledDuration(const Duration(milliseconds: 3400)),
     );
+  }
+
+  /// One-time hint for free users when a premium effect was suppressed.
+  /// Reads/writes a SharedPreferences flag so it fires at most once.
+  /// Listeners on [premiumEffectHintNotifier] are responsible for the
+  /// actual UI (a snackbar with a tap-to-upgrade action).
+  Future<void> _maybeShowPremiumHint() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(_kPremiumHintShownKey) ?? false) return;
+      await prefs.setBool(_kPremiumHintShownKey, true);
+      premiumEffectHintNotifier.value =
+          'Premium unlocks cinematic celebrations ✨';
+      // Pulse-clear so the same listener can be ready for a future
+      // (unrelated) hint surface — defensive even though this fires once.
+      Future<void>.delayed(const Duration(milliseconds: 50), () {
+        premiumEffectHintNotifier.value = null;
+      });
+    } catch (_) {
+      // Pref store unavailable — silently swallow. The free fallback
+      // effect still plays; we just don't surface the hint.
+    }
   }
 
   /// Back-compat shim for the older [CelebrationLevel]-style API. Maps the

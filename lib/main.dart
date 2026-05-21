@@ -8,8 +8,10 @@ import 'models/user_profile.dart';
 import 'screens/auth/welcome_screen.dart';
 import 'screens/main_navigation.dart';
 import 'screens/onboarding/onboarding_flow.dart';
+import 'screens/paywall_screen.dart';
 import 'services/auth_service.dart';
 import 'services/database_service.dart';
+import 'services/deep_link_service.dart';
 import 'services/effects_service.dart';
 import 'services/freeze_service.dart';
 import 'services/haptic_service.dart';
@@ -56,6 +58,10 @@ Future<void> main() async {
   // Both services degrade silently when assets or capabilities are missing.
   HapticService().initialize();
   SfxService().initialize();
+  // Listen for mood8:// deep links (Stripe checkout-return path).
+  // Web is a no-op — the existing ?checkout=success query handler covers it.
+  // ignore: discarded_futures
+  DeepLinkService().initialize();
   // Cloud sync: open the tombstone box, then schedule a pull + periodic
   // sync if the user is already signed in. Fresh-install logins run
   // fullRestore via AuthGate's post-login flow instead.
@@ -192,12 +198,16 @@ class _AuthGateState extends State<AuthGate> {
     _maybeHandleCheckoutReturn();
     SubscriptionService().premiumJustUnlockedNotifier
         .addListener(_onPremiumJustUnlocked);
+    EffectsService().premiumEffectHintNotifier
+        .addListener(_onPremiumEffectHint);
   }
 
   @override
   void dispose() {
     SubscriptionService().premiumJustUnlockedNotifier
         .removeListener(_onPremiumJustUnlocked);
+    EffectsService().premiumEffectHintNotifier
+        .removeListener(_onPremiumEffectHint);
     super.dispose();
   }
 
@@ -209,6 +219,30 @@ class _AuthGateState extends State<AuthGate> {
       const SnackBar(
         content: Text('Welcome to Mood8 Premium ✨ Thanks for being here.'),
         duration: Duration(seconds: 4),
+      ),
+    );
+  }
+
+  void _onPremiumEffectHint() {
+    final hint = EffectsService().premiumEffectHintNotifier.value;
+    if (hint == null) return;
+    final messenger = rootScaffoldMessengerKey.currentState;
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(hint),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'See',
+          onPressed: () {
+            final navContext = rootScaffoldMessengerKey.currentContext;
+            if (navContext == null) return;
+            Navigator.of(navContext, rootNavigator: true).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PaywallScreen(),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
