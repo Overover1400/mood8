@@ -27,7 +27,6 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
           channel: 'stable'
           cache: true
 
@@ -51,6 +50,11 @@ jobs:
       - name: Analyze
         run: flutter analyze
         continue-on-error: true
+
+      # Same NDK license trap as the phone workflow — flutter pins
+      # ndk;28.2.x which the GH runner has not pre-accepted.
+      - name: Accept Android SDK licenses
+        run: yes | flutter doctor --android-licenses || true
 
       - name: Build Wear APK (unsigned release)
         run: |

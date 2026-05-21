@@ -51,6 +51,14 @@ jobs:
         run: flutter analyze
         continue-on-error: true
 
+      # Accept all installed Android SDK licenses BEFORE the build attempts
+      # to auto-install the NDK that flutter.ndkVersion requires. Without
+      # this, Gradle dies with `LicenceNotAcceptedException: ndk;28.2.x`
+      # because the GH runner image ships some Android SDK packages but
+      # not the exact NDK Flutter pins.
+      - name: Accept Android SDK licenses
+        run: yes | flutter doctor --android-licenses || true
+
       - name: Build APK (release, debug-signed)
         run: |
           flutter build apk --release \
