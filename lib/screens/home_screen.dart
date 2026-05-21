@@ -32,6 +32,7 @@ import 'patterns_screen.dart';
 import '../widgets/tutorial_overlay.dart';
 import '../widgets/tutorial_targets.dart';
 import 'year_in_review_screen.dart';
+import 'challenges/challenges_list_screen.dart';
 import '../services/milestone_service.dart';
 import '../services/mood_repository.dart';
 import '../services/onboarding_service.dart';
@@ -555,6 +556,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                 end: 0,
                                 curve: Curves.easeOutCubic),
                       ],
+                      const SizedBox(height: 18),
+                      _ChallengesEntry(
+                        onTap: () {
+                          HapticService().light();
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const ChallengesListScreen(),
+                            ),
+                          );
+                        },
+                      )
+                          .animate()
+                          .fadeIn(delay: 100.ms, duration: 450.ms)
+                          .slideY(
+                              begin: 0.05,
+                              end: 0,
+                              curve: Curves.easeOutCubic),
                       ValueListenableBuilder<Box<PatternAlert>>(
                         valueListenable:
                             PatternDetectionService().watch(),
@@ -2018,6 +2036,99 @@ class _YirBanner extends StatelessWidget {
                   size: 16,
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChallengesEntry extends StatelessWidget {
+  const _ChallengesEntry({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.purple.withValues(alpha: 0.40),
+                AppColors.pink.withValues(alpha: 0.26),
+                AppColors.blueAccent.withValues(alpha: 0.22),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: AppColors.purpleLight.withValues(alpha: 0.45),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.purple.withValues(alpha: 0.28),
+                blurRadius: 26,
+                spreadRadius: -8,
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppColors.orbGradient,
+                ),
+                child: const Icon(Icons.flag_rounded,
+                    color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CHALLENGES',
+                      style: TextStyle(
+                        color: AppColors.pinkLight,
+                        fontSize: 10,
+                        letterSpacing: 1.8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Push together, rank up',
+                      style: GoogleFonts.instrumentSerif(
+                        color: BrandColors.ink(context),
+                        fontStyle: FontStyle.italic,
+                        fontSize: 22,
+                        height: 1.05,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Join a group challenge — or start your own.',
+                      style: TextStyle(
+                        color: BrandColors.inkSoft(context),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded,
+                  color: BrandColors.inkSoft(context)),
             ],
           ),
         ),

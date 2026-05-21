@@ -37,6 +37,8 @@ import 'paywall_screen.dart';
 import 'premium_screen.dart';
 import 'share_progress_screen.dart';
 import 'year_in_review_screen.dart';
+import 'challenges/challenges_list_screen.dart';
+import 'challenges/my_challenges_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'reminder_settings_screen.dart';
 import '../services/sync_service.dart';
@@ -724,6 +726,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           title: 'Test effects',
                           subtitle: 'Subtle · notable · milestone',
                           onTap: _testEffects,
+                        ),
+                      ],
+                    ),
+                    SettingsSection(
+                      title: 'Challenges',
+                      children: [
+                        SettingsTile(
+                          icon: Icons.flag_rounded,
+                          title: 'Browse challenges',
+                          subtitle: 'Discover or create a group challenge',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const ChallengesListScreen(),
+                            ),
+                          ),
+                        ),
+                        SettingsTile(
+                          icon: Icons.bookmark_rounded,
+                          title: 'My challenges',
+                          subtitle:
+                              'Ones you’ve created or joined',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const MyChallengesScreen(),
+                            ),
+                          ),
                         ),
                       ],
                     ),
