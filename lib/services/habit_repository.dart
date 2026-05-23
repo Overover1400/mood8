@@ -56,7 +56,37 @@ class HabitRepository {
   /// Safe to call multiple times.
   Future<void> ensureShadowReady() async {
     _prefs ??= await SharedPreferences.getInstance();
+    await _repairCorruptedDates();
     await _hydrateShadow();
+  }
+
+  /// One-shot migration that undoes the historical UTC-shift bug:
+  /// any HabitLog whose `date` is flagged UTC OR whose date's local
+  /// midnight doesn't match itself gets snapped back to the local
+  /// calendar day. Runs every cold start (cheap — only rewrites
+  /// rows that actually need rewriting) so existing accounts heal
+  /// the first time they open the patched app.
+  Future<void> _repairCorruptedDates() async {
+    var repaired = 0;
+    for (final l in _logBox.values.toList()) {
+      final d = l.date;
+      // A correctly-stored log has date == DateTime(y, m, d) in local
+      // time. If it's UTC or has a non-zero time component, the prior
+      // sync bug landed it on the wrong calendar day for this user.
+      if (d.isUtc ||
+          d.hour != 0 ||
+          d.minute != 0 ||
+          d.second != 0 ||
+          d.millisecond != 0) {
+        final local = d.isUtc ? d.toLocal() : d;
+        l.date = DateTime(local.year, local.month, local.day);
+        await _logBox.put(l.id, l);
+        repaired += 1;
+      }
+    }
+    if (repaired > 0) {
+      debugPrint('[HabitLog] repaired $repaired UTC-shifted date(s)');
+    }
   }
 
   String _shadowKey(String habitId, DateTime dayKey) {
@@ -302,6 +332,8 @@ class HabitRepository {
       if (note != null) existing.note = note;
       await _logBox.put(existing.id, existing);
       await _logBox.flush();
+      debugPrint(
+          '[HabitLog] WROTE update habit=$habitId day=${_dayKey(on)} value=$value (id=${existing.id})');
       SyncService().debouncedPush();
       return existing;
     }
@@ -319,6 +351,8 @@ class HabitRepository {
     try {
       await _logBox.put(log.id, log);
       await _logBox.flush();
+      debugPrint(
+          '[HabitLog] WROTE new habit=$habitId day=${_dayKey(on)} value=$value (id=${log.id})');
       SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('HabitRepository.logHabit failed: $e\n$st');
@@ -368,8 +402,12 @@ class HabitRepository {
       ..sort((a, b) => b.date.compareTo(a.date));
   }
 
-  HabitLog? getLogForDate(String habitId, DateTime date) =>
-      _findLog(habitId, date);
+  HabitLog? getLogForDate(String habitId, DateTime date) {
+    final found = _findLog(habitId, date);
+    debugPrint(
+        '[HabitLog] READ habit=$habitId day=${_dayKey(date)} value=${found?.value} (id=${found?.id})');
+    return found;
+  }
 
   int getStreakForHabit(String habitId) {
     final habit = _habitBox.get(habitId);

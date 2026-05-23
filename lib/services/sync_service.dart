@@ -419,6 +419,45 @@ DateTime? _parseDate(dynamic v) {
 
 String _iso(DateTime d) => d.toUtc().toIso8601String();
 
+/// Serialise a HabitLog day-key as a TZ-free date string ("yyyy-MM-dd"),
+/// so a round-trip through the server doesn't shift the day for
+/// non-UTC users. Use this only for fields that are semantically a
+/// CALENDAR DAY (not an instant) — e.g. `HabitLog.date`.
+String _dateOnlyString(DateTime d) {
+  final local = d.isUtc ? d.toLocal() : d;
+  final y = local.year.toString().padLeft(4, '0');
+  final m = local.month.toString().padLeft(2, '0');
+  final day = local.day.toString().padLeft(2, '0');
+  return '$y-$m-$day';
+}
+
+/// Inverse of [_dateOnlyString]. Accepts the new date-only payload
+/// AND legacy full-ISO payloads (so rows written before this fix
+/// hydrate correctly): for legacy strings, normalise to the local
+/// calendar day to undo the prior UTC-conversion bug.
+DateTime? _parseDateOnly(dynamic v) {
+  if (v is! String || v.isEmpty) return null;
+  final dateMatch = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(v);
+  if (dateMatch != null) {
+    return DateTime(
+      int.parse(dateMatch.group(1)!),
+      int.parse(dateMatch.group(2)!),
+      int.parse(dateMatch.group(3)!),
+    );
+  }
+  final parsed = DateTime.tryParse(v);
+  if (parsed == null) return null;
+  return _localMidnight(parsed);
+}
+
+/// Extract the LOCAL calendar day from any DateTime (UTC-flagged or
+/// not) and return midnight in local time. The undo-the-UTC-shift
+/// step for legacy payloads.
+DateTime _localMidnight(DateTime d) {
+  final local = d.isUtc ? d.toLocal() : d;
+  return DateTime(local.year, local.month, local.day);
+}
+
 // ─── MoodEntry codec ───────────────────────────────────────────────────
 
 class _MoodEntryCodec implements _EntityCodec {
@@ -860,7 +899,15 @@ class _HabitLogCodec implements _EntityCodec {
         yield _Change(id: l.id, updatedAt: upd, json: {
           'id': l.id,
           'habitId': l.habitId,
-          'date': _iso(l.date),
+          // CRITICAL: emit the LOCAL date as a date-only string. The
+          // previous `_iso(l.date)` converted the local-midnight
+          // DateTime to UTC, so a user in UTC+3 sent "<yesterday>T21:00Z"
+          // for today's log. On pull, `DateTime.tryParse` rebuilt a UTC
+          // DateTime whose year/month/day components landed on YESTERDAY,
+          // and `_findLog(today)` couldn't match it — every counter
+          // appeared to reset to 0 on every app start. Storing as the
+          // local date string sidesteps any TZ math entirely.
+          'date': _dateOnlyString(l.date),
           'value': l.value,
           'targetValue': l.targetValue,
           'note': l.note,
@@ -873,15 +920,29 @@ class _HabitLogCodec implements _EntityCodec {
 
   @override
   Future<void> upsertFromJson(String id, Map<String, dynamic> json) async {
+    final newDate =
+        _parseDateOnly(json['date']) ?? _localMidnight(DateTime.now());
+    final newUpdatedAt = _parseDate(json['updatedAt']);
+    // Last-write-wins guard. The previous codec unconditionally
+    // overwrote the local row with whatever the server returned —
+    // that's what let pull corrupt today's row even when local was
+    // fresher. Only replace if the server's stamp is strictly newer.
+    final existing = _box.get(id);
+    if (existing != null && newUpdatedAt != null) {
+      final localStamp = existing.updatedAt ?? existing.timestamp;
+      if (!newUpdatedAt.isAfter(localStamp)) {
+        return;
+      }
+    }
     final l = HabitLog(
       id: id,
       habitId: json['habitId'] as String? ?? '',
-      date: _parseDate(json['date']) ?? DateTime.now(),
+      date: newDate,
       value: (json['value'] as num?)?.toInt() ?? 0,
       targetValue: (json['targetValue'] as num?)?.toInt() ?? 1,
       timestamp: _parseDate(json['timestamp']) ?? DateTime.now(),
       note: json['note'] as String?,
-      updatedAt: _parseDate(json['updatedAt']),
+      updatedAt: newUpdatedAt,
     );
     await _box.put(id, l);
   }
