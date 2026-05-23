@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/sfx_type.dart';
 import '../services/haptic_service.dart';
-import '../services/sfx_service.dart';
 import '../theme/app_theme.dart';
 
 class NavItem {
@@ -108,7 +106,8 @@ class _NavButton extends StatelessWidget {
     return InkWell(
       onTap: () {
         HapticService().selection();
-        SfxService().fire(SfxType.tabSwitch);
+        // Nav tab changes are silent — the haptic alone is the
+        // confirmation. The chime got tiring on rapid switching.
         onTap();
       },
       borderRadius: BorderRadius.circular(20),

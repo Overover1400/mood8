@@ -56,6 +56,12 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
   String _filter = _kAllFilter;
   HabitSortMode _sortMode = HabitSortMode.dateAdded;
+  /// When Manual sort is selected, drag-to-reorder is OFF by default
+  /// (handles hidden, list locked). The user explicitly taps
+  /// "Reorder" to enable handles, then "Done" to lock them again.
+  /// Stops accidental drags when the user just wants to interact
+  /// with habit cards.
+  bool _manualReorderActive = false;
 
   @override
   void initState() {
@@ -79,7 +85,12 @@ class _HabitsScreenState extends State<HabitsScreen> {
   Future<void> _setSortMode(HabitSortMode mode) async {
     if (mode == _sortMode) return;
     HapticService().selection();
-    setState(() => _sortMode = mode);
+    setState(() {
+      _sortMode = mode;
+      // Entering Manual mode opens reorder so the user can immediately
+      // arrange. Switching AWAY from Manual locks again.
+      _manualReorderActive = mode == HabitSortMode.manual;
+    });
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kHabitSortPrefKey, mode.name);
@@ -210,9 +221,19 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                   ),
                                 ),
                               )
-                            else if (_sortMode == HabitSortMode.manual)
+                            else if (_sortMode == HabitSortMode.manual) ...[
+                              _ManualLockBar(
+                                active: _manualReorderActive,
+                                onToggle: () {
+                                  HapticService().selection();
+                                  setState(() => _manualReorderActive =
+                                      !_manualReorderActive);
+                                },
+                              ),
+                              const SizedBox(height: 10),
                               _ManualList(
                                 habits: visible,
+                                active: _manualReorderActive,
                                 todayValueFor: _todayValue,
                                 last7For: _last7,
                                 onTap: _openDetail,
@@ -239,7 +260,8 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                       globalOld, globalNew);
                                   HapticService().selection();
                                 },
-                              )
+                              ),
+                            ]
                             else
                               for (final entry in grouped.entries) ...[
                                 _GroupHeader(label: entry.key),
@@ -643,6 +665,7 @@ class _SortButton extends StatelessWidget {
 class _ManualList extends StatelessWidget {
   const _ManualList({
     required this.habits,
+    required this.active,
     required this.todayValueFor,
     required this.last7For,
     required this.onTap,
@@ -653,6 +676,10 @@ class _ManualList extends StatelessWidget {
   });
 
   final List<Habit> habits;
+  /// When `false` the list renders as plain cards with a lock icon —
+  /// the user must tap "Reorder" to enable drag handles. Stops
+  /// accidental reorders while interacting with habits.
+  final bool active;
   final int Function(Habit) todayValueFor;
   final List<HabitLog> Function(Habit) last7For;
   final void Function(Habit) onTap;
@@ -663,6 +690,49 @@ class _ManualList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!active) {
+      // Locked — render as a plain list, no reorder.
+      return Column(
+        children: [
+          for (final h in habits)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: HabitCard(
+                      habit: h,
+                      todayValue: todayValueFor(h),
+                      last7: last7For(h),
+                      onTap: () => onTap(h),
+                      onIncrement: () => onIncrement(h),
+                      onDecrement: () => onDecrement(h),
+                      onToggle: () => onToggle(h),
+                    ),
+                  ),
+                  Container(
+                    margin: const EdgeInsets.only(left: 8),
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: BrandColors.bgCard(context)
+                          .withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: BrandColors.inkFaint(context)
+                            .withValues(alpha: 0.45),
+                      ),
+                    ),
+                    child: Icon(Icons.lock_outline_rounded,
+                        color: BrandColors.inkDim(context), size: 16),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
     return ReorderableListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -695,21 +765,139 @@ class _ManualList extends StatelessWidget {
                   height: 40,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color:
-                        BrandColors.bgCard(context).withValues(alpha: 0.7),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppColors.purple.withValues(alpha: 0.30),
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.purple.withValues(alpha: 0.45),
+                        AppColors.pink.withValues(alpha: 0.35),
+                      ],
                     ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.pink.withValues(alpha: 0.35),
+                        blurRadius: 12,
+                      ),
+                    ],
                   ),
-                  child: Icon(Icons.drag_indicator_rounded,
-                      color: BrandColors.inkSoft(context), size: 18),
+                  child: const Icon(Icons.drag_indicator_rounded,
+                      color: Colors.white, size: 18),
                 ),
               ),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+/// Top pill in the Habits list when sort mode is Manual — toggles
+/// between "Reorder" (locked, drag disabled) and "Done" (unlocked,
+/// drag handles visible). Persists the active state in screen scope
+/// only; the underlying habit order itself is always synced via
+/// `sortOrder`.
+class _ManualLockBar extends StatelessWidget {
+  const _ManualLockBar({required this.active, required this.onToggle});
+  final bool active;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+      decoration: BoxDecoration(
+        gradient: active
+            ? LinearGradient(
+                colors: [
+                  AppColors.purple.withValues(alpha: 0.32),
+                  AppColors.pink.withValues(alpha: 0.20),
+                ],
+              )
+            : null,
+        color: active
+            ? null
+            : BrandColors.bgCard(context).withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: active
+              ? AppColors.pinkLight.withValues(alpha: 0.55)
+              : AppColors.purple.withValues(alpha: 0.30),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            active
+                ? Icons.drag_indicator_rounded
+                : Icons.lock_outline_rounded,
+            color: active
+                ? AppColors.pinkLight
+                : BrandColors.inkSoft(context),
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  active
+                      ? 'Reordering — drag handles to move habits'
+                      : 'Manual order — tap Reorder to rearrange',
+                  style: TextStyle(
+                    color: BrandColors.inkSoft(context),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: onToggle,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: active
+                    ? AppColors.buttonGradient
+                    : LinearGradient(
+                        colors: [
+                          BrandColors.bgCard(context),
+                          BrandColors.bgCard(context),
+                        ],
+                      ),
+                borderRadius: BorderRadius.circular(20),
+                border: active
+                    ? null
+                    : Border.all(
+                        color: AppColors.pinkLight.withValues(alpha: 0.55),
+                      ),
+                boxShadow: active
+                    ? [
+                        BoxShadow(
+                          color: AppColors.pink.withValues(alpha: 0.45),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Text(
+                active ? 'Done' : 'Reorder',
+                style: TextStyle(
+                  color: active ? Colors.white : AppColors.pinkLight,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

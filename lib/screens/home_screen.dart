@@ -454,12 +454,18 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _savedFlash = false;
   bool _initialMoodLoaded = false;
 
-  /// Called by every slider's onChanged. Updates local state + resets
-  /// the auto-save countdown. The first interaction also flips a flag
-  /// so we never auto-save the default (unedited) values.
+  /// Live slider drag — repaint on every onChanged so the thumb +
+  /// displayed value + fill icons track the finger smoothly.
   void _onSliderChange(void Function() apply) {
-    apply();
+    setState(apply);
     _initialMoodLoaded = true;
+  }
+
+  /// Slider release — arm the 2-second auto-save countdown. Any new
+  /// drag restarts it on the next release, so a quick re-adjustment
+  /// doesn't get saved as a separate update.
+  void _onSliderEnd(double _) {
+    if (!_initialMoodLoaded) return;
     _autoSaveTimer?.cancel();
     _autoSaveTimer = Timer(const Duration(seconds: 2), _runAutoSave);
   }
@@ -572,6 +578,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               name: user?.name ?? 'friend',
                               streak: _moods.calculateStreak(),
                               profile: user,
+                              mood: _mood,
+                              energy: _energy,
+                              focus: _focus,
                               onLongPressName: () =>
                                   _confirmReset(context),
                               onOpenSettings: () => Navigator.of(context).push(
@@ -743,6 +752,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             _onSliderChange(() => _energy = v),
                         onFocus: (v) =>
                             _onSliderChange(() => _focus = v),
+                        onSliderEnd: _onSliderEnd,
                       )
                           .animate()
                           .fadeIn(delay: 150.ms, duration: 500.ms)
@@ -895,14 +905,18 @@ class _BackgroundGlow extends StatelessWidget {
   }
 }
 
-/// Clean two-row header.
-/// Row 1: greeting + name on the left, "+" + avatar on the right.
-/// Row 2: compact streak chip + freeze badge.
+/// Two-row header.
+/// Row 1 (top): compact streak chip · freeze badge · three percentage-
+///              filled mood/energy/focus icons · + · avatar.
+/// Row 2:       "Hi `[First]` 👋" with the first name in the brand gradient.
 class _Header extends StatelessWidget {
   const _Header({
     required this.name,
     required this.streak,
     required this.profile,
+    required this.mood,
+    required this.energy,
+    required this.focus,
     required this.onLongPressName,
     required this.onOpenSettings,
     required this.onAddTap,
@@ -911,6 +925,11 @@ class _Header extends StatelessWidget {
   final String name;
   final int streak;
   final UserProfile? profile;
+  // Live 0..1 values from the parent so the fill icons re-paint as the
+  // user drags the sliders.
+  final double mood;
+  final double energy;
+  final double focus;
   final VoidCallback onLongPressName;
   final VoidCallback onOpenSettings;
   final VoidCallback onAddTap;
@@ -927,100 +946,205 @@ class _Header extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ROW 1 — small streak + freeze + fill icons + + + avatar.
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Expanded(
-              child: GestureDetector(
-                onLongPress: onLongPressName,
-                behavior: HitTestBehavior.opaque,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: RichText(
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    text: TextSpan(
-                      style: brandFont(
-                        color: BrandColors.ink(context),
-                        fontSize: 30,
-                        weight: FontWeight.w800,
-                        height: 1.05,
-                        letterSpacing: -0.6,
-                      ),
-                      children: [
-                        const TextSpan(text: 'Hi '),
-                        TextSpan(
-                          text: _firstName(name),
-                          style: brandFont(
-                            fontSize: 30,
-                            weight: FontWeight.w800,
-                            height: 1.05,
-                            letterSpacing: -0.6,
-                            foreground: Paint()
-                              ..shader = AppColors.primaryGradient
-                                  .createShader(const Rect.fromLTWH(
-                                      0, 0, 220, 40)),
-                          ),
-                        ),
-                        const TextSpan(text: ' 👋'),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            _HeaderAddButton(onTap: onAddTap),
-            const SizedBox(width: 10),
-            ColorAvatar(
-              key: TutorialTargets.settingsButton,
-              name: name,
-              size: 38,
-              onTap: onOpenSettings,
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: AppColors.softGradient,
-                borderRadius: BorderRadius.circular(40),
-                border: Border.all(
-                  color: AppColors.purple.withValues(alpha: 0.25),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('🔥', style: TextStyle(fontSize: 14)),
-                  const SizedBox(width: 6),
-                  Text(
-                    '$streak day streak',
-                    style: TextStyle(
-                      color: BrandColors.inkSoft(context),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _CompactStreakChip(streak: streak),
             if (profile != null) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               FreezeBadge(
                 count: profile!.freezesAvailable,
                 profile: profile,
               ),
             ],
+            const Spacer(),
+            _MoodFillIcon(
+              icon: Icons.favorite_rounded,
+              value: mood,
+              tone: AppColors.pink,
+            ),
+            const SizedBox(width: 6),
+            _MoodFillIcon(
+              icon: Icons.bolt_rounded,
+              value: energy,
+              tone: AppColors.pinkLight,
+            ),
+            const SizedBox(width: 6),
+            _MoodFillIcon(
+              icon: Icons.center_focus_strong_rounded,
+              value: focus,
+              tone: AppColors.blueAccent,
+            ),
+            const SizedBox(width: 10),
+            _HeaderAddButton(onTap: onAddTap),
+            const SizedBox(width: 8),
+            ColorAvatar(
+              key: TutorialTargets.settingsButton,
+              name: name,
+              size: 36,
+              onTap: onOpenSettings,
+            ),
           ],
+        ),
+        const SizedBox(height: 14),
+        // ROW 2 — greeting moved down to its own line.
+        GestureDetector(
+          onLongPress: onLongPressName,
+          behavior: HitTestBehavior.opaque,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: RichText(
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              text: TextSpan(
+                style: brandFont(
+                  color: BrandColors.ink(context),
+                  fontSize: 30,
+                  weight: FontWeight.w800,
+                  height: 1.05,
+                  letterSpacing: -0.6,
+                ),
+                children: [
+                  const TextSpan(text: 'Hi '),
+                  TextSpan(
+                    text: _firstName(name),
+                    style: brandFont(
+                      fontSize: 30,
+                      weight: FontWeight.w800,
+                      height: 1.05,
+                      letterSpacing: -0.6,
+                      foreground: Paint()
+                        ..shader = AppColors.primaryGradient.createShader(
+                            const Rect.fromLTWH(0, 0, 260, 44)),
+                    ),
+                  ),
+                  const TextSpan(text: ' 👋'),
+                ],
+              ),
+            ),
+          ),
         ),
       ],
     );
   }
+}
+
+/// Smaller, lighter streak chip — sits at the top of the header.
+class _CompactStreakChip extends StatelessWidget {
+  const _CompactStreakChip({required this.streak});
+  final int streak;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: AppColors.softGradient,
+        borderRadius: BorderRadius.circular(40),
+        border: Border.all(
+          color: AppColors.purple.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('🔥', style: TextStyle(fontSize: 12)),
+          const SizedBox(width: 4),
+          Text(
+            '$streak',
+            style: TextStyle(
+              color: BrandColors.inkSoft(context),
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A small icon that fills bottom-to-top by [value] (0..1).
+/// Implementation: stack a dim outline copy + a clipped fully-colored
+/// copy whose height = value × icon-size. The clip is anchored to the
+/// bottom so the fill rises like liquid in a glass.
+class _MoodFillIcon extends StatelessWidget {
+  const _MoodFillIcon({
+    required this.icon,
+    required this.value,
+    required this.tone,
+  });
+
+  final IconData icon;
+  final double value;
+  final Color tone;
+  static const double size = 22;
+
+  @override
+  Widget build(BuildContext context) {
+    final clampedValue = value.clamp(0.0, 1.0);
+    return Tooltip(
+      message: '${(clampedValue * 10).toStringAsFixed(1)}/10',
+      child: SizedBox(
+        width: size + 6,
+        height: size + 6,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Dim outline that's always visible.
+            Icon(
+              icon,
+              size: size,
+              color: BrandColors.inkFaint(context).withValues(alpha: 0.65),
+            ),
+            // Coloured fill, clipped to the bottom `value` portion.
+            ClipRect(
+              clipper: _BottomUpClipper(value: clampedValue, iconSize: size),
+              child: Icon(
+                icon,
+                size: size,
+                color: tone,
+                shadows: [
+                  Shadow(
+                    color: tone.withValues(alpha: 0.55),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Clip rect that exposes the bottom [value] fraction of the icon —
+/// centered horizontally, height = value × iconSize.
+class _BottomUpClipper extends CustomClipper<Rect> {
+  const _BottomUpClipper({required this.value, required this.iconSize});
+  final double value;
+  final double iconSize;
+
+  @override
+  Rect getClip(Size size) {
+    // The icon is centered in the Stack so its drawing rect runs from
+    // ((size.h - iconSize)/2) to ((size.h + iconSize)/2). We expose
+    // the bottom `value` fraction of THAT range.
+    final centerOffset = (size.height - iconSize) / 2;
+    final filledHeight = iconSize * value;
+    return Rect.fromLTWH(
+      0,
+      centerOffset + (iconSize - filledHeight),
+      size.width,
+      filledHeight,
+    );
+  }
+
+  @override
+  bool shouldReclip(covariant _BottomUpClipper old) =>
+      old.value != value || old.iconSize != iconSize;
 }
 
 class _HeaderAddButton extends StatelessWidget {
@@ -1233,6 +1357,7 @@ class _MoodHeroCard extends StatelessWidget {
     required this.onMood,
     required this.onEnergy,
     required this.onFocus,
+    required this.onSliderEnd,
     required this.savedFlash,
   });
 
@@ -1242,6 +1367,9 @@ class _MoodHeroCard extends StatelessWidget {
   final ValueChanged<double> onMood;
   final ValueChanged<double> onEnergy;
   final ValueChanged<double> onFocus;
+  /// Fired by each slider when the user lifts their finger — parent
+  /// uses this to arm the 2-second auto-save countdown.
+  final ValueChanged<double> onSliderEnd;
   final bool savedFlash;
 
   @override
@@ -1308,6 +1436,7 @@ class _MoodHeroCard extends StatelessWidget {
                 icon: Icons.favorite_rounded,
                 value: mood,
                 onChanged: onMood,
+                onChangeEnd: onSliderEnd,
               ),
               const SizedBox(height: 10),
               GlowSlider(
@@ -1315,6 +1444,7 @@ class _MoodHeroCard extends StatelessWidget {
                 icon: Icons.bolt_rounded,
                 value: energy,
                 onChanged: onEnergy,
+                onChangeEnd: onSliderEnd,
               ),
               const SizedBox(height: 10),
               GlowSlider(
@@ -1322,6 +1452,7 @@ class _MoodHeroCard extends StatelessWidget {
                 icon: Icons.center_focus_strong_rounded,
                 value: focus,
                 onChanged: onFocus,
+                onChangeEnd: onSliderEnd,
               ),
             ],
           ),

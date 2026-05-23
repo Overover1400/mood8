@@ -8,12 +8,16 @@ class GlowSlider extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
+    this.onChangeEnd,
     this.icon,
   });
 
   final String label;
   final double value;
   final ValueChanged<double> onChanged;
+  /// Fires when the user lifts their finger. Home uses this to start
+  /// the 2-second auto-save countdown — `onChanged` just paints live.
+  final ValueChanged<double>? onChangeEnd;
   final IconData? icon;
 
   @override
@@ -78,6 +82,7 @@ class GlowSlider extends StatelessWidget {
           child: Slider(
             value: value,
             onChanged: onChanged,
+            onChangeEnd: onChangeEnd,
           ),
         ),
       ],
