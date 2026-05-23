@@ -27,11 +27,16 @@ class HabitLogButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cardColor =
+        habit.isAvoid ? AppColors.pinkLight : Color(habit.color);
     switch (habit.habitType) {
       case HabitType.yesNo:
         return _YesNoButton(
           done: value > 0,
-          color: Color(habit.color),
+          color: cardColor,
+          // Quit-mode habits use a heart/check ("stayed clean") instead
+          // of a plain check — same widget, friendlier semantic.
+          icon: habit.isQuit ? Icons.spa_rounded : Icons.check_rounded,
           onTap: () {
             HapticFeedback.mediumImpact();
             onToggle();
@@ -41,10 +46,13 @@ class HabitLogButton extends StatelessWidget {
       case HabitType.duration:
         return _StepperPill(
           value: value,
-          target: habit.effectiveTarget,
+          // Reduce-mode habits have no upper bound — pass 0 so the pill
+          // renders "5 today" instead of "5 / 1048576" and never locks.
+          target: habit.isReduce ? 0 : habit.effectiveTarget,
           unit: habit.targetUnit ?? habit.habitType.defaultUnit,
-          color: Color(habit.color),
+          color: cardColor,
           isDuration: habit.habitType == HabitType.duration,
+          isReduce: habit.isReduce,
           onPlus: () {
             HapticFeedback.selectionClick();
             onIncrement();
@@ -64,11 +72,13 @@ class _YesNoButton extends StatelessWidget {
     required this.done,
     required this.color,
     required this.onTap,
+    this.icon = Icons.check_rounded,
   });
 
   final bool done;
   final Color color;
   final VoidCallback onTap;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +105,7 @@ class _YesNoButton extends StatelessWidget {
             : null,
       ),
       child: done
-          ? const Icon(Icons.check_rounded, color: Colors.white, size: 22)
+          ? Icon(icon, color: Colors.white, size: 22)
               .animate(key: const ValueKey('check'))
               .scaleXY(
                 begin: 0.6,
@@ -104,7 +114,7 @@ class _YesNoButton extends StatelessWidget {
                 curve: Curves.easeOutBack,
               )
           : Icon(
-              Icons.check_rounded,
+              icon,
               color: color.withValues(alpha: 0.45),
               size: 18,
             ),
@@ -124,6 +134,7 @@ class _StepperPill extends StatelessWidget {
     required this.onPlus,
     required this.onMinus,
     required this.compact,
+    this.isReduce = false,
   });
 
   final int value;
@@ -131,14 +142,21 @@ class _StepperPill extends StatelessWidget {
   final String unit;
   final Color color;
   final bool isDuration;
+  final bool isReduce;
   final VoidCallback onPlus;
   final VoidCallback onMinus;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final done = value >= target;
-    final label = isDuration ? '$value/${target}m' : '$value / $target';
+    // Reduce-mode never "completes" — every count is data. Build /
+    // counter / duration habits glow + lock when value hits target.
+    final done = !isReduce && target > 0 && value >= target;
+    final label = isReduce
+        ? '$value'
+        : isDuration
+            ? '$value/${target}m'
+            : '$value / $target';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -188,7 +206,7 @@ class _StepperPill extends StatelessWidget {
             ),
           ),
           _round(Icons.add_rounded, onPlus,
-              enabled: !done, context: context),
+              enabled: isReduce || !done, context: context),
         ],
       ),
     );

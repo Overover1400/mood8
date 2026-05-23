@@ -15,6 +15,7 @@ import '../models/frequency.dart';
 import '../models/gratitude_entry.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
+import '../models/habit_polarity.dart';
 import '../models/habit_type.dart';
 import '../models/insight.dart';
 import '../models/insight_type.dart';
@@ -770,6 +771,9 @@ class _HabitCodec implements _EntityCodec {
           'isArchived': h.isArchived,
           'frozenDates': h.frozenDates.map(_iso).toList(),
           'updatedAt': _iso(upd),
+          'polarity': h.polarity.name,
+          'avoidMode': h.avoidMode?.name,
+          'avoidDurationDays': h.avoidDurationDays,
         });
       }
     }
@@ -794,6 +798,17 @@ class _HabitCodec implements _EntityCodec {
             .whereType<DateTime>()
             .toList() ??
         const <DateTime>[];
+    final polarity = HabitPolarity.values.firstWhere(
+      (p) => p.name == (json['polarity'] ?? 'build'),
+      orElse: () => HabitPolarity.build,
+    );
+    final avoidModeName = json['avoidMode'] as String?;
+    final avoidMode = avoidModeName == null
+        ? null
+        : AvoidMode.values.firstWhere(
+            (m) => m.name == avoidModeName,
+            orElse: () => AvoidMode.quit,
+          );
     final h = Habit(
       id: id,
       title: json['title'] as String? ?? '',
@@ -813,6 +828,9 @@ class _HabitCodec implements _EntityCodec {
       isArchived: json['isArchived'] as bool? ?? false,
       frozenDates: frozenList,
       updatedAt: _parseDate(json['updatedAt']),
+      polarity: polarity,
+      avoidMode: avoidMode,
+      avoidDurationDays: (json['avoidDurationDays'] as num?)?.toInt(),
     );
     await _box.put(id, h);
   }

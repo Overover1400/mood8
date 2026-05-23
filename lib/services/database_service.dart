@@ -8,6 +8,7 @@ import '../models/frequency.dart';
 import '../models/gratitude_entry.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
+import '../models/habit_polarity.dart';
 import '../models/habit_type.dart';
 import '../models/insight.dart';
 import '../models/insight_type.dart';
@@ -147,6 +148,12 @@ class DatabaseService {
     }
     if (!Hive.isAdapterRegistered(23)) {
       Hive.registerAdapter(PatternSeverityAdapter());
+    }
+    if (!Hive.isAdapterRegistered(24)) {
+      Hive.registerAdapter(HabitPolarityAdapter());
+    }
+    if (!Hive.isAdapterRegistered(25)) {
+      Hive.registerAdapter(AvoidModeAdapter());
     }
 
     _moodBox = await Hive.openBox<MoodEntry>(moodBoxName);

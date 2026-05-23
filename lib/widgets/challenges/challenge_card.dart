@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/challenge.dart';
 import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
+import 'network_avatar.dart';
 import 'user_badge_chip.dart';
 
 /// Single challenge tile used in the list + my-challenges views.
+/// Visual vocabulary matches HabitCard — same gradient body, same
+/// pink/purple border tokens, same icon-bubble + identity-chip header
+/// layout — so the two surfaces feel like one app.
 class ChallengeCard extends StatelessWidget {
   const ChallengeCard({
     super.key,
@@ -22,45 +27,79 @@ class ChallengeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = _accentFor(challenge.category);
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+          padding: const EdgeInsets.fromLTRB(16, 16, 14, 14),
           decoration: BoxDecoration(
+            // Same dual-stop gradient body the HabitCard uses, with an
+            // accent-tinted border keyed off the category color.
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                BrandColors.bgCard(context),
-                BrandColors.bg(context),
+                BrandColors.bgCard(context).withValues(alpha: 0.94),
+                BrandColors.bg(context).withValues(alpha: 0.86),
               ],
             ),
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: AppColors.purple.withValues(alpha: 0.32),
+              color: accent.withValues(alpha: 0.28),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.purple.withValues(alpha: 0.16),
-                blurRadius: 22,
-                spreadRadius: -8,
-              ),
-            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Creator row
+              // Header: category icon-bubble + title + creator badge.
+              // Mirrors HabitCard's icon + title + identity stack.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _CategoryBubble(
+                    category: challenge.category,
+                    color: accent,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          challenge.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.bricolageGrotesque(
+                            color: BrandColors.ink(context),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            height: 1.15,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        _CategoryChip(
+                          label: prettyCategory(challenge.category),
+                          color: accent,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              // Creator row. Pulled out from the title block so the
+              // creator's avatar + badge get the breathing room they
+              // deserve and so the layout doesn't fight long titles.
               Row(
                 children: [
-                  _CreatorAvatar(
+                  NetworkAvatar(
                     name: challenge.creator.name,
-                    avatarUrl:
-                        absoluteAvatarUrl(challenge.creator.avatarUrl),
-                    size: 30,
+                    avatarUrl: absoluteAvatarUrl(challenge.creator.avatarUrl),
+                    size: 26,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -68,10 +107,12 @@ class ChallengeCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          challenge.creator.name,
+                          'by ${challenge.creator.name}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: BrandColors.ink(context),
-                            fontSize: 13,
+                            color: BrandColors.inkSoft(context),
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -84,60 +125,40 @@ class ChallengeCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _CategoryPill(label: challenge.category),
+                  _DurationPill(
+                    durationDays: challenge.durationDays,
+                    daysRemaining: challenge.daysRemaining,
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
-              Text(
-                challenge.title,
-                style: brandFont(
-                  color: BrandColors.ink(context),
-                  fontSize: 22,
-                  weight: FontWeight.w800,
-                  height: 1.15,
-                  letterSpacing: -0.2,
-                ),
+              _StatsBar(
+                activePct: challenge.activePct,
+                gaveUpPct: challenge.gaveUpPct,
+                accent: accent,
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.schedule_rounded,
-                      size: 14, color: BrandColors.inkDim(context)),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${challenge.durationDays}-day · ${challenge.daysRemaining} left',
-                    style: TextStyle(
-                      color: BrandColors.inkSoft(context),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  const Spacer(),
                   Icon(Icons.group_rounded,
                       size: 14, color: BrandColors.inkDim(context)),
                   const SizedBox(width: 6),
                   Text(
-                    '${challenge.participantCount} in',
+                    '${challenge.activeCount} in · ${challenge.participantCount} joined',
                     style: TextStyle(
                       color: BrandColors.inkSoft(context),
-                      fontSize: 12,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
                     ),
                   ),
+                  const Spacer(),
+                  if (challenge.participantsPreview.isNotEmpty)
+                    _ParticipantAvatarStack(
+                      previews: challenge.participantsPreview,
+                      totalActive: challenge.activeCount,
+                    ),
                 ],
-              ),
-              if (challenge.participantsPreview.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _ParticipantAvatarRow(
-                  previews: challenge.participantsPreview,
-                  totalActive: challenge.activeCount,
-                ),
-              ],
-              const SizedBox(height: 12),
-              _StatsBar(
-                activePct: challenge.activePct,
-                gaveUpPct: challenge.gaveUpPct,
               ),
               const SizedBox(height: 12),
               _EngagementRow(
@@ -152,66 +173,120 @@ class ChallengeCard extends StatelessWidget {
   }
 }
 
-/// Round avatar that renders the server-provided image when available
-/// and falls back to a gradient + initial.
-class _CreatorAvatar extends StatelessWidget {
-  const _CreatorAvatar({
-    required this.name,
-    required this.avatarUrl,
-    required this.size,
-  });
-  final String name;
-  final String? avatarUrl;
-  final double size;
+/// Round icon-bubble keyed to the challenge category. Mirrors
+/// HabitCard's `_IconBubble` but uses a Material icon (categories don't
+/// carry an emoji on the backend).
+class _CategoryBubble extends StatelessWidget {
+  const _CategoryBubble({required this.category, required this.color});
+  final String category;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final letter = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
-    final fallback = Container(
-      width: size,
-      height: size,
+    return Container(
+      width: 44,
+      height: 44,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: AppColors.orbGradient,
-      ),
-      child: Text(
-        letter,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: size * 0.45,
-          fontWeight: FontWeight.w800,
+        gradient: RadialGradient(
+          colors: [
+            color.withValues(alpha: 0.55),
+            color.withValues(alpha: 0.12),
+          ],
         ),
+        border: Border.all(color: color.withValues(alpha: 0.42)),
+      ),
+      child: Icon(
+        _iconFor(category),
+        color: Colors.white,
+        size: 20,
       ),
     );
-    if (avatarUrl == null) return fallback;
-    return SizedBox(
-      width: size,
-      height: size,
-      child: ClipOval(
-        child: Image.network(
-          avatarUrl!,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => fallback,
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({required this.label, required this.color});
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    if (label.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.32)),
+      ),
+      child: Text(
+        label.toUpperCase(),
+        style: TextStyle(
+          color: BrandColors.inkSoft(context),
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
         ),
       ),
     );
   }
 }
 
-/// Horizontal row of up to ~7 visible participant avatars with a
+class _DurationPill extends StatelessWidget {
+  const _DurationPill({
+    required this.durationDays,
+    required this.daysRemaining,
+  });
+  final int durationDays;
+  final int daysRemaining;
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = daysRemaining.clamp(0, durationDays);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: BrandColors.bgCard(context).withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.purple.withValues(alpha: 0.30),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.schedule_rounded,
+              size: 12, color: AppColors.purpleLight),
+          const SizedBox(width: 5),
+          Text(
+            '$remaining / ${durationDays}d',
+            style: TextStyle(
+              color: BrandColors.ink(context),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Horizontal stack of up to ~7 visible participant avatars with a
 /// "+N" pill at the end when there are more total active participants
 /// than fit in the row.
-class _ParticipantAvatarRow extends StatelessWidget {
-  const _ParticipantAvatarRow({
+class _ParticipantAvatarStack extends StatelessWidget {
+  const _ParticipantAvatarStack({
     required this.previews,
     required this.totalActive,
   });
   final List<ParticipantPreview> previews;
   final int totalActive;
 
-  static const int _visible = 7;
-  static const double _size = 24;
+  static const int _visible = 6;
+  static const double _size = 22;
   static const double _overlap = 8;
 
   @override
@@ -222,9 +297,12 @@ class _ParticipantAvatarRow extends StatelessWidget {
     for (var i = 0; i < shown.length; i++) {
       children.add(Positioned(
         left: i * (_size - _overlap),
-        child: _Avatar(
+        child: NetworkAvatar(
           name: shown[i].name,
           avatarUrl: absoluteAvatarUrl(shown[i].avatarUrl),
+          size: _size,
+          borderColor: BrandColors.bgCard(context),
+          borderWidth: 2,
         ),
       ));
     }
@@ -244,65 +322,14 @@ class _ParticipantAvatarRow extends StatelessWidget {
   }
 }
 
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.name, required this.avatarUrl});
-  final String name;
-  final String? avatarUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    final letter = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
-    final fallback = Container(
-      width: _ParticipantAvatarRow._size,
-      height: _ParticipantAvatarRow._size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: AppColors.orbGradient,
-        border: Border.all(
-          color: BrandColors.bgDeep(context),
-          width: 2,
-        ),
-      ),
-      child: Text(
-        letter,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-    if (avatarUrl == null) return fallback;
-    return Container(
-      width: _ParticipantAvatarRow._size,
-      height: _ParticipantAvatarRow._size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: BrandColors.bgDeep(context),
-          width: 2,
-        ),
-      ),
-      child: ClipOval(
-        child: Image.network(
-          avatarUrl!,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => fallback,
-        ),
-      ),
-    );
-  }
-}
-
 class _OverflowChip extends StatelessWidget {
   const _OverflowChip({required this.text});
   final String text;
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: _ParticipantAvatarRow._size,
-      height: _ParticipantAvatarRow._size,
+      width: _ParticipantAvatarStack._size,
+      height: _ParticipantAvatarStack._size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
@@ -318,35 +345,6 @@ class _OverflowChip extends StatelessWidget {
           color: BrandColors.inkSoft(context),
           fontSize: 9,
           fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
-class _CategoryPill extends StatelessWidget {
-  const _CategoryPill({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    if (label.isEmpty) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.pink.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppColors.pinkLight.withValues(alpha: 0.35),
-        ),
-      ),
-      child: Text(
-        prettyCategory(label),
-        style: TextStyle(
-          color: AppColors.pinkLight,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.2,
         ),
       ),
     );
@@ -409,8 +407,8 @@ class _UpvoteButton extends StatelessWidget {
           gradient: upvoted
               ? LinearGradient(
                   colors: [
-                    AppColors.purple.withValues(alpha: 0.35),
-                    AppColors.pink.withValues(alpha: 0.30),
+                    AppColors.purple.withValues(alpha: 0.40),
+                    AppColors.pink.withValues(alpha: 0.32),
                   ],
                 )
               : null,
@@ -421,12 +419,12 @@ class _UpvoteButton extends StatelessWidget {
           border: Border.all(
             color: upvoted
                 ? AppColors.pinkLight.withValues(alpha: 0.55)
-                : AppColors.purple.withValues(alpha: 0.30),
+                : AppColors.purple.withValues(alpha: 0.28),
           ),
           boxShadow: upvoted
               ? [
                   BoxShadow(
-                    color: AppColors.pink.withValues(alpha: 0.35),
+                    color: AppColors.pink.withValues(alpha: 0.32),
                     blurRadius: 14,
                     spreadRadius: -4,
                   ),
@@ -470,7 +468,7 @@ class _CommentChip extends StatelessWidget {
         color: BrandColors.bgCard(context).withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: AppColors.purple.withValues(alpha: 0.30),
+          color: AppColors.purple.withValues(alpha: 0.28),
         ),
       ),
       child: Row(
@@ -494,9 +492,14 @@ class _CommentChip extends StatelessWidget {
 }
 
 class _StatsBar extends StatelessWidget {
-  const _StatsBar({required this.activePct, required this.gaveUpPct});
+  const _StatsBar({
+    required this.activePct,
+    required this.gaveUpPct,
+    required this.accent,
+  });
   final double activePct;
   final double gaveUpPct;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -508,16 +511,16 @@ class _StatsBar extends StatelessWidget {
             child: Stack(
               children: [
                 Container(
-                  height: 6,
+                  height: 7,
                   color: BrandColors.inkFaint(context)
-                      .withValues(alpha: 0.25),
+                      .withValues(alpha: 0.22),
                 ),
                 Row(
                   children: [
                     Expanded(
                       flex: activePct.round().clamp(0, 100),
                       child: Container(
-                        height: 6,
+                        height: 7,
                         decoration: BoxDecoration(
                           gradient: AppColors.buttonGradient,
                         ),
@@ -526,8 +529,8 @@ class _StatsBar extends StatelessWidget {
                     Expanded(
                       flex: gaveUpPct.round().clamp(0, 100),
                       child: Container(
-                        height: 6,
-                        color: AppColors.pink.withValues(alpha: 0.55),
+                        height: 7,
+                        color: AppColors.pink.withValues(alpha: 0.48),
                       ),
                     ),
                     Expanded(
@@ -553,5 +556,45 @@ class _StatsBar extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// Map category slug → category accent color. Reuses existing brand
+/// tokens so the palette stays consistent.
+Color _accentFor(String category) {
+  switch (category.toLowerCase()) {
+    case 'health':
+      return AppColors.pinkLight;
+    case 'fitness':
+      return AppColors.purple;
+    case 'mindfulness':
+      return AppColors.blueAccent;
+    case 'productivity':
+      return AppColors.purpleLight;
+    case 'learning':
+      return AppColors.blueAccent;
+    case 'social':
+      return AppColors.pink;
+    default:
+      return AppColors.purpleLight;
+  }
+}
+
+IconData _iconFor(String category) {
+  switch (category.toLowerCase()) {
+    case 'health':
+      return Icons.favorite_rounded;
+    case 'fitness':
+      return Icons.directions_run_rounded;
+    case 'mindfulness':
+      return Icons.self_improvement_rounded;
+    case 'productivity':
+      return Icons.bolt_rounded;
+    case 'learning':
+      return Icons.menu_book_rounded;
+    case 'social':
+      return Icons.groups_rounded;
+    default:
+      return Icons.flag_rounded;
   }
 }

@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 
 import 'frequency.dart';
+import 'habit_polarity.dart';
 import 'habit_type.dart';
 import 'routine_category.dart';
 
@@ -26,6 +27,9 @@ class Habit extends HiveObject {
     this.isArchived = false,
     List<DateTime>? frozenDates,
     this.updatedAt,
+    this.polarity = HabitPolarity.build,
+    this.avoidMode,
+    this.avoidDurationDays,
   }) : frozenDates = frozenDates ?? <DateTime>[];
 
   @HiveField(0)
@@ -79,6 +83,27 @@ class Habit extends HiveObject {
   @HiveField(16)
   DateTime? updatedAt;
 
+  /// Whether this is a habit to build (do more) or avoid (do less).
+  /// Defaults to `build` so legacy habits read from Hive without the
+  /// field set still work.
+  @HiveField(17)
+  HabitPolarity polarity;
+
+  /// Only meaningful when [polarity] is [HabitPolarity.avoid]:
+  /// - [AvoidMode.quit] — daily yes/no "stayed clean"
+  /// - [AvoidMode.reduce] — daily count, trend downward
+  @HiveField(18)
+  AvoidMode? avoidMode;
+
+  /// Reduce-mode horizon: 7, 30, or 90 days. The detail screen draws
+  /// a trend chart spanning this window.
+  @HiveField(19)
+  int? avoidDurationDays;
+
+  bool get isAvoid => polarity == HabitPolarity.avoid;
+  bool get isQuit => isAvoid && avoidMode == AvoidMode.quit;
+  bool get isReduce => isAvoid && avoidMode == AvoidMode.reduce;
+
   bool isFrozenOn(DateTime date) {
     for (final d in frozenDates) {
       if (d.year == date.year &&
@@ -108,6 +133,10 @@ class Habit extends HiveObject {
 
   int get effectiveTarget {
     if (habitType == HabitType.yesNo) return 1;
+    // Reduce-mode habits track a count with no upper bound — every
+    // slip logged is data, never "completion". Return a very high cap
+    // so the +/- stepper UI doesn't gate at 1.
+    if (isReduce) return 1 << 20;
     return targetValue ?? 1;
   }
 }

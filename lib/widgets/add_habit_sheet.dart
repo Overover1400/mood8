@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../models/frequency.dart';
 import '../models/habit.dart';
+import '../models/habit_polarity.dart';
 import '../models/habit_type.dart';
 import '../models/routine_category.dart';
 import '../screens/paywall_screen.dart';
@@ -17,6 +18,16 @@ const List<String> _kEmojiPresets = [
   '💧', '🧘', '📚', '💪', '☕', '🚶',
   '🎨', '✍️', '🎵', '🧠', '💭', '❤️',
 ];
+
+/// Emoji presets shown when the user is building an "avoid" habit —
+/// hints at the kinds of things people try to cut down on rather than
+/// the constructive defaults above.
+const List<String> _kAvoidEmojiPresets = [
+  '🚭', '🍷', '🍰', '📱', '🎰', '💢',
+  '☕', '🍔', '🛋️', '⏰', '🛒', '🎮',
+];
+
+const List<int> _kReduceDurations = [7, 30, 90];
 
 Future<void> showAddHabitSheet(
   BuildContext context, {
@@ -53,16 +64,23 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
   late RoutineCategory _category;
   late Frequency _frequency;
   late Set<int> _customDays;
+  late HabitPolarity _polarity;
+  late AvoidMode _avoidMode;
+  late int _avoidDurationDays;
   String? _titleError;
   bool _saving = false;
 
   bool get _isEditing => widget.editing != null;
+  bool get _isAvoid => _polarity == HabitPolarity.avoid;
 
   @override
   void initState() {
     super.initState();
     final e = widget.editing;
-    _emoji = e?.icon ?? '💧';
+    _polarity = e?.polarity ?? HabitPolarity.build;
+    _avoidMode = e?.avoidMode ?? AvoidMode.quit;
+    _avoidDurationDays = e?.avoidDurationDays ?? 30;
+    _emoji = e?.icon ?? (_isAvoid ? '🚭' : '💧');
     _type = e?.habitType ?? HabitType.yesNo;
     _identity = e?.identity ?? 'General';
     _category = e?.category ?? RoutineCategory.health;
@@ -78,6 +96,42 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
     }
   }
 
+  void _onPolarityChange(HabitPolarity p) {
+    if (_polarity == p) return;
+    setState(() {
+      _polarity = p;
+      if (p == HabitPolarity.avoid) {
+        // Avoid habits ride on top of existing habit types: quit = yesNo
+        // (stayed clean), reduce = counter (slip count). Resync the
+        // type + sensible defaults when the user flips into Avoid.
+        _type = _avoidMode == AvoidMode.quit
+            ? HabitType.yesNo
+            : HabitType.counter;
+        _targetCtrl.text = _defaultTarget().toString();
+        _unitCtrl.text = _avoidMode == AvoidMode.reduce
+            ? 'times'
+            : _type.defaultUnit;
+        if (_emoji == '💧') _emoji = '🚭';
+        _category = RoutineCategory.mindful;
+      } else {
+        if (_emoji == '🚭') _emoji = '💧';
+        _type = HabitType.yesNo;
+        _targetCtrl.text = _defaultTarget().toString();
+        _unitCtrl.text = _type.defaultUnit;
+      }
+    });
+  }
+
+  void _onAvoidModeChange(AvoidMode m) {
+    if (_avoidMode == m) return;
+    setState(() {
+      _avoidMode = m;
+      _type = m == AvoidMode.quit ? HabitType.yesNo : HabitType.counter;
+      _targetCtrl.text = _defaultTarget().toString();
+      _unitCtrl.text = m == AvoidMode.reduce ? 'times' : _type.defaultUnit;
+    });
+  }
+
   @override
   void dispose() {
     _titleCtrl.dispose();
@@ -88,6 +142,12 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
   }
 
   int _defaultTarget() {
+    if (_isAvoid && _avoidMode == AvoidMode.reduce) {
+      // Reduce mode tracks a daily count with no fixed ceiling — the
+      // "win" is trending down, not hitting a number. Store 0 so old
+      // analytics paths that read targetValue treat it as goalless.
+      return 0;
+    }
     switch (_type) {
       case HabitType.yesNo:
         return 1;
@@ -136,6 +196,11 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
       final target = _type == HabitType.yesNo
           ? 1
           : (int.tryParse(_targetCtrl.text.trim()) ?? _defaultTarget());
+      final effectivePolarity = _polarity;
+      final effectiveAvoidMode = _isAvoid ? _avoidMode : null;
+      final effectiveAvoidDuration = _isAvoid && _avoidMode == AvoidMode.reduce
+          ? _avoidDurationDays
+          : null;
       if (_isEditing) {
         final h = widget.editing!;
         h.title = title;
@@ -149,6 +214,9 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
         h.targetValue = target;
         h.targetUnit = _type == HabitType.yesNo ? null : _unitCtrl.text.trim();
         h.color = _category.color.toARGB32();
+        h.polarity = effectivePolarity;
+        h.avoidMode = effectiveAvoidMode;
+        h.avoidDurationDays = effectiveAvoidDuration;
         await _repo.updateHabit(h);
       } else {
         await _repo.addHabit(
@@ -162,6 +230,9 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
           targetUnit: _type == HabitType.yesNo ? null : _unitCtrl.text.trim(),
           frequencyDays:
               _frequency == Frequency.custom ? _customDays.toList() : null,
+          polarity: effectivePolarity,
+          avoidMode: effectiveAvoidMode,
+          avoidDurationDays: effectiveAvoidDuration,
         );
       }
       HapticFeedback.lightImpact();
@@ -280,26 +351,64 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 18),
+                  _Label('Goal'),
+                  const SizedBox(height: 8),
+                  _PolarityTabs(
+                    value: _polarity,
+                    onChanged: _onPolarityChange,
+                  ),
+                  if (_isAvoid) ...[
+                    const SizedBox(height: 14),
+                    _AvoidModeTabs(
+                      value: _avoidMode,
+                      onChanged: _onAvoidModeChange,
+                    ),
+                    const SizedBox(height: 6),
+                    _AvoidModeHint(mode: _avoidMode),
+                    if (_avoidMode == AvoidMode.reduce) ...[
+                      const SizedBox(height: 14),
+                      _Label('Track for'),
+                      const SizedBox(height: 8),
+                      _DurationPicker(
+                        value: _avoidDurationDays,
+                        onChanged: (d) =>
+                            setState(() => _avoidDurationDays = d),
+                      ),
+                    ],
+                  ],
+                  const SizedBox(height: 18),
                   _Label('Icon'),
                   const SizedBox(height: 8),
                   _EmojiPicker(
                     value: _emoji,
+                    presets:
+                        _isAvoid ? _kAvoidEmojiPresets : _kEmojiPresets,
                     onChanged: (e) => setState(() => _emoji = e),
                   ),
                   const SizedBox(height: 18),
-                  _Label("What's the habit?"),
+                  _Label(
+                    _isAvoid
+                        ? 'What do you want to avoid?'
+                        : "What's the habit?",
+                  ),
                   const SizedBox(height: 8),
                   _UnderlineField(
                     controller: _titleCtrl,
                     focusNode: _titleFocus,
-                    hint: 'Drink water',
+                    hint: _isAvoid
+                        ? (_avoidMode == AvoidMode.quit
+                            ? 'Smoking'
+                            : 'Scrolling')
+                        : 'Drink water',
                     error: _titleError,
                   ),
-                  const SizedBox(height: 18),
-                  _Label('Type'),
-                  const SizedBox(height: 8),
-                  _TypeTabs(value: _type, onChanged: _onTypeChange),
-                  if (_type != HabitType.yesNo) ...[
+                  if (!_isAvoid) ...[
+                    const SizedBox(height: 18),
+                    _Label('Type'),
+                    const SizedBox(height: 8),
+                    _TypeTabs(value: _type, onChanged: _onTypeChange),
+                  ],
+                  if (!_isAvoid && _type != HabitType.yesNo) ...[
                     const SizedBox(height: 16),
                     Row(
                       children: [
@@ -440,9 +549,14 @@ class _Label extends StatelessWidget {
 }
 
 class _EmojiPicker extends StatelessWidget {
-  const _EmojiPicker({required this.value, required this.onChanged});
+  const _EmojiPicker({
+    required this.value,
+    required this.onChanged,
+    this.presets = _kEmojiPresets,
+  });
   final String value;
   final ValueChanged<String> onChanged;
+  final List<String> presets;
 
   @override
   Widget build(BuildContext context) {
@@ -450,7 +564,7 @@ class _EmojiPicker extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        for (final e in _kEmojiPresets)
+        for (final e in presets)
           GestureDetector(
             onTap: () => onChanged(e),
             child: AnimatedContainer(
@@ -785,6 +899,216 @@ class _CustomDaysRow extends StatelessWidget {
             ),
           ),
           if (i < 6) const SizedBox(width: 6),
+        ],
+      ],
+    );
+  }
+}
+
+/// Build vs Avoid segmented control. Visually mirrors [_TypeTabs] but
+/// uses the avoid-tint (pink-rose) for the Avoid side so a quick glance
+/// reveals which mode is selected.
+class _PolarityTabs extends StatelessWidget {
+  const _PolarityTabs({required this.value, required this.onChanged});
+  final HabitPolarity value;
+  final ValueChanged<HabitPolarity> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: AppColors.purple.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Row(
+        children: [
+          for (final p in HabitPolarity.values)
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onChanged(p);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: p == value
+                        ? (p == HabitPolarity.avoid
+                            ? const LinearGradient(
+                                colors: [
+                                  Color(0xFFEC4899),
+                                  Color(0xFFFB7185),
+                                ],
+                              )
+                            : AppColors.buttonGradient)
+                        : null,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        p == HabitPolarity.build
+                            ? Icons.add_circle_outline_rounded
+                            : Icons.do_not_disturb_alt_rounded,
+                        size: 14,
+                        color: p == value
+                            ? Colors.white
+                            : BrandColors.inkDim(context),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        p == HabitPolarity.build
+                            ? 'Build a habit'
+                            : 'Avoid a habit',
+                        style: TextStyle(
+                          color: p == value
+                              ? Colors.white
+                              : BrandColors.inkDim(context),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AvoidModeTabs extends StatelessWidget {
+  const _AvoidModeTabs({required this.value, required this.onChanged});
+  final AvoidMode value;
+  final ValueChanged<AvoidMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: BrandColors.bgCard(context).withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.pink.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Row(
+        children: [
+          for (final m in AvoidMode.values)
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onChanged(m);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: m == value
+                        ? AppColors.pinkLight.withValues(alpha: 0.20)
+                        : null,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    m == AvoidMode.quit ? 'Quit it' : 'Cut down',
+                    style: TextStyle(
+                      color: m == value
+                          ? AppColors.pinkLight
+                          : BrandColors.inkSoft(context),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AvoidModeHint extends StatelessWidget {
+  const _AvoidModeHint({required this.mode});
+  final AvoidMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = mode == AvoidMode.quit
+        ? 'Each day you stay clean adds to your streak. A slip resets — no judgement, just data.'
+        : "Log a count each day. The win is the number drifting down — small steps count.";
+    return Text(
+      text,
+      style: TextStyle(
+        color: BrandColors.inkDim(context),
+        fontSize: 11.5,
+        height: 1.4,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+}
+
+class _DurationPicker extends StatelessWidget {
+  const _DurationPicker({required this.value, required this.onChanged});
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < _kReduceDurations.length; i++) ...[
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onChanged(_kReduceDurations[i]);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: _kReduceDurations[i] == value
+                      ? AppColors.buttonGradient
+                      : null,
+                  color: _kReduceDurations[i] == value
+                      ? null
+                      : BrandColors.bgCard(context).withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: _kReduceDurations[i] == value
+                        ? Colors.transparent
+                        : AppColors.purple.withValues(alpha: 0.20),
+                  ),
+                ),
+                child: Text(
+                  '${_kReduceDurations[i]} days',
+                  style: TextStyle(
+                    color: _kReduceDurations[i] == value
+                        ? Colors.white
+                        : BrandColors.inkSoft(context),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (i < _kReduceDurations.length - 1) const SizedBox(width: 8),
         ],
       ],
     );

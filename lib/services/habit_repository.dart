@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../models/frequency.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
+import '../models/habit_polarity.dart';
 import '../models/habit_type.dart';
 import '../models/routine_category.dart';
 import 'database_service.dart';
@@ -35,6 +36,9 @@ class HabitRepository {
     List<int>? frequencyDays,
     int? color,
     int? sortOrder,
+    HabitPolarity polarity = HabitPolarity.build,
+    AvoidMode? avoidMode,
+    int? avoidDurationDays,
   }) async {
     final habit = Habit(
       id: _uuid.v4(),
@@ -52,6 +56,9 @@ class HabitRepository {
       frequencyDays: frequencyDays,
       sortOrder: sortOrder ?? _habitBox.length,
       updatedAt: DateTime.now(),
+      polarity: polarity,
+      avoidMode: avoidMode,
+      avoidDurationDays: avoidDurationDays,
     );
     try {
       await _habitBox.put(habit.id, habit);

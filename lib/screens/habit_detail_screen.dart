@@ -95,23 +95,47 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                       ),
                     ),
                   ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding:
-                          const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                      child: _SectionHeader(label: '30-Day Heatmap'),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                      child: StreakCalendar(
-                        logs: logs,
-                        color: color,
-                        frozenDates: habit.frozenDates,
+                  if (habit.isReduce) ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                        child: _SectionHeader(
+                          label:
+                              '${habit.avoidDurationDays ?? 30}-Day Trend',
+                        ),
                       ),
                     ),
-                  ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                        child: _ReduceTrendChart(
+                          repo: _repo,
+                          habit: habit,
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                        child: _SectionHeader(
+                          label: habit.isQuit
+                              ? '30-Day Clean Calendar'
+                              : '30-Day Heatmap',
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                        child: StreakCalendar(
+                          logs: logs,
+                          color: color,
+                          frozenDates: habit.frozenDates,
+                        ),
+                      ),
+                    ),
+                  ],
                   SliverToBoxAdapter(
                     child: Padding(
                       padding:
@@ -552,4 +576,209 @@ class _LogTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Reduce-mode trend chart spanning the user's chosen horizon (7/30/90
+/// days). Plots daily slip counts as a soft sparkline + axis. Tone is
+/// always kind — every dot is just data, no red zones.
+class _ReduceTrendChart extends StatelessWidget {
+  const _ReduceTrendChart({required this.repo, required this.habit});
+  final HabitRepository repo;
+  final Habit habit;
+
+  @override
+  Widget build(BuildContext context) {
+    final days = habit.avoidDurationDays ?? 30;
+    final today = DateTime(
+        DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final logs = repo.getLogsForHabit(
+      habit.id,
+      from: today.subtract(Duration(days: days - 1)),
+      to: today,
+    );
+    final byDay = <DateTime, HabitLog>{
+      for (final l in logs)
+        DateTime(l.date.year, l.date.month, l.date.day): l,
+    };
+    final values = <int>[
+      for (var i = days - 1; i >= 0; i--)
+        byDay[today.subtract(Duration(days: i))]?.value ?? 0,
+    ];
+    final total = values.fold<int>(0, (s, v) => s + v);
+    final loggedDays = values.where((v) => v > 0).length;
+    final avg = loggedDays == 0 ? 0.0 : total / loggedDays;
+    final half = values.length ~/ 2;
+    final firstHalfAvg = half == 0
+        ? 0.0
+        : values.take(half).fold<int>(0, (s, v) => s + v) / half;
+    final secondHalfAvg = half == 0
+        ? 0.0
+        : values.skip(half).fold<int>(0, (s, v) => s + v) /
+            (values.length - half);
+    final dropPct = firstHalfAvg <= 0
+        ? null
+        : ((firstHalfAvg - secondHalfAvg) / firstHalfAvg) * 100;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      decoration: BoxDecoration(
+        color: BrandColors.bgCard(context).withValues(alpha: 0.80),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.pink.withValues(alpha: 0.24),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 110,
+            child: CustomPaint(
+              painter: _TrendPainter(values: values),
+              size: Size.infinite,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _TrendStat(
+                label: 'AVG / DAY',
+                value: avg.toStringAsFixed(avg < 10 ? 1 : 0),
+              ),
+              const SizedBox(width: 18),
+              _TrendStat(
+                label: 'LOGGED',
+                value: '$loggedDays of $days',
+              ),
+              const Spacer(),
+              if (dropPct != null && dropPct > 0)
+                _TrendStat(
+                  label: '2ND HALF',
+                  value: '↓ ${dropPct.toStringAsFixed(0)}%',
+                  highlight: true,
+                )
+              else if (dropPct != null && dropPct < 0)
+                _TrendStat(
+                  label: '2ND HALF',
+                  value: '↑ ${(-dropPct).toStringAsFixed(0)}%',
+                ),
+            ],
+          ),
+          if (dropPct != null && dropPct > 5) ...[
+            const SizedBox(height: 10),
+            Text(
+              "You're trending down — that's the point of this.",
+              style: TextStyle(
+                color: AppColors.pinkLight,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TrendStat extends StatelessWidget {
+  const _TrendStat({
+    required this.label,
+    required this.value,
+    this.highlight = false,
+  });
+  final String label;
+  final String value;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: BrandColors.inkDim(context),
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.4,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: GoogleFonts.bricolageGrotesque(
+            color: highlight ? AppColors.pinkLight : BrandColors.ink(context),
+            fontSize: 16,
+            height: 1.0,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TrendPainter extends CustomPainter {
+  const _TrendPainter({required this.values});
+  final List<int> values;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (values.isEmpty) return;
+    final maxVal =
+        values.fold<int>(0, (m, v) => v > m ? v : m).clamp(1, 1 << 20);
+    final stepX = values.length <= 1
+        ? size.width
+        : size.width / (values.length - 1);
+    final pts = <Offset>[
+      for (var i = 0; i < values.length; i++)
+        Offset(
+          i * stepX,
+          size.height - (values[i] / maxVal) * (size.height - 8) - 4,
+        ),
+    ];
+    // Filled area under the curve — soft pink for the kind, no-shame
+    // vibe the reduce-mode UI is going for.
+    final fill = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          AppColors.pinkLight.withValues(alpha: 0.35),
+          AppColors.pinkLight.withValues(alpha: 0.02),
+        ],
+      ).createShader(Offset.zero & size);
+    final fillPath = Path()..moveTo(pts.first.dx, size.height);
+    for (final p in pts) {
+      fillPath.lineTo(p.dx, p.dy);
+    }
+    fillPath.lineTo(pts.last.dx, size.height);
+    fillPath.close();
+    canvas.drawPath(fillPath, fill);
+
+    final line = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          AppColors.purple.withValues(alpha: 0.95),
+          AppColors.pinkLight,
+        ],
+      ).createShader(Offset.zero & size)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+    for (var i = 1; i < pts.length; i++) {
+      path.lineTo(pts[i].dx, pts[i].dy);
+    }
+    canvas.drawPath(path, line);
+
+    final dot = Paint()..color = AppColors.pinkLight;
+    canvas.drawCircle(pts.last, 4, dot);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrendPainter old) =>
+      old.values.length != values.length;
 }
