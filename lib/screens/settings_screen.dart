@@ -39,6 +39,7 @@ import 'share_progress_screen.dart';
 import 'year_in_review_screen.dart';
 import 'challenges/challenges_list_screen.dart';
 import 'challenges/my_challenges_screen.dart';
+import 'profile/edit_profile_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'reminder_settings_screen.dart';
 import '../services/sync_service.dart';
@@ -321,6 +322,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _ProfileCard(user: user, onEditName: _editName),
+                    SettingsSection(
+                      title: 'Profile',
+                      children: [
+                        SettingsTile(
+                          icon: Icons.person_outline_rounded,
+                          title: 'Edit public profile',
+                          subtitle: 'Avatar, bio, wellbeing visibility',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const EditProfileScreen(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     SettingsSection(
                       title: 'App preferences',
                       children: [

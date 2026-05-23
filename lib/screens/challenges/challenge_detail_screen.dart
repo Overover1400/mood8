@@ -14,6 +14,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/challenges/rank_insignia.dart';
 import '../../widgets/challenges/user_badge_chip.dart';
 import '../../widgets/responsive_container.dart';
+import '../profile/public_profile_screen.dart';
 import 'badge_legend_screen.dart';
 import 'join_requests_screen.dart';
 
@@ -431,44 +432,64 @@ class _CreatorRow extends StatelessWidget {
   final ChallengeDetail d;
   @override
   Widget build(BuildContext context) {
+    final creatorId = d.creator.id;
+    void openCreatorProfile() {
+      if (creatorId == null) return;
+      HapticService().light();
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => PublicProfileScreen(
+            userId: creatorId,
+            initialName: d.creator.name,
+          ),
+        ),
+      );
+    }
     return Row(
       children: [
-        Container(
-          width: 38,
-          height: 38,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: AppColors.orbGradient,
-          ),
-          child: Text(
-            d.creator.name.isEmpty ? '?' : d.creator.name[0].toUpperCase(),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
+        GestureDetector(
+          onTap: openCreatorProfile,
+          child: Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: AppColors.orbGradient,
+            ),
+            child: Text(
+              d.creator.name.isEmpty ? '?' : d.creator.name[0].toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                d.creator.name,
-                style: TextStyle(
-                  color: BrandColors.ink(context),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
+          child: GestureDetector(
+            onTap: openCreatorProfile,
+            behavior: HitTestBehavior.opaque,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  d.creator.name,
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 3),
-              UserBadgeChip(
-                badge: d.creator.profileBadge,
-                creatorScore: d.creator.creatorScore,
-                compact: true,
-              ),
-            ],
+                const SizedBox(height: 3),
+                UserBadgeChip(
+                  badge: d.creator.profileBadge,
+                  creatorScore: d.creator.creatorScore,
+                  compact: true,
+                ),
+              ],
+            ),
           ),
         ),
         if (d.status != 'active')
@@ -872,6 +893,27 @@ class _ParticipantTile extends StatelessWidget {
       default:
         statusColor = AppColors.blueAccent;
     }
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticService().light();
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => PublicProfileScreen(
+                userId: p.userId,
+                initialName: p.name,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: _buildContent(context, statusColor),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, Color statusColor) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(

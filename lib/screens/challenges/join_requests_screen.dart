@@ -8,6 +8,7 @@ import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/challenges/user_badge_chip.dart';
 import '../../widgets/responsive_container.dart';
+import '../profile/public_profile_screen.dart';
 
 class JoinRequestsScreen extends StatefulWidget {
   const JoinRequestsScreen({
@@ -199,7 +200,20 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
+              GestureDetector(
+                onTap: () {
+                  HapticService().light();
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => PublicProfileScreen(
+                        userId: r.userId,
+                        initialName: r.userName,
+                      ),
+                    ),
+                  );
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Row(
                 children: [
                   Container(
                     width: 34,
@@ -250,6 +264,7 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                     ),
                   ),
                 ],
+                ),
               ),
               const SizedBox(height: 12),
               Row(

@@ -10,6 +10,9 @@ class AuthUser {
     this.creatorScore = 0,
     this.challengesCompleted = 0,
     this.profileBadge,
+    this.bio,
+    this.avatarUrl,
+    this.showWellbeingPublic = false,
   });
 
   final String id;
@@ -22,6 +25,20 @@ class AuthUser {
   final int creatorScore;
   final int challengesCompleted;
   final String? profileBadge;
+  final String? bio;
+  /// Server-side path (e.g. `/api/avatars/12-abc.jpg`). Use
+  /// [avatarAbsoluteUrl] to get the host-prefixed URL ready for
+  /// `Image.network`.
+  final String? avatarUrl;
+  final bool showWellbeingPublic;
+
+  /// Returns the absolute URL for the user's avatar (or null if none).
+  String? avatarAbsoluteUrl({String host = 'https://mood8.app'}) {
+    final u = avatarUrl;
+    if (u == null || u.isEmpty) return null;
+    if (u.startsWith('http')) return u;
+    return '$host$u';
+  }
 
   AuthUser copyWith({
     String? id,
@@ -34,6 +51,9 @@ class AuthUser {
     int? creatorScore,
     int? challengesCompleted,
     String? profileBadge,
+    String? bio,
+    String? avatarUrl,
+    bool? showWellbeingPublic,
   }) =>
       AuthUser(
         id: id ?? this.id,
@@ -46,6 +66,10 @@ class AuthUser {
         creatorScore: creatorScore ?? this.creatorScore,
         challengesCompleted: challengesCompleted ?? this.challengesCompleted,
         profileBadge: profileBadge ?? this.profileBadge,
+        bio: bio ?? this.bio,
+        avatarUrl: avatarUrl ?? this.avatarUrl,
+        showWellbeingPublic:
+            showWellbeingPublic ?? this.showWellbeingPublic,
       );
 
   Map<String, dynamic> toJson() => {
@@ -57,7 +81,10 @@ class AuthUser {
         'is_guest': isGuest,
         'creator_score': creatorScore,
         'challenges_completed': challengesCompleted,
+        'show_wellbeing_public': showWellbeingPublic,
         if (profileBadge != null) 'profile_badge': profileBadge,
+        if (bio != null) 'bio': bio,
+        if (avatarUrl != null) 'avatar_url': avatarUrl,
         if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
       };
 
@@ -84,6 +111,10 @@ class AuthUser {
       challengesCompleted:
           (json['challenges_completed'] as num?)?.toInt() ?? 0,
       profileBadge: json['profile_badge'] as String?,
+      bio: json['bio'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
+      showWellbeingPublic:
+          (json['show_wellbeing_public'] as bool?) ?? false,
     );
   }
 }
