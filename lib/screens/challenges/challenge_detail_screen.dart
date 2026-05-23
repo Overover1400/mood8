@@ -11,6 +11,7 @@ import '../../services/auth_service.dart';
 import '../../services/challenge_service.dart';
 import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/challenges/network_avatar.dart';
 import '../../widgets/challenges/rank_insignia.dart';
 import '../../widgets/challenges/user_badge_chip.dart';
 import '../../widgets/responsive_container.dart';
@@ -673,21 +674,10 @@ class _CreatorRow extends StatelessWidget {
       children: [
         GestureDetector(
           onTap: openCreatorProfile,
-          child: Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: AppColors.orbGradient,
-            ),
-            child: Text(
-              d.creator.name.isEmpty ? '?' : d.creator.name[0].toUpperCase(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+          child: NetworkAvatar(
+            name: d.creator.name,
+            avatarUrl: absoluteAvatarUrl(d.creator.avatarUrl),
+            size: 38,
           ),
         ),
         const SizedBox(width: 12),
@@ -1149,21 +1139,10 @@ class _ParticipantTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: AppColors.orbGradient,
-            ),
-            child: Text(
-              p.name.isEmpty ? '?' : p.name[0].toUpperCase(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+          NetworkAvatar(
+            name: p.name,
+            avatarUrl: absoluteAvatarUrl(p.avatarUrl),
+            size: 34,
           ),
           const SizedBox(width: 12),
           Expanded(

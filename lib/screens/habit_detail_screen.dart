@@ -351,23 +351,23 @@ class _LogRow extends StatelessWidget {
           HabitLogButton(
             habit: habit,
             value: todayValue,
-            onIncrement: () {
+            onIncrement: () async {
               HapticFeedback.selectionClick();
               final step = habit.targetUnit?.toLowerCase().contains('minute') == true
                   ? 5
                   : 1;
-              repo.incrementLog(habitId: habit.id, by: step);
+              await repo.incrementLog(habitId: habit.id, by: step);
             },
-            onDecrement: () {
+            onDecrement: () async {
               HapticFeedback.selectionClick();
               final step = habit.targetUnit?.toLowerCase().contains('minute') == true
                   ? 5
                   : 1;
-              repo.incrementLog(habitId: habit.id, by: -step);
+              await repo.incrementLog(habitId: habit.id, by: -step);
             },
-            onToggle: () {
+            onToggle: () async {
               HapticFeedback.mediumImpact();
-              repo.toggleYesNoLog(habitId: habit.id);
+              await repo.toggleYesNoLog(habitId: habit.id);
             },
           ),
         ],

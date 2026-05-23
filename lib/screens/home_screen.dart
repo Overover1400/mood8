@@ -1817,25 +1817,26 @@ class _MiniHabitRow extends StatelessWidget {
                 habit: habit,
                 value: todayValue,
                 compact: true,
-                onIncrement: () {
+                onIncrement: () async {
                   final step = habit.targetUnit
                               ?.toLowerCase()
                               .contains('minute') ==
                           true
                       ? 5
                       : 1;
-                  repo.incrementLog(habitId: habit.id, by: step);
+                  await repo.incrementLog(habitId: habit.id, by: step);
                 },
-                onDecrement: () {
+                onDecrement: () async {
                   final step = habit.targetUnit
                               ?.toLowerCase()
                               .contains('minute') ==
                           true
                       ? 5
                       : 1;
-                  repo.incrementLog(habitId: habit.id, by: -step);
+                  await repo.incrementLog(habitId: habit.id, by: -step);
                 },
-                onToggle: () => repo.toggleYesNoLog(habitId: habit.id),
+                onToggle: () async =>
+                    repo.toggleYesNoLog(habitId: habit.id),
               ),
             ],
           ),

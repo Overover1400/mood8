@@ -376,6 +376,7 @@ class JoinRequest {
     required this.id,
     required this.userId,
     required this.userName,
+    required this.userAvatarUrl,
     required this.creatorScore,
     required this.profileBadge,
     required this.createdAt,
@@ -384,6 +385,7 @@ class JoinRequest {
   final int id;
   final int userId;
   final String userName;
+  final String? userAvatarUrl;
   final int creatorScore;
   final String? profileBadge;
   final DateTime createdAt;
@@ -394,6 +396,7 @@ class JoinRequest {
       id: (json['id'] as num).toInt(),
       userId: (user['id'] as num?)?.toInt() ?? 0,
       userName: (user['name'] as String?) ?? 'Anonymous',
+      userAvatarUrl: user['avatar_url'] as String?,
       creatorScore: (user['creator_score'] as num?)?.toInt() ?? 0,
       profileBadge: user['profile_badge'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),

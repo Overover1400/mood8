@@ -6,6 +6,7 @@ import '../../models/challenge.dart';
 import '../../services/challenge_service.dart';
 import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/challenges/network_avatar.dart';
 import '../../widgets/challenges/user_badge_chip.dart';
 import '../../widgets/responsive_container.dart';
 import '../profile/public_profile_screen.dart';
@@ -215,23 +216,10 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                 behavior: HitTestBehavior.opaque,
                 child: Row(
                 children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: AppColors.orbGradient,
-                    ),
-                    child: Text(
-                      r.userName.isEmpty
-                          ? '?'
-                          : r.userName[0].toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                  NetworkAvatar(
+                    name: r.userName,
+                    avatarUrl: absoluteAvatarUrl(r.userAvatarUrl),
+                    size: 34,
                   ),
                   const SizedBox(width: 12),
                   Expanded(

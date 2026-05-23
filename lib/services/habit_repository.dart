@@ -160,7 +160,14 @@ class HabitRepository {
       existing.timestamp = DateTime.now();
       existing.updatedAt = DateTime.now();
       if (note != null) existing.note = note;
-      await existing.save();
+      // Round-trip through put() rather than HiveObject.save() so we
+      // get the same write semantics as new logs — and follow with
+      // an explicit flush() so the counter value survives the user
+      // backgrounding the app immediately after a tap. Hive's
+      // HiveObject.save() queues a disk write but doesn't guarantee
+      // fsync — flush() does.
+      await _logBox.put(existing.id, existing);
+      await _logBox.flush();
       SyncService().debouncedPush();
       return existing;
     }
@@ -177,6 +184,7 @@ class HabitRepository {
     );
     try {
       await _logBox.put(log.id, log);
+      await _logBox.flush();
       SyncService().debouncedPush();
     } catch (e, st) {
       debugPrint('HabitRepository.logHabit failed: $e\n$st');
