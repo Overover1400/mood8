@@ -3,17 +3,25 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../theme/app_theme.dart';
 
+/// Avatar surface. Shows the user's uploaded image when [avatarUrl] is
+/// set, otherwise falls back to a gradient circle with their initials.
+/// Same public footprint as before — callers that don't yet pass the
+/// URL still render correctly.
 class ColorAvatar extends StatelessWidget {
   const ColorAvatar({
     super.key,
     required this.name,
     this.size = 36,
     this.onTap,
+    this.avatarUrl,
   });
 
   final String name;
   final double size;
   final VoidCallback? onTap;
+  /// Absolute URL (`https://mood8.app/api/avatars/<file>`). When null
+  /// or empty, the fallback initial avatar is rendered.
+  final String? avatarUrl;
 
   String get _initials {
     final trimmed = name.trim();
@@ -29,7 +37,7 @@ class ColorAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avatar = Container(
+    final fallback = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
@@ -53,6 +61,25 @@ class ColorAvatar extends StatelessWidget {
         ),
       ),
     );
+
+    final hasUrl = avatarUrl != null && avatarUrl!.isNotEmpty;
+    final avatar = hasUrl
+        ? SizedBox(
+            width: size,
+            height: size,
+            child: ClipOval(
+              child: Image.network(
+                avatarUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => fallback,
+                loadingBuilder: (_, child, progress) {
+                  if (progress == null) return child;
+                  return fallback;
+                },
+              ),
+            ),
+          )
+        : fallback;
     if (onTap == null) return avatar;
     return GestureDetector(onTap: onTap, child: avatar);
   }

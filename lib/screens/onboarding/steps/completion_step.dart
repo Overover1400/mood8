@@ -98,15 +98,11 @@ class _CompletionStepState extends State<CompletionStep> {
               )
                   .animate()
                   .fadeIn(delay: 150.ms, duration: 500.ms),
-              Text(
+              GradientText(
                 name,
                 style: GoogleFonts.bricolageGrotesque(
-                  color: BrandColors.ink(context),
                   fontSize: 48,
                   height: 1.0,
-                  foreground: Paint()
-                    ..shader = AppColors.primaryGradient
-                        .createShader(const Rect.fromLTWH(0, 0, 280, 60)),
                 ),
               )
                   .animate()

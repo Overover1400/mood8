@@ -36,7 +36,11 @@ import '../widgets/tutorial_targets.dart';
 import 'habit_detail_screen.dart';
 
 class ProgressScreen extends StatefulWidget {
-  const ProgressScreen({super.key});
+  const ProgressScreen({super.key, this.range = 30});
+
+  /// Range in days for analytics. Owned by [ProgressInsightsTab] so the
+  /// unified Progress|Insights header drives both children.
+  final int range;
 
   @override
   State<ProgressScreen> createState() => _ProgressScreenState();
@@ -57,18 +61,19 @@ class _ProgressScreenState extends State<ProgressScreen> {
   late final ValueListenable<Box<GratitudeEntry>> _gratitudeListenable =
       _gratitude.watchEntries();
 
-  int _range = 30;
   // Tracks the last-seen progress per identity so we can detect crossings
   // (25/50/75/100%) between rebuilds and fire the constellation once.
   final Map<String, double> _identityHistory = {};
 
-  void _onRangeChanged(int days) {
-    HapticFeedback.selectionClick();
-    setState(() => _range = days);
-    _analytics.invalidate();
-    // Range change is a snapshot swap, not a real progress event — reset the
-    // history baseline so we don't fire from a stale comparison.
-    _identityHistory.clear();
+  int get _range => widget.range;
+
+  @override
+  void didUpdateWidget(covariant ProgressScreen old) {
+    super.didUpdateWidget(old);
+    if (old.range != widget.range) {
+      _analytics.invalidate();
+      _identityHistory.clear();
+    }
   }
 
   void _maybeCelebrateIdentity(Map<String, double> latest) {
@@ -143,14 +148,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 180),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 180),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _Header(),
-          const SizedBox(height: 16),
-          _RangeSelector(value: _range, onChanged: _onRangeChanged),
-          const SizedBox(height: 22),
           _HeroStats(
             streak: streak,
             avgMood: avgMood,
@@ -420,94 +421,6 @@ class _BackgroundGlow extends StatelessWidget {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Progress',
-          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                fontSize: 32,
-              ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          'Your journey so far',
-          style: TextStyle(
-            color: BrandColors.inkDim(context),
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.4,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RangeSelector extends StatelessWidget {
-  const _RangeSelector({required this.value, required this.onChanged});
-
-  final int value;
-  final ValueChanged<int> onChanged;
-
-  static const _options = [7, 30, 90];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: BrandColors.bgCard(context).withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: AppColors.purple.withValues(alpha: 0.20),
-        ),
-      ),
-      child: Row(
-        children: [
-          for (final d in _options)
-            Expanded(
-              child: GestureDetector(
-                onTap: () => onChanged(d),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOut,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    gradient: d == value ? AppColors.buttonGradient : null,
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: d == value
-                        ? [
-                            BoxShadow(
-                              color: AppColors.pink.withValues(alpha: 0.35),
-                              blurRadius: 14,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Text(
-                    '$d days',
-                    style: TextStyle(
-                      color: d == value ? Colors.white : BrandColors.inkDim(context),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
 
 class _HeroStats extends StatelessWidget {
   const _HeroStats({

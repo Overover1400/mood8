@@ -61,6 +61,7 @@ import 'habit_detail_screen.dart';
 import 'main_navigation.dart';
 import 'settings_screen.dart';
 import 'auth/register_screen.dart';
+import '../models/auth_user.dart';
 import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -991,11 +992,18 @@ class _Header extends StatelessWidget {
             const SizedBox(width: 6),
             _HeaderAddButton(onTap: onAddTap),
             const SizedBox(width: 8),
-            ColorAvatar(
-              key: TutorialTargets.settingsButton,
-              name: name,
-              size: 36,
-              onTap: onOpenSettings,
+            // Listen on the AuthUser notifier so an avatar upload
+            // ripples into the header immediately — Hive UserProfile
+            // doesn't carry avatar_url; AuthUser does.
+            ValueListenableBuilder<AuthUser?>(
+              valueListenable: AuthService().currentUserNotifier,
+              builder: (_, me, _) => ColorAvatar(
+                key: TutorialTargets.settingsButton,
+                name: name,
+                size: 36,
+                avatarUrl: me?.avatarAbsoluteUrl(),
+                onTap: onOpenSettings,
+              ),
             ),
           ],
         ),
@@ -1007,34 +1015,39 @@ class _Header extends StatelessWidget {
           child: FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: RichText(
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              text: TextSpan(
-                style: brandFont(
-                  color: BrandColors.ink(context),
-                  fontSize: 30,
-                  weight: FontWeight.w800,
-                  height: 1.05,
-                  letterSpacing: -0.6,
-                ),
-                children: [
-                  const TextSpan(text: 'Hi '),
-                  TextSpan(
-                    text: _firstName(name),
-                    style: brandFont(
-                      fontSize: 30,
-                      weight: FontWeight.w800,
-                      height: 1.05,
-                      letterSpacing: -0.6,
-                      foreground: Paint()
-                        ..shader = AppColors.primaryGradient.createShader(
-                            const Rect.fromLTWH(0, 0, 260, 44)),
-                    ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Hi ',
+                  style: brandFont(
+                    color: BrandColors.ink(context),
+                    fontSize: 30,
+                    weight: FontWeight.w800,
+                    height: 1.05,
+                    letterSpacing: -0.6,
                   ),
-                  const TextSpan(text: ' 👋'),
-                ],
-              ),
+                ),
+                GradientText(
+                  _firstName(name),
+                  style: brandFont(
+                    fontSize: 30,
+                    weight: FontWeight.w800,
+                    height: 1.05,
+                    letterSpacing: -0.6,
+                  ),
+                ),
+                Text(
+                  ' 👋',
+                  style: brandFont(
+                    color: BrandColors.ink(context),
+                    fontSize: 30,
+                    weight: FontWeight.w800,
+                    height: 1.05,
+                    letterSpacing: -0.6,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

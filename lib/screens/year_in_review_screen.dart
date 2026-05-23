@@ -486,16 +486,12 @@ class _IntroCard extends StatelessWidget {
               .animate()
               .fadeIn(duration: 600.ms)
               .slideY(begin: 0.2, end: 0, curve: Curves.easeOutCubic),
-          Text(
+          GradientText(
             '${data.year}',
             textAlign: TextAlign.center,
             style: GoogleFonts.bricolageGrotesque(
-              color: AppColors.ink,
               fontSize: 132,
               height: 1.0,
-              foreground: Paint()
-                ..shader = AppColors.primaryGradient
-                    .createShader(const Rect.fromLTWH(0, 0, 400, 180)),
             ),
           )
               .animate(delay: 250.ms)
@@ -579,15 +575,12 @@ class _BigStatCard extends StatelessWidget {
             children: [
               _CountUpText(
                 end: int.tryParse(value) ?? 0,
-                builder: (n) => Text(
+                builder: (n) => GradientText(
                   '$n',
+                  gradient: AppColors.buttonGradient,
                   style: GoogleFonts.bricolageGrotesque(
-                    color: AppColors.ink,
                     fontSize: 140,
                     height: 0.95,
-                    foreground: Paint()
-                      ..shader = AppColors.buttonGradient
-                          .createShader(const Rect.fromLTWH(0, 0, 600, 200)),
                   ),
                 ),
               ),
@@ -662,15 +655,12 @@ class _MoodCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
+              GradientText(
                 avg,
+                gradient: AppColors.buttonGradient,
                 style: GoogleFonts.bricolageGrotesque(
-                  color: AppColors.ink,
                   fontSize: 120,
                   height: 0.95,
-                  foreground: Paint()
-                    ..shader = AppColors.buttonGradient
-                        .createShader(const Rect.fromLTWH(0, 0, 600, 200)),
                 ),
               ),
               Padding(
@@ -786,15 +776,11 @@ class _BestMonthCard extends StatelessWidget {
             ),
           ).animate().fadeIn(duration: 400.ms),
           const SizedBox(height: 10),
-          Text(
+          GradientText(
             name,
             style: GoogleFonts.bricolageGrotesque(
-              color: AppColors.ink,
               fontSize: 96,
               height: 0.95,
-              foreground: Paint()
-                ..shader = AppColors.primaryGradient
-                    .createShader(const Rect.fromLTWH(0, 0, 600, 160)),
             ),
           )
               .animate(delay: 250.ms)
@@ -877,15 +863,12 @@ class _WordRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(
+        GradientText(
           value,
+          gradient: AppColors.buttonGradient,
           style: GoogleFonts.bricolageGrotesque(
-            color: AppColors.ink,
             fontSize: 78,
             height: 1.0,
-            foreground: Paint()
-              ..shader = AppColors.buttonGradient
-                  .createShader(const Rect.fromLTWH(0, 0, 400, 100)),
           ),
         ),
         const SizedBox(width: 14),

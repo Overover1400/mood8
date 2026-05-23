@@ -1303,17 +1303,12 @@ class _RankUpDialogState extends State<_RankUpDialog> {
                   ),
                 ).animate(delay: 320.ms).fadeIn(duration: 400.ms),
                 const SizedBox(height: 4),
-                Text(
+                GradientText(
                   widget.rankName,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.bricolageGrotesque(
-                    color: BrandColors.ink(context),
                     fontSize: 40,
                     height: 1.05,
-                    foreground: Paint()
-                      ..shader = AppColors.primaryGradient.createShader(
-                        const Rect.fromLTWH(0, 0, 280, 60),
-                      ),
                   ),
                 )
                     .animate(delay: 440.ms)

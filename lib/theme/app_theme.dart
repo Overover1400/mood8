@@ -233,3 +233,47 @@ TextStyle brandFont({
     foreground: foreground,
   );
 }
+
+/// Gradient text that never clips. Uses ShaderMask so the gradient is
+/// sized to the actual painted bounds of the text — works at any width
+/// without the hand-tuned Rect.fromLTWH that the legacy
+/// `foreground: Paint()..shader = ...` pattern needs. Replaces the old
+/// pattern across the app after the Bricolage font swap (which had
+/// wider letterforms, so the old fixed-width rects clipped the gradient
+/// on long text).
+class GradientText extends StatelessWidget {
+  const GradientText(
+    this.text, {
+    super.key,
+    this.style,
+    this.gradient,
+    this.textAlign,
+    this.maxLines,
+    this.overflow,
+  });
+
+  final String text;
+  final TextStyle? style;
+  final Gradient? gradient;
+  final TextAlign? textAlign;
+  final int? maxLines;
+  final TextOverflow? overflow;
+
+  @override
+  Widget build(BuildContext context) {
+    final g = gradient ?? AppColors.primaryGradient;
+    return ShaderMask(
+      blendMode: BlendMode.srcIn,
+      shaderCallback: (bounds) => g.createShader(bounds),
+      child: Text(
+        text,
+        // Color has to be opaque white for ShaderMask srcIn to apply
+        // the gradient cleanly across the painted glyphs.
+        style: (style ?? const TextStyle()).copyWith(color: Colors.white),
+        textAlign: textAlign,
+        maxLines: maxLines,
+        overflow: overflow,
+      ),
+    );
+  }
+}

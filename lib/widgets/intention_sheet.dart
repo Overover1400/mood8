@@ -140,10 +140,9 @@ class _IntentionSheetState extends State<IntentionSheet> {
               const SizedBox(height: 18),
               Center(
                 child: Text(
-                  "Set today's intention",
+                  "Set an intention",
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      ),
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
               )
                   .animate()
@@ -152,7 +151,7 @@ class _IntentionSheetState extends State<IntentionSheet> {
               const SizedBox(height: 8),
               Center(
                 child: Text(
-                  "What's one thing that would make today great?",
+                  "One thing you want to make true today.",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: BrandColors.inkDim(context),
@@ -191,7 +190,7 @@ class _IntentionSheetState extends State<IntentionSheet> {
               ),
               const SizedBox(height: 18),
               _GradientButton(
-                label: _saving ? 'Saving…' : 'Set intention',
+                label: _saving ? 'Saving…' : 'Save intention',
                 enabled: canSave,
                 onTap: _save,
               )
@@ -201,7 +200,7 @@ class _IntentionSheetState extends State<IntentionSheet> {
               TextButton(
                 onPressed: _saving ? null : _skip,
                 child: Text(
-                  'Skip for today',
+                  'Not right now',
                   style: TextStyle(
                     color: BrandColors.inkDim(context),
                     fontWeight: FontWeight.w700,
@@ -263,7 +262,7 @@ class _IntentionField extends StatelessWidget {
           isCollapsed: true,
           contentPadding: const EdgeInsets.symmetric(vertical: 6),
           border: InputBorder.none,
-          hintText: 'e.g., Finish my morning workout…',
+          hintText: 'e.g., Move my body for 20 minutes…',
           hintStyle: TextStyle(
             color: BrandColors.inkDim(context).withValues(alpha: 0.8),
             fontSize: 15,

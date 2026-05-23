@@ -165,21 +165,17 @@ class _PrestigeUnlockScreenState extends State<PrestigeUnlockScreen> {
                     ],
                   ),
                   const SizedBox(height: 32),
-                  Text(
+                  GradientText(
                     widget.badge,
                     textAlign: TextAlign.center,
+                    gradient: LinearGradient(
+                      colors: [Colors.white, accent],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     style: GoogleFonts.bricolageGrotesque(
-                      color: Colors.white,
                       fontSize: 56,
                       height: 1.0,
-                      foreground: Paint()
-                        ..shader = LinearGradient(
-                          colors: [Colors.white, accent],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ).createShader(
-                          const Rect.fromLTWH(0, 0, 400, 80),
-                        ),
                     ),
                   )
                       .animate(delay: 500.ms)

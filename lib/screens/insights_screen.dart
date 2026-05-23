@@ -151,11 +151,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
                         physics:
                             const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(
-                            20, 16, 20, 180),
+                            20, 4, 20, 180),
                         child: Column(
                           children: [
-                            const _Header(),
-                            const SizedBox(height: 24),
                             InsightsEmptyState(
                               daysTracked: tracked,
                               daysRequired: 7,
@@ -176,7 +174,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                     return SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding:
-                          const EdgeInsets.fromLTRB(20, 16, 20, 180),
+                          const EdgeInsets.fromLTRB(20, 4, 20, 180),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -184,9 +182,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                             refreshing: _refreshing,
                             onRefresh: () => _refresh(),
                           ),
-                          const SizedBox(height: 8),
-                          const _Header(),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           _FilterStrip(
                             value: _filter,
                             onChanged: (f) =>
@@ -398,36 +394,6 @@ class _TopBar extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Insights',
-          style: Theme.of(context)
-              .textTheme
-              .displaySmall
-              ?.copyWith(fontSize: 32),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          'What we’ve discovered about you',
-          style: TextStyle(
-            color: BrandColors.inkDim(context),
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.4,
           ),
         ),
       ],

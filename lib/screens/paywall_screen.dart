@@ -122,17 +122,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
                         height: 1.0,
                       ),
                     ),
-                    Text(
+                    GradientText(
                       'potential.',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.bricolageGrotesque(
-                        color: AppColors.ink,
                         fontSize: 42,
                         height: 1.05,
-                        foreground: Paint()
-                          ..shader = AppColors.primaryGradient.createShader(
-                            const Rect.fromLTWH(0, 0, 320, 70),
-                          ),
                       ),
                     ),
                     if (widget.contextNote != null) ...[

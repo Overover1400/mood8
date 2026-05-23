@@ -157,10 +157,9 @@ class _GratitudeSheetState extends State<GratitudeSheet> {
               const SizedBox(height: 18),
               Center(
                 child: Text(
-                  "Three things you're grateful for",
+                  "Log a gratitude",
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      ),
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
               )
                   .animate()
@@ -169,7 +168,7 @@ class _GratitudeSheetState extends State<GratitudeSheet> {
               const SizedBox(height: 8),
               Center(
                 child: Text(
-                  'Small moments. Big impact.',
+                  "Three small things from today. That's the whole exercise.",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: BrandColors.inkDim(context),

@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../services/analytics_service.dart';
 import '../services/haptic_service.dart';
 import '../theme/app_theme.dart';
 import 'insights_screen.dart';
 import 'progress_screen.dart';
 
-/// Host for the "Progress | Insights" segmented experience that
-/// replaces the Insights bottom-nav tab. Both inner screens keep
-/// their state via an IndexedStack so scroll position survives the
-/// toggle.
+/// Host for the unified "Progress | Insights" experience that replaces
+/// the separate Insights bottom-nav tab. Owns the active sub-view AND
+/// the time-range selector so both share a single top bar; the toggle
+/// + range pill live here, the inner screens render content only.
 class ProgressInsightsTab extends StatefulWidget {
   const ProgressInsightsTab({super.key});
 
@@ -18,6 +20,7 @@ class ProgressInsightsTab extends StatefulWidget {
 
 class ProgressInsightsTabState extends State<ProgressInsightsTab> {
   int _index = 0;
+  int _range = 30;
 
   /// Switches to the Insights sub-view. Used by tutorial / deep links
   /// that previously targeted the standalone Insights tab.
@@ -31,6 +34,13 @@ class ProgressInsightsTabState extends State<ProgressInsightsTab> {
     setState(() => _index = i);
   }
 
+  void _setRange(int days) {
+    if (_range == days) return;
+    HapticFeedback.selectionClick();
+    setState(() => _range = days);
+    AnalyticsService().invalidate();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -40,19 +50,38 @@ class ProgressInsightsTabState extends State<ProgressInsightsTab> {
           SafeArea(
             bottom: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
-              child: _SegmentedToggle(
-                selected: _index,
-                onChanged: _select,
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SegmentedToggle(
+                          selected: _index,
+                          onChanged: _select,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Range selector only matters for Progress — Insights
+                  // is timeline-agnostic — but keep it visible across
+                  // both views so the bar height never shifts when the
+                  // user toggles. On Insights it stays inert visually.
+                  if (_index == 0) ...[
+                    const SizedBox(height: 10),
+                    _RangeSelector(value: _range, onChanged: _setRange),
+                  ],
+                ],
               ),
             ),
           ),
           Expanded(
             child: IndexedStack(
               index: _index,
-              children: const [
-                ProgressScreen(),
-                InsightsScreen(),
+              children: [
+                ProgressScreen(range: _range),
+                const InsightsScreen(),
               ],
             ),
           ),
@@ -70,7 +99,7 @@ class _SegmentedToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 38,
+      height: 40,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: BrandColors.bgCard(context).withValues(alpha: 0.75),
@@ -134,11 +163,73 @@ class _Segment extends StatelessWidget {
             style: TextStyle(
               color: selected ? Colors.white : BrandColors.inkSoft(context),
               fontWeight: FontWeight.w700,
-              fontSize: 13,
+              fontSize: 13.5,
               letterSpacing: 0.2,
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _RangeSelector extends StatelessWidget {
+  const _RangeSelector({required this.value, required this.onChanged});
+
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  static const _options = [7, 30, 90];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: BrandColors.bgCard(context).withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: AppColors.purple.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        children: [
+          for (final d in _options)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => onChanged(d),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: d == value ? AppColors.buttonGradient : null,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: d == value
+                        ? [
+                            BoxShadow(
+                              color: AppColors.pink.withValues(alpha: 0.30),
+                              blurRadius: 10,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Text(
+                    '$d days',
+                    style: TextStyle(
+                      color: d == value
+                          ? Colors.white
+                          : BrandColors.inkDim(context),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

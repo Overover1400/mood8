@@ -1422,7 +1422,12 @@ class _ProfileCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              ColorAvatar(name: name, size: 52, onTap: onEditName),
+              ColorAvatar(
+                name: name,
+                size: 52,
+                onTap: onEditName,
+                avatarUrl: AuthService().currentUser?.avatarAbsoluteUrl(),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
