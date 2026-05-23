@@ -1761,7 +1761,8 @@ class _MiniHabitRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Color(habit.color);
+    final bubbleColor =
+        habit.isAvoid ? AppColors.pinkLight : Color(habit.color);
     final todayValue = repo.getLogForDate(habit.id, DateTime.now())?.value ?? 0;
 
     return Material(
@@ -1779,7 +1780,7 @@ class _MiniHabitRow extends StatelessWidget {
             color: BrandColors.bgCard(context).withValues(alpha: 0.75),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: color.withValues(alpha: 0.20),
+              color: bubbleColor.withValues(alpha: 0.20),
             ),
           ),
           child: Row(
@@ -1792,8 +1793,8 @@ class _MiniHabitRow extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      color.withValues(alpha: 0.55),
-                      color.withValues(alpha: 0.12),
+                      bubbleColor.withValues(alpha: 0.55),
+                      bubbleColor.withValues(alpha: 0.12),
                     ],
                   ),
                 ),

@@ -114,15 +114,21 @@ class AnalyticsService {
   Map<String, double> getIdentityProgress({int days = 30}) {
     return _memo('identityProgress:$days', () {
       final user = _users.getCurrentUser();
+      // Identity progress is a "build" metric — reduce-mode avoid
+      // habits have no target so they always read as 0% complete,
+      // which would unfairly drag the identity score down. Quit
+      // habits stay in (each clean day IS a completion).
+      final eligibleHabits =
+          _habits.getActiveHabits().where((h) => !h.isReduce).toList();
       final identities = <String>{
         ...?user?.identities,
-        for (final h in _habits.getActiveHabits()) h.identity,
+        for (final h in eligibleHabits) h.identity,
       }.where((i) => i.isNotEmpty).toList();
 
       final map = <String, double>{};
       for (final id in identities) {
         final habits =
-            _habits.getActiveHabits().where((h) => h.identity == id).toList();
+            eligibleHabits.where((h) => h.identity == id).toList();
         if (habits.isEmpty) {
           map[id] = 0;
           continue;
@@ -144,7 +150,10 @@ class AnalyticsService {
   List<HabitStats> getTopHabits(int limit, {int days = 30}) {
     return _memo('topHabits:$limit:$days', () {
       final result = <HabitStats>[];
-      for (final h in _habits.getActiveHabits()) {
+      // Reduce-mode habits have no target so a "completion rate"
+      // doesn't apply — surface them via the trend chart on the
+      // habit detail screen instead of the top-habits ranking.
+      for (final h in _habits.getActiveHabits().where((h) => !h.isReduce)) {
         result.add(HabitStats(
           habit: h,
           completionRate: _habits.getCompletionRate(h.id, days),
@@ -351,7 +360,8 @@ class AnalyticsService {
       }
 
       double habitCompletion(int from, int to) {
-        final habits = _habits.getActiveHabits();
+        final habits =
+            _habits.getActiveHabits().where((h) => !h.isReduce).toList();
         if (habits.isEmpty) return 0;
         final dayCount = to - from + 1;
         var scheduled = 0;
@@ -411,7 +421,10 @@ class AnalyticsService {
 
   double getHabitsCompletionRate(int days) {
     return _memo('habitRate:$days', () {
-      final habits = _habits.getActiveHabits();
+      // Exclude reduce habits — they have no target so their rate is
+      // always 0 and would unfairly tank the average.
+      final habits =
+          _habits.getActiveHabits().where((h) => !h.isReduce).toList();
       if (habits.isEmpty) return 0;
       var sum = 0.0;
       for (final h in habits) {
