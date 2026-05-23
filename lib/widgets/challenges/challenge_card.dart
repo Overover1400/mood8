@@ -137,29 +137,32 @@ class ChallengeCard extends StatelessWidget {
                 gaveUpPct: challenge.gaveUpPct,
                 accent: accent,
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.group_rounded,
-                      size: 14, color: BrandColors.inkDim(context)),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${challenge.activeCount} in · ${challenge.participantCount} joined',
-                    style: TextStyle(
-                      color: BrandColors.inkSoft(context),
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
+              const SizedBox(height: 14),
+              // Avatar stack gets its own row + breathing room — this
+              // is the part of the card that proves the challenge is
+              // real (you see actual faces). Up to 10 overlapping
+              // avatars then a "+N" pill for the rest.
+              if (challenge.participantsPreview.isNotEmpty)
+                _ParticipantAvatarStack(
+                  previews: challenge.participantsPreview,
+                  totalActive: challenge.activeCount,
+                ),
+              if (challenge.participantsPreview.isEmpty)
+                Row(
+                  children: [
+                    Icon(Icons.group_rounded,
+                        size: 14, color: BrandColors.inkDim(context)),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Be the first to join',
+                      style: TextStyle(
+                        color: BrandColors.inkSoft(context),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  if (challenge.participantsPreview.isNotEmpty)
-                    _ParticipantAvatarStack(
-                      previews: challenge.participantsPreview,
-                      totalActive: challenge.activeCount,
-                    ),
-                ],
-              ),
+                  ],
+                ),
               const SizedBox(height: 12),
               _EngagementRow(
                 challenge: challenge,
@@ -274,9 +277,12 @@ class _DurationPill extends StatelessWidget {
   }
 }
 
-/// Horizontal stack of up to ~7 visible participant avatars with a
-/// "+N" pill at the end when there are more total active participants
-/// than fit in the row.
+/// Horizontal overlapping avatar stack — up to 10 visible faces with
+/// a "+N" pill on the end when there are more active participants
+/// than fit in the row. Sized so the row reads at a glance (28-pixel
+/// avatars, 10-pixel overlap so neighbours nudge but don't cover
+/// each other) and falls back to gradient-initial fallbacks via
+/// [NetworkAvatar] when a participant has no uploaded photo.
 class _ParticipantAvatarStack extends StatelessWidget {
   const _ParticipantAvatarStack({
     required this.previews,
@@ -285,9 +291,9 @@ class _ParticipantAvatarStack extends StatelessWidget {
   final List<ParticipantPreview> previews;
   final int totalActive;
 
-  static const int _visible = 6;
-  static const double _size = 22;
-  static const double _overlap = 8;
+  static const int _visible = 10;
+  static const double _size = 28;
+  static const double _overlap = 10;
 
   @override
   Widget build(BuildContext context) {
@@ -312,13 +318,46 @@ class _ParticipantAvatarStack extends StatelessWidget {
         child: _OverflowChip(text: '+$overflow'),
       ));
     }
-    final width =
-        shown.length * (_size - _overlap) + _size + (overflow > 0 ? 4 : 0);
-    return SizedBox(
-      height: _size + 2,
-      width: width.toDouble(),
-      child: Stack(clipBehavior: Clip.none, children: children),
+    final stackWidth =
+        shown.length * (_size - _overlap) + _size + (overflow > 0 ? 6 : 0);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          height: _size + 2,
+          width: stackWidth.toDouble(),
+          child: Stack(clipBehavior: Clip.none, children: children),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            _label(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: BrandColors.inkSoft(context),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+      ],
     );
+  }
+
+  String _label() {
+    if (totalActive <= 0) return '';
+    if (totalActive == 1) {
+      final first = previews.first.name;
+      return first;
+    }
+    if (previews.length == 1) {
+      return '${previews.first.name} and ${totalActive - 1} more';
+    }
+    final first = previews.first.name;
+    final rest = totalActive - 1;
+    return '$first + $rest others';
   }
 }
 
@@ -335,7 +374,7 @@ class _OverflowChip extends StatelessWidget {
         shape: BoxShape.circle,
         color: BrandColors.bgCard(context),
         border: Border.all(
-          color: BrandColors.bgDeep(context),
+          color: AppColors.purple.withValues(alpha: 0.35),
           width: 2,
         ),
       ),
@@ -343,7 +382,7 @@ class _OverflowChip extends StatelessWidget {
         text,
         style: TextStyle(
           color: BrandColors.inkSoft(context),
-          fontSize: 9,
+          fontSize: 10,
           fontWeight: FontWeight.w800,
         ),
       ),

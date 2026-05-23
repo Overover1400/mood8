@@ -30,6 +30,9 @@ import '../models/user_profile.dart';
 import '../services/freeze_service.dart';
 
 const String _kAllFilter = '__all__';
+/// Synthetic filter that surfaces only avoid-type habits. Sits next
+/// to the identity chips in [_IdentityFilter].
+const String _kAvoidFilter = '__avoid__';
 
 class HabitsScreen extends StatefulWidget {
   const HabitsScreen({super.key});
@@ -148,11 +151,14 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
                       final scheduled =
                           all.where((h) => h.isScheduledFor(today)).toList();
-                      var visible = _filter == _kAllFilter
-                          ? all
-                          : all
-                              .where((h) => h.identity == _filter)
-                              .toList();
+                      var visible = switch (_filter) {
+                        _kAllFilter => all,
+                        _kAvoidFilter =>
+                          all.where((h) => h.isAvoid).toList(),
+                        _ => all
+                            .where((h) => h.identity == _filter)
+                            .toList(),
+                      };
                       visible = _applySort(visible);
 
                       final completedToday = scheduled.where((h) {
@@ -915,7 +921,11 @@ class _IdentityFilter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final all = [_kAllFilter, ...identities];
+    // Order: All → Bad habits (avoid filter) → identity chips. Bad
+    // habits sits second so the visual "spotlight the avoid set"
+    // affordance is always one tap away, regardless of how many
+    // identity chips scroll off to the right.
+    final all = [_kAllFilter, _kAvoidFilter, ...identities];
     return SizedBox(
       height: 38,
       child: ListView.separated(
@@ -925,7 +935,20 @@ class _IdentityFilter extends StatelessWidget {
         itemBuilder: (context, i) {
           final id = all[i];
           final selected = id == value;
-          final label = id == _kAllFilter ? 'All' : id;
+          final isAvoid = id == _kAvoidFilter;
+          final label = id == _kAllFilter
+              ? 'All'
+              : id == _kAvoidFilter
+                  ? 'Bad habits'
+                  : id;
+          final selectedGradient = isAvoid
+              ? const LinearGradient(
+                  colors: [Color(0xFFEC4899), Color(0xFFFB7185)],
+                )
+              : AppColors.buttonGradient;
+          final selectedShadow = isAvoid
+              ? AppColors.pinkLight.withValues(alpha: 0.40)
+              : AppColors.pink.withValues(alpha: 0.35);
           return GestureDetector(
             onTap: () {
               HapticService().selection();
@@ -936,8 +959,7 @@ class _IdentityFilter extends StatelessWidget {
               padding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                gradient:
-                    selected ? AppColors.buttonGradient : null,
+                gradient: selected ? selectedGradient : null,
                 color: selected
                     ? null
                     : BrandColors.bgCard(context).withValues(alpha: 0.7),
@@ -945,25 +967,44 @@ class _IdentityFilter extends StatelessWidget {
                 border: Border.all(
                   color: selected
                       ? Colors.transparent
-                      : AppColors.purple.withValues(alpha: 0.20),
+                      : (isAvoid
+                          ? AppColors.pinkLight.withValues(alpha: 0.30)
+                          : AppColors.purple.withValues(alpha: 0.20)),
                 ),
                 boxShadow: selected
                     ? [
                         BoxShadow(
-                          color: AppColors.pink.withValues(alpha: 0.35),
+                          color: selectedShadow,
                           blurRadius: 14,
                         ),
                       ]
                     : null,
               ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: selected ? Colors.white : BrandColors.inkSoft(context),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                  letterSpacing: 0.3,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isAvoid) ...[
+                    Icon(
+                      Icons.do_not_disturb_alt_rounded,
+                      size: 12,
+                      color: selected
+                          ? Colors.white
+                          : AppColors.pinkLight,
+                    ),
+                    const SizedBox(width: 5),
+                  ],
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: selected
+                          ? Colors.white
+                          : BrandColors.inkSoft(context),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
               ),
             ),
           );

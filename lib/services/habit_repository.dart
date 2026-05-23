@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/frequency.dart';
@@ -20,6 +21,112 @@ class HabitRepository {
 
   Box<Habit> get _habitBox => _db.habitBox;
   Box<HabitLog> get _logBox => _db.habitLogBox;
+
+  // ─── Shadow store (counter-loss bug fix) ─────────────────────────────
+  //
+  // Hive 2.x's IndexedDB backend on web has a hard reliability gap: each
+  // `box.put` opens a brand-new readwrite transaction, and the Future
+  // returned by `put` resolves as soon as the request succeeds — NOT
+  // when the transaction commits. The transaction commits later, when
+  // the microtask queue drains. If the user backgrounds the PWA in
+  // that gap (or the browser freezes the tab), the transaction is
+  // aborted and the write is lost. `box.flush()` is a literal no-op on
+  // web (`Future.value()`), so the previous "await flush()" fix did
+  // nothing there.
+  //
+  // The shadow store mirrors every counter / yes-no write to
+  // SharedPreferences. On web that's `window.localStorage`, which is
+  // synchronous — by the time `setInt` returns the data is in DOM
+  // storage and survives a tab freeze. On Android / iOS we still get
+  // a fast native write that's much harder to lose than Hive's queue.
+  //
+  // On app start we hydrate the shadow into Hive: any key whose
+  // shadow value disagrees with (or is missing from) Hive gets
+  // replayed via `logHabit` so the box matches the durable record.
+
+  static const _kShadowPrefix = 'mood8.todayLog.';
+
+  /// Cached SharedPreferences instance — keep a reference so the
+  /// shadow write inside `logHabit` doesn't have to re-await
+  /// `getInstance()` on every tap.
+  SharedPreferences? _prefs;
+
+  /// Initialise the shadow store and replay any pending writes into
+  /// Hive. Call this once at app start, AFTER `DatabaseService.init`.
+  /// Safe to call multiple times.
+  Future<void> ensureShadowReady() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    await _hydrateShadow();
+  }
+
+  String _shadowKey(String habitId, DateTime dayKey) {
+    final d = '${dayKey.year}-${dayKey.month}-${dayKey.day}';
+    return '$_kShadowPrefix$habitId|$d';
+  }
+
+  Future<void> _writeShadow(
+      String habitId, DateTime dayKey, int value) async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs ??= prefs;
+    try {
+      await prefs.setInt(_shadowKey(habitId, dayKey), value);
+    } catch (e) {
+      debugPrint('[HabitRepository] shadow write failed: $e');
+    }
+  }
+
+  Future<void> _hydrateShadow() async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    final keys =
+        prefs.getKeys().where((k) => k.startsWith(_kShadowPrefix)).toList();
+    final cutoff = DateTime.now().subtract(const Duration(days: 7));
+    for (final key in keys) {
+      // Format: mood8.todayLog.<habitId>|<yyyy-m-d>
+      final rest = key.substring(_kShadowPrefix.length);
+      final sep = rest.lastIndexOf('|');
+      if (sep <= 0) continue;
+      final habitId = rest.substring(0, sep);
+      final dateStr = rest.substring(sep + 1);
+      final dateParts = dateStr.split('-');
+      if (dateParts.length != 3) continue;
+      DateTime dayKey;
+      try {
+        dayKey = DateTime(
+          int.parse(dateParts[0]),
+          int.parse(dateParts[1]),
+          int.parse(dateParts[2]),
+        );
+      } catch (_) {
+        continue;
+      }
+      // Old shadows past the retention window get reaped so prefs
+      // don't grow unbounded.
+      if (dayKey.isBefore(cutoff)) {
+        await prefs.remove(key);
+        continue;
+      }
+      final shadowValue = prefs.getInt(key);
+      if (shadowValue == null) continue;
+      final existing = _findLog(habitId, dayKey);
+      if (existing == null || existing.value != shadowValue) {
+        debugPrint(
+            '[HabitRepository] hydrating shadow: habit=$habitId day=$dayKey '
+            'shadow=$shadowValue hive=${existing?.value}');
+        // Write the shadow value through Hive. Pass _skipShadow=true
+        // so we don't re-write the shadow we just read from.
+        try {
+          await _writeLog(
+              habitId: habitId,
+              value: shadowValue,
+              date: dayKey,
+              skipShadow: true);
+        } catch (e) {
+          debugPrint('[HabitRepository] hydrate failed for $habitId: $e');
+        }
+      }
+    }
+  }
 
   // ─── Habits ───────────────────────────────────────────────────────────
 
@@ -155,10 +262,36 @@ class HabitRepository {
     required int value,
     DateTime? date,
     String? note,
+  }) =>
+      _writeLog(
+        habitId: habitId,
+        value: value,
+        date: date,
+        note: note,
+        skipShadow: false,
+      );
+
+  /// Inner write — separated from [logHabit] so the shadow-hydration
+  /// path can replay a write without bouncing back to the shadow.
+  Future<HabitLog> _writeLog({
+    required String habitId,
+    required int value,
+    DateTime? date,
+    String? note,
+    required bool skipShadow,
   }) async {
     final habit = _habitBox.get(habitId);
     final target = habit?.effectiveTarget ?? 1;
     final on = _dayKey(date ?? DateTime.now());
+
+    // SHADOW WRITE FIRST. SharedPreferences uses window.localStorage
+    // on web (synchronous) and a native API on Android/iOS — both
+    // far more reliable for fast-write-then-background than Hive
+    // 2.x's IndexedDB transaction model. Do this BEFORE the Hive
+    // write so the shadow is durable even if Hive's await throws.
+    if (!skipShadow) {
+      await _writeShadow(habitId, on, value);
+    }
 
     final existing = _findLog(habitId, on);
     if (existing != null) {
@@ -167,12 +300,6 @@ class HabitRepository {
       existing.timestamp = DateTime.now();
       existing.updatedAt = DateTime.now();
       if (note != null) existing.note = note;
-      // Round-trip through put() rather than HiveObject.save() so we
-      // get the same write semantics as new logs — and follow with
-      // an explicit flush() so the counter value survives the user
-      // backgrounding the app immediately after a tap. Hive's
-      // HiveObject.save() queues a disk write but doesn't guarantee
-      // fsync — flush() does.
       await _logBox.put(existing.id, existing);
       await _logBox.flush();
       SyncService().debouncedPush();

@@ -15,6 +15,7 @@ import 'services/database_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/effects_service.dart';
 import 'services/freeze_service.dart';
+import 'services/habit_repository.dart';
 import 'services/haptic_service.dart';
 import 'services/notification_feed_service.dart';
 import 'services/reminder_service.dart';
@@ -31,6 +32,12 @@ import 'theme/app_theme_light.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DatabaseService.instance.init();
+  // Hydrate the SharedPreferences shadow store BEFORE first frame —
+  // if a counter-habit tap from a prior session didn't reach Hive
+  // because the user backgrounded mid-IndexedDB-transaction, this
+  // replays the durable shadow into the Hive box so the home Today
+  // list paints the right number on cold start.
+  await HabitRepository().ensureShadowReady();
   if (UserRepository().isOnboardingComplete()) {
     await RoutineRepository().seedDefaultRoutines();
   }

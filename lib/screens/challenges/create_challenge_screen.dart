@@ -9,9 +9,13 @@ import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/responsive_container.dart';
 
-/// Visual vocabulary deliberately mirrors `add_habit_sheet.dart` — same
-/// underline fields, segmented chip rows, gradient save pill — so
-/// creating a challenge feels like the same flow as creating a habit.
+/// Visual vocabulary intentionally mirrors `add_habit_sheet.dart` —
+/// same drag-handle header, `_Label` ALL-CAPS section headers,
+/// `_UnderlineField` text inputs, segmented `_Tabs` rows, category
+/// chips with icon-bubble selection, and the same Cancel + gradient
+/// Save action footer. A user toggling between "new habit" and
+/// "new challenge" should feel like they're filling out the same
+/// form with different fields.
 class CreateChallengeScreen extends StatefulWidget {
   const CreateChallengeScreen({super.key});
 
@@ -64,9 +68,13 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
     if (_submitting) return;
     final title = _titleCtrl.text.trim();
     final description = _descCtrl.text.trim();
-    if (title.length < 3 || description.length < 10) {
+    if (title.length < 3) {
+      setState(() => _formError = 'Give this challenge a name.');
+      return;
+    }
+    if (description.length < 10) {
       setState(() => _formError =
-          'Add a title and a description (10+ characters).');
+          'Describe what showing up looks like each day (10+ characters).');
       return;
     }
     int? max;
@@ -128,134 +136,189 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
         onEdit: () => setState(() => _rejection = null),
       );
     }
+    final viewInsets = MediaQuery.viewInsetsOf(context).bottom;
     return Scaffold(
       backgroundColor: BrandColors.bgDeep(context),
       body: SafeArea(
-        child: ResponsiveContainer(
-          maxWidth: 600,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 6, 24, 32),
-            children: [
-              _TopBar(onClose: () => Navigator.of(context).maybePop()),
-              const SizedBox(height: 4),
-              Text(
-                'New challenge',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Mood8 quickly reviews each one — anything risky to health '
-                'gets flagged kindly.',
-                style: TextStyle(
-                  color: BrandColors.inkSoft(context),
-                  fontSize: 13,
-                  height: 1.45,
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: viewInsets),
+          child: ResponsiveContainer(
+            maxWidth: 600,
+            child: Container(
+              // Mirror the bottom-sheet gradient body from
+              // add_habit_sheet so the surface itself reads as
+              // "you're filling out a form".
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    BrandColors.bg(context),
+                    BrandColors.bgDeep(context),
+                  ],
                 ),
               ),
-              const SizedBox(height: 22),
-              const _Label('Category'),
-              const SizedBox(height: 8),
-              _CategoryChips(
-                current: _category,
-                onChanged: (c) {
-                  HapticFeedback.selectionClick();
-                  setState(() => _category = c);
-                },
-              ),
-              const SizedBox(height: 20),
-              const _Label('Title'),
-              const SizedBox(height: 8),
-              _UnderlineField(
-                controller: _titleCtrl,
-                focusNode: _titleFocus,
-                hint: '30 days of meditation',
-                maxLength: 80,
-              ),
-              const SizedBox(height: 20),
-              const _Label('What does each day look like?'),
-              const SizedBox(height: 8),
-              _UnderlineField(
-                controller: _descCtrl,
-                hint: 'How does someone show up every day?',
-                maxLength: 600,
-                minLines: 3,
-                maxLines: 5,
-              ),
-              const SizedBox(height: 20),
-              const _Label('Duration'),
-              const SizedBox(height: 8),
-              _DurationTabs(
-                current: _durationDays,
-                onChanged: (d) {
-                  HapticFeedback.selectionClick();
-                  setState(() => _durationDays = d);
-                },
-              ),
-              const SizedBox(height: 20),
-              const _Label('Daily deadline'),
-              const SizedBox(height: 8),
-              _DeadlineTile(
-                value: _deadlineLocal,
-                onTap: _pickDeadline,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Check in before this each day to keep your rank in the '
-                'challenge.',
-                style: TextStyle(
-                  color: BrandColors.inkDim(context),
-                  fontSize: 12,
-                  height: 1.4,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 6, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Sheet-style drag handle even though we render
+                    // full-screen — same affordance, same visual
+                    // hierarchy as add_habit.
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        margin: const EdgeInsets.only(top: 8, bottom: 14),
+                        decoration: BoxDecoration(
+                          color: BrandColors.inkFaint(context)
+                              .withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'New challenge',
+                            style:
+                                Theme.of(context).textTheme.headlineMedium,
+                          ),
+                        ),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: Icon(Icons.close_rounded,
+                              color: BrandColors.inkSoft(context)),
+                          onPressed: () =>
+                              Navigator.of(context).maybePop(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Mood8 quickly reviews each one — anything risky '
+                      'to health gets flagged kindly.',
+                      style: TextStyle(
+                        color: BrandColors.inkSoft(context),
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    const _Label('Category'),
+                    const SizedBox(height: 8),
+                    _CategoryChipRow(
+                      current: _category,
+                      onChanged: (c) {
+                        HapticFeedback.selectionClick();
+                        setState(() => _category = c);
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    const _Label('Title'),
+                    const SizedBox(height: 8),
+                    _UnderlineField(
+                      controller: _titleCtrl,
+                      focusNode: _titleFocus,
+                      hint: '30 days of meditation',
+                      maxLength: 80,
+                    ),
+                    const SizedBox(height: 18),
+                    const _Label('What does each day look like?'),
+                    const SizedBox(height: 8),
+                    _UnderlineField(
+                      controller: _descCtrl,
+                      hint: 'How does someone show up every day?',
+                      maxLength: 600,
+                      minLines: 3,
+                      maxLines: 5,
+                    ),
+                    const SizedBox(height: 18),
+                    const _Label('Duration'),
+                    const SizedBox(height: 8),
+                    _DurationTabs(
+                      current: _durationDays,
+                      onChanged: (d) {
+                        HapticFeedback.selectionClick();
+                        setState(() => _durationDays = d);
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    const _Label('Daily deadline'),
+                    const SizedBox(height: 8),
+                    _DeadlineTile(
+                      value: _deadlineLocal,
+                      onTap: _pickDeadline,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Participants check in before this each day to keep '
+                      'their rank in the challenge.',
+                      style: TextStyle(
+                        color: BrandColors.inkDim(context),
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const _Label('Participant limit'),
+                    const SizedBox(height: 8),
+                    _LimitToggle(
+                      limit: _limitParticipants,
+                      controller: _maxCtrl,
+                      onToggle: (v) {
+                        HapticFeedback.selectionClick();
+                        setState(() => _limitParticipants = v);
+                      },
+                    ),
+                    if (_formError != null) ...[
+                      const SizedBox(height: 14),
+                      Text(
+                        _formError!,
+                        style: const TextStyle(
+                          color: Color(0xFFFF6B81),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 26),
+                    Row(
+                      children: [
+                        const Spacer(),
+                        OutlinedButton(
+                          onPressed: _submitting
+                              ? null
+                              : () => Navigator.of(context).pop(),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: BrandColors.inkSoft(context),
+                            side: BorderSide(
+                              color: AppColors.purple
+                                  .withValues(alpha: 0.35),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                          ),
+                          child: const Text('Cancel'),
+                        ),
+                        const SizedBox(width: 10),
+                        _PublishButton(onTap: _submit),
+                      ],
+                    )
+                        .animate()
+                        .fadeIn(delay: 60.ms, duration: 350.ms),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              const _Label('Participant limit'),
-              const SizedBox(height: 8),
-              _LimitToggle(
-                limit: _limitParticipants,
-                controller: _maxCtrl,
-                onToggle: (v) {
-                  HapticFeedback.selectionClick();
-                  setState(() => _limitParticipants = v);
-                },
-              ),
-              if (_formError != null) ...[
-                const SizedBox(height: 14),
-                Text(
-                  _formError!,
-                  style: const TextStyle(
-                    color: Color(0xFFFF6B81),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 26),
-              _PublishButton(onTap: _submit),
-            ]
-                .map((w) => w
-                    .animate()
-                    .fadeIn(duration: 320.ms)
-                    .slideY(begin: 0.02, end: 0))
-                .toList(),
+            ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onClose});
-  final VoidCallback onClose;
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: IconButton(
-        icon: Icon(Icons.close_rounded,
-            color: BrandColors.inkSoft(context)),
-        onPressed: onClose,
       ),
     );
   }
@@ -329,8 +392,13 @@ class _UnderlineField extends StatelessWidget {
   }
 }
 
-class _CategoryChips extends StatelessWidget {
-  const _CategoryChips({required this.current, required this.onChanged});
+/// Category chip row with the same color-keyed selected gradient +
+/// glow shadow as the CategoryChip used by add_habit_sheet. Categories
+/// here are challenge categories (health/fitness/etc), not the routine
+/// categories that CategoryChip is hard-coded to — so we re-implement
+/// the same visual style inline rather than retrofit that widget.
+class _CategoryChipRow extends StatelessWidget {
+  const _CategoryChipRow({required this.current, required this.onChanged});
   final String current;
   final ValueChanged<String> onChanged;
 
@@ -341,55 +409,101 @@ class _CategoryChips extends StatelessWidget {
       runSpacing: 8,
       children: [
         for (final c in kChallengeCategories)
-          GestureDetector(
+          _CategoryChip(
+            label: prettyCategory(c),
+            icon: _iconForCategory(c),
+            color: _colorForCategory(c),
+            selected: c == current,
             onTap: () => onChanged(c),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                gradient:
-                    c == current ? AppColors.buttonGradient : null,
-                color: c == current
-                    ? null
-                    : BrandColors.bgCard(context).withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: c == current
-                      ? Colors.transparent
-                      : AppColors.purple.withValues(alpha: 0.20),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _iconForCategory(c),
-                    color: c == current
-                        ? Colors.white
-                        : BrandColors.inkSoft(context),
-                    size: 13,
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    prettyCategory(c),
-                    style: TextStyle(
-                      color: c == current
-                          ? Colors.white
-                          : BrandColors.inkSoft(context),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
       ],
     );
   }
 }
 
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: selected
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    color.withValues(alpha: 0.85),
+                    color.withValues(alpha: 0.55),
+                  ],
+                )
+              : null,
+          color: selected
+              ? null
+              : BrandColors.bgCard(context).withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected
+                ? color.withValues(alpha: 0.75)
+                : AppColors.purple.withValues(alpha: 0.18),
+            width: 1,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.35),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 16,
+                color:
+                    selected ? Colors.white : BrandColors.inkSoft(context)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color:
+                    selected ? Colors.white : BrandColors.inkSoft(context),
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Segmented duration tabs — same surface treatment as add_habit's
+/// `_TypeTabs`: pill container, gradient on the selected segment,
+/// muted ink for the rest.
 class _DurationTabs extends StatelessWidget {
   const _DurationTabs({required this.current, required this.onChanged});
   final int current;
@@ -555,6 +669,8 @@ class _LimitToggle extends StatelessWidget {
   }
 }
 
+/// Same gradient pill shape and shadow as `_SaveButton` from
+/// add_habit_sheet — just a different label + icon.
 class _PublishButton extends StatelessWidget {
   const _PublishButton({required this.onTap});
   final VoidCallback onTap;
@@ -563,31 +679,30 @@ class _PublishButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 54,
-        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
         decoration: BoxDecoration(
           gradient: AppColors.buttonGradient,
-          borderRadius: BorderRadius.circular(27),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: AppColors.pink.withValues(alpha: 0.45),
-              blurRadius: 24,
-              offset: const Offset(0, 6),
+              color: AppColors.pink.withValues(alpha: 0.40),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: const [
             Icon(Icons.auto_awesome_rounded,
-                color: Colors.white, size: 18),
-            SizedBox(width: 8),
+                color: Colors.white, size: 14),
+            SizedBox(width: 6),
             Text(
-              'Publish challenge',
+              'Publish',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 15,
                 fontWeight: FontWeight.w800,
+                fontSize: 13,
                 letterSpacing: 0.3,
               ),
             ),
@@ -778,5 +893,24 @@ IconData _iconForCategory(String c) {
       return Icons.groups_rounded;
     default:
       return Icons.flag_rounded;
+  }
+}
+
+Color _colorForCategory(String c) {
+  switch (c.toLowerCase()) {
+    case 'health':
+      return AppColors.pinkLight;
+    case 'fitness':
+      return AppColors.purple;
+    case 'mindfulness':
+      return AppColors.blueAccent;
+    case 'productivity':
+      return AppColors.purpleLight;
+    case 'learning':
+      return AppColors.blueAccent;
+    case 'social':
+      return AppColors.pink;
+    default:
+      return AppColors.purpleLight;
   }
 }
