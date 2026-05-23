@@ -16,6 +16,7 @@ import 'services/deep_link_service.dart';
 import 'services/effects_service.dart';
 import 'services/freeze_service.dart';
 import 'services/haptic_service.dart';
+import 'services/notification_feed_service.dart';
 import 'services/reminder_service.dart';
 import 'services/sync_service.dart';
 import 'widgets/tutorial_overlay.dart';
@@ -80,6 +81,10 @@ Future<void> main() async {
       SyncService().pullChanges();
     });
     SyncService().startPeriodicSync();
+    // Cold-start notification poll so the header bell badge is
+    // accurate the first time it paints.
+    // ignore: discarded_futures
+    NotificationFeedService().refresh();
   }
   runApp(const Mood8App());
 }
@@ -144,6 +149,11 @@ class _Mood8AppState extends State<Mood8App> with WidgetsBindingObserver {
     // the app was backgrounded.
     // ignore: discarded_futures
     AuthService().refreshMe();
+    // Refresh the notification feed so the bell badge updates if a
+    // join request landed / cron ended a challenge / etc. while we
+    // were backgrounded.
+    // ignore: discarded_futures
+    NotificationFeedService().refresh();
   }
 
   @override

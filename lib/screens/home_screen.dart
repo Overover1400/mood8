@@ -24,10 +24,12 @@ import '../services/habit_repository.dart';
 import '../services/haptic_service.dart';
 import '../services/intention_repository.dart';
 import '../services/reminder_service.dart';
+import '../services/notification_feed_service.dart';
 import '../services/weekly_recap_service.dart';
 import '../services/pattern_detection_service.dart';
 import '../models/pattern_alert.dart';
 import '../widgets/pattern_alert_card.dart';
+import 'notifications_screen.dart';
 import 'patterns_screen.dart';
 import '../widgets/tutorial_overlay.dart';
 import '../widgets/tutorial_targets.dart';
@@ -589,6 +591,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                               onAddTap: _openHomeAddSheet,
+                              onOpenNotifications: () =>
+                                  Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const NotificationsScreen(),
+                                ),
+                              ),
                             );
                           },
                         ),
@@ -920,6 +928,7 @@ class _Header extends StatelessWidget {
     required this.onLongPressName,
     required this.onOpenSettings,
     required this.onAddTap,
+    required this.onOpenNotifications,
   });
 
   final String name;
@@ -933,6 +942,7 @@ class _Header extends StatelessWidget {
   final VoidCallback onLongPressName;
   final VoidCallback onOpenSettings;
   final VoidCallback onAddTap;
+  final VoidCallback onOpenNotifications;
 
   String _firstName(String full) {
     final t = full.trim();
@@ -977,6 +987,8 @@ class _Header extends StatelessWidget {
               tone: AppColors.blueAccent,
             ),
             const SizedBox(width: 10),
+            _HeaderBellButton(onTap: onOpenNotifications),
+            const SizedBox(width: 6),
             _HeaderAddButton(onTap: onAddTap),
             const SizedBox(width: 8),
             ColorAvatar(
@@ -1173,6 +1185,95 @@ class _HeaderAddButton extends StatelessWidget {
         child: const Icon(Icons.add_rounded,
             color: Colors.white, size: 22),
       ),
+    );
+  }
+}
+
+/// Bell icon in the header. Tap → notifications screen. Rebuilds
+/// reactively from NotificationFeedService.unreadCount; shows a small
+/// pink badge with the count (or 9+ when more) over the bell.
+class _HeaderBellButton extends StatelessWidget {
+  const _HeaderBellButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<int>(
+      valueListenable: NotificationFeedService().unreadCount,
+      builder: (_, unread, _) {
+        return GestureDetector(
+          onTap: onTap,
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: BrandColors.bgCard(context)
+                          .withValues(alpha: 0.85),
+                      border: Border.all(
+                        color: unread > 0
+                            ? AppColors.pinkLight.withValues(alpha: 0.55)
+                            : AppColors.purple.withValues(alpha: 0.30),
+                      ),
+                      boxShadow: unread > 0
+                          ? [
+                              BoxShadow(
+                                color: AppColors.pink.withValues(alpha: 0.35),
+                                blurRadius: 12,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Icon(
+                      Icons.notifications_rounded,
+                      color: unread > 0
+                          ? AppColors.pinkLight
+                          : BrandColors.inkSoft(context),
+                      size: 18,
+                    ),
+                  ),
+                ),
+                if (unread > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      constraints: const BoxConstraints(
+                          minWidth: 18, minHeight: 18),
+                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.buttonGradient,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: BrandColors.bgDeep(context),
+                          width: 1.5,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        unread > 9 ? '9+' : '$unread',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
