@@ -46,9 +46,8 @@ class HighlightCard extends StatelessWidget {
             item.value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: BrandColors.ink(context),
-              fontStyle: FontStyle.italic,
               fontSize: 19,
               height: 1.1,
             ),

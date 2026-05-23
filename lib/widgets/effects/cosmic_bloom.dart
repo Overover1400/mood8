@@ -536,9 +536,8 @@ class _Toast extends StatelessWidget {
                       const SizedBox(width: 10),
                       Text(
                         'Beautiful day, $name.',
-                        style: GoogleFonts.instrumentSerif(
+                        style: GoogleFonts.bricolageGrotesque(
                           color: BrandColors.ink(context),
-                          fontStyle: FontStyle.italic,
                           fontSize: 22,
                           height: 1.0,
                         ),

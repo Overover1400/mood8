@@ -108,7 +108,6 @@ class FreezeModal extends StatelessWidget {
                   'Freeze your streak?',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontStyle: FontStyle.italic,
                       ),
                 ),
               ),

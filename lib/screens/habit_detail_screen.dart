@@ -448,9 +448,8 @@ class _StatBox extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: BrandColors.ink(context),
-              fontStyle: FontStyle.italic,
               fontSize: 22,
               height: 1.0,
             ),
@@ -535,9 +534,8 @@ class _LogTile extends StatelessWidget {
           ),
           Text(
             '${log.value} / ${log.targetValue}',
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: BrandColors.ink(context),
-              fontStyle: FontStyle.italic,
               fontSize: 15,
             ),
           ),

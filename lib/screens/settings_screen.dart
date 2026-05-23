@@ -1416,9 +1416,8 @@ class _ProfileCard extends StatelessWidget {
                       onTap: onEditName,
                       child: Text(
                         name,
-                        style: GoogleFonts.instrumentSerif(
+                        style: GoogleFonts.bricolageGrotesque(
                           color: BrandColors.ink(context),
-                          fontStyle: FontStyle.italic,
                           fontSize: 24,
                           height: 1.0,
                         ),
@@ -1480,9 +1479,8 @@ class _IdentityPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.instrumentSerif(
+        style: GoogleFonts.bricolageGrotesque(
           color: BrandColors.ink(context),
-          fontStyle: FontStyle.italic,
           fontSize: 13,
         ),
       ),

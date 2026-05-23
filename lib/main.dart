@@ -408,9 +408,8 @@ class _RestoringScreen extends StatelessWidget {
             const SizedBox(height: 24),
             Text(
               'Bringing your world back…',
-              style: GoogleFonts.instrumentSerif(
+              style: GoogleFonts.bricolageGrotesque(
                 color: const Color(0xFFFAF5FF),
-                fontStyle: FontStyle.italic,
                 fontSize: 22,
               ),
             ),

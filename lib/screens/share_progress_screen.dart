@@ -207,9 +207,8 @@ class _Header extends StatelessWidget {
           Expanded(
             child: Text(
               'Share your progress',
-              style: GoogleFonts.instrumentSerif(
+              style: GoogleFonts.bricolageGrotesque(
                 color: BrandColors.ink(context),
-                fontStyle: FontStyle.italic,
                 fontSize: 26,
               ),
             ),

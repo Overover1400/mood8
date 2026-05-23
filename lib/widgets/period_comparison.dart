@@ -67,9 +67,8 @@ class PeriodComparisonRow extends StatelessWidget {
                       TextSpan(
                         text:
                             '${comparison.current.toStringAsFixed(1)}${comparison.unit}',
-                        style: GoogleFonts.instrumentSerif(
+                        style: GoogleFonts.bricolageGrotesque(
                           color: BrandColors.ink(context),
-                          fontStyle: FontStyle.italic,
                           fontSize: 22,
                           height: 1.0,
                         ),

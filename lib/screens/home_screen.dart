@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,7 +13,6 @@ import '../models/gratitude_entry.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/mood_entry.dart';
-import '../models/morning_intention.dart';
 import '../models/reflection.dart';
 import '../models/routine_item.dart';
 import '../models/sfx_type.dart';
@@ -19,7 +20,6 @@ import '../models/user_profile.dart';
 import '../services/adaptive_routine_service.dart';
 import '../services/badge_service.dart';
 import '../services/effects_service.dart';
-import '../services/gratitude_repository.dart';
 import '../services/habit_repository.dart';
 import '../services/haptic_service.dart';
 import '../services/intention_repository.dart';
@@ -32,7 +32,6 @@ import 'patterns_screen.dart';
 import '../widgets/tutorial_overlay.dart';
 import '../widgets/tutorial_targets.dart';
 import 'year_in_review_screen.dart';
-import 'challenges/challenges_list_screen.dart';
 import '../services/milestone_service.dart';
 import '../services/mood_repository.dart';
 import '../services/onboarding_service.dart';
@@ -52,7 +51,6 @@ import '../widgets/gratitude_sheet.dart';
 import '../widgets/habit_log_button.dart';
 import '../widgets/intention_sheet.dart';
 import 'weekly_recap_screen.dart';
-import '../widgets/mood_orb.dart';
 import '../widgets/adaptive_suggestion_card.dart';
 import '../widgets/reflection_card.dart';
 import '../widgets/responsive_container.dart';
@@ -77,7 +75,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final ReflectionRepository _reflections = ReflectionRepository();
   final HabitRepository _habits = HabitRepository();
   final IntentionRepository _intentions = IntentionRepository();
-  final GratitudeRepository _gratitude = GratitudeRepository();
   final ScoreService _score = ScoreService();
   final AdaptiveRoutineService _adaptive = AdaptiveRoutineService();
 
@@ -110,6 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _maybeAwardBadgesOnOpen();
     _maybeRunPatternDetection();
     _maybeShowGuestNudge();
+    _hydrateTodayMood();
     // Tutorial-gated prompts: intention + recap banner only after the
     // tutorial completes (or if it was already completed in a prior
     // session). The notifier listener fires both immediately (if the
@@ -121,9 +119,26 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// If the user already checked in today, prefill the sliders with
+  /// today's values so further adjustments update the same entry
+  /// instead of overwriting from the defaults.
+  void _hydrateTodayMood() {
+    final today = _moods.getTodayEntry();
+    if (today == null) return;
+    setState(() {
+      _mood = (today.mood / 10).clamp(0.0, 1.0);
+      _energy = (today.energy / 10).clamp(0.0, 1.0);
+      _focus = (today.focus / 10).clamp(0.0, 1.0);
+      // Don't arm the auto-save baseline — opening Home shouldn't
+      // re-save the existing entry.
+      _initialMoodLoaded = false;
+    });
+  }
+
   @override
   void dispose() {
     tutorialCompletedNotifier.removeListener(_onTutorialStateChange);
+    _autoSaveTimer?.cancel();
     super.dispose();
   }
 
@@ -432,6 +447,103 @@ class _HomeScreenState extends State<HomeScreen> {
   double _energy = 0.58;
   double _focus = 0.65;
   bool _saving = false;
+  // Auto-save debounce: every slider interaction restarts the timer;
+  // after ~2 s of quiet we silently upsert today's mood entry and
+  // pulse `_savedFlash` true for ~1 s to show the "Saved ✓" stamp.
+  Timer? _autoSaveTimer;
+  bool _savedFlash = false;
+  bool _initialMoodLoaded = false;
+
+  /// Called by every slider's onChanged. Updates local state + resets
+  /// the auto-save countdown. The first interaction also flips a flag
+  /// so we never auto-save the default (unedited) values.
+  void _onSliderChange(void Function() apply) {
+    apply();
+    _initialMoodLoaded = true;
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(seconds: 2), _runAutoSave);
+  }
+
+  Future<void> _runAutoSave() async {
+    if (!_initialMoodLoaded) return;
+    if (_saving) return;
+    final wasNewEntry = _moods.getTodayEntry() == null;
+    setState(() => _saving = true);
+    try {
+      await _moods.upsertTodayEntry(
+        mood: _mood * 10,
+        energy: _energy * 10,
+        focus: _focus * 10,
+      );
+      HapticService().selection();
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _savedFlash = true;
+      });
+      Future<void>.delayed(const Duration(milliseconds: 1200), () {
+        if (mounted) setState(() => _savedFlash = false);
+      });
+      // First save of the day cascades into the existing post-checkin
+      // side-effects (streak milestone celebration, badges, reminder
+      // suppression). Subsequent slider tweaks are silent updates.
+      if (!wasNewEntry) return;
+      final streak = _moods.calculateStreak();
+      final hitMilestone = _kStreakMilestones.contains(streak);
+      if (hitMilestone) {
+        SfxService().fire(SfxType.streakMilestone);
+        // ignore: discarded_futures
+        HapticService().reward();
+        EffectsService().celebrateStreakMilestone(
+          context: context,
+          days: streak,
+        );
+      } else {
+        SfxService().fire(SfxType.checkInSuccess);
+        EffectsService().celebrateHabitComplete(context: context);
+      }
+      final earned = await MilestoneService().checkStreak(streak);
+      if (earned != null && mounted && !hitMilestone) {
+        EffectsService().celebrateStreakMilestone(
+          context: context,
+          days: streak,
+        );
+      }
+      Future<void>.delayed(const Duration(milliseconds: 1400), () async {
+        final awarded = await BadgeService().checkAndAwardBadges();
+        if (awarded.isNotEmpty && mounted) {
+          await showBadgeUnlockQueue(context, awarded);
+        }
+      });
+      // ignore: unawaited_futures
+      ReminderService().onMoodLogged();
+    } catch (e) {
+      SfxService().fire(SfxType.errorGentle);
+      HapticService().heavy();
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  /// Bottom sheet from the header "+" button. Two quick actions —
+  /// intention and gratitude — both replace what used to live on Home
+  /// as standalone banners.
+  Future<void> _openHomeAddSheet() async {
+    HapticService().light();
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _HomeAddSheet(
+        onIntention: () {
+          Navigator.of(ctx).maybePop();
+          _openIntentionSheet();
+        },
+        onGratitude: () {
+          Navigator.of(ctx).maybePop();
+          _openGratitudeSheet();
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -467,6 +579,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   builder: (_) => const SettingsScreen(),
                                 ),
                               ),
+                              onAddTap: _openHomeAddSheet,
                             );
                           },
                         ),
@@ -556,23 +669,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 end: 0,
                                 curve: Curves.easeOutCubic),
                       ],
-                      const SizedBox(height: 18),
-                      _ChallengesEntry(
-                        onTap: () {
-                          HapticService().light();
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const ChallengesListScreen(),
-                            ),
-                          );
-                        },
-                      )
-                          .animate()
-                          .fadeIn(delay: 100.ms, duration: 450.ms)
-                          .slideY(
-                              begin: 0.05,
-                              end: 0,
-                              curve: Curves.easeOutCubic),
+                      // Challenges entry card removed — Challenges is now
+                      // a bottom-nav tab.
                       ValueListenableBuilder<Box<PatternAlert>>(
                         valueListenable:
                             PatternDetectionService().watch(),
@@ -600,100 +698,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         },
                       ),
-                      ValueListenableBuilder<Box<MorningIntention>>(
-                        valueListenable:
-                            _intentions.watchIntentions(),
-                        builder: (context, _, _) {
-                          final i = _intentions.getTodaysIntention();
-                          if (i != null && !i.wasSkipped && i.text.trim().isNotEmpty) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 18),
-                              child: _IntentionCard(
-                                text: i.text,
-                                onTap: () => _openIntentionSheet(
-                                    existing: i.text),
-                              )
-                                  .animate()
-                                  .fadeIn(delay: 80.ms, duration: 500.ms)
-                                  .slideY(
-                                      begin: 0.06,
-                                      end: 0,
-                                      curve: Curves.easeOutCubic),
-                            );
-                          }
-                          if (!PreferencesService
-                              .instance.showMorningIntention) {
-                            return const SizedBox.shrink();
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 18),
-                            child: _IntentionNudge(
-                              onTap: () => _openIntentionSheet(),
-                            )
-                                .animate()
-                                .fadeIn(delay: 80.ms, duration: 450.ms)
-                                .slideY(
-                                    begin: 0.06,
-                                    end: 0,
-                                    curve: Curves.easeOutCubic),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 24),
-                      _MoodHeroCard(
-                        mood: _mood,
-                        energy: _energy,
-                        focus: _focus,
-                        onMood: (v) => setState(() => _mood = v),
-                        onEnergy: (v) => setState(() => _energy = v),
-                        onFocus: (v) => setState(() => _focus = v),
-                      )
-                          .animate()
-                          .fadeIn(delay: 100.ms, duration: 600.ms)
-                          .slideY(
-                              begin: 0.1, end: 0, curve: Curves.easeOutCubic),
+                      // Intention banner / nudge / gratitude card are
+                      // no longer rendered inline — both flows live in
+                      // the header "+" sheet now.
                       const SizedBox(height: 18),
-                      _SaveButton(
-                        saving: _saving,
-                        onTap: _handleSave,
-                      )
-                          .animate()
-                          .fadeIn(delay: 250.ms, duration: 500.ms)
-                          .slideY(
-                              begin: 0.1, end: 0, curve: Curves.easeOutCubic),
-                      const SizedBox(height: 22),
-                      if (PreferencesService
-                          .instance.showGratitudeCard)
-                        ValueListenableBuilder<Box<GratitudeEntry>>(
-                          valueListenable:
-                              _gratitude.watchEntries(),
-                          builder: (context, _, _) {
-                            final entry =
-                                _gratitude.getTodaysEntry();
-                            final logged = entry != null &&
-                                entry.nonEmptyItems.isNotEmpty;
-                            return _GratitudeCard(
-                              key: TutorialTargets.gratitudeCard,
-                              logged: logged,
-                              previewItem: logged
-                                  ? entry.nonEmptyItems.first
-                                  : null,
-                              onTap: () => _openGratitudeSheet(
-                                  existing: entry),
-                            )
-                                .animate()
-                                .fadeIn(
-                                    delay: 320.ms,
-                                    duration: 500.ms)
-                                .slideY(
-                                    begin: 0.1,
-                                    end: 0,
-                                    curve: Curves.easeOutCubic);
-                          },
-                        ),
-                      if (PreferencesService
-                          .instance.showGratitudeCard)
-                        const SizedBox(height: 18),
                       ValueListenableBuilder<Box<MoodEntry>>(
                         valueListenable: _moods.watchEntries(),
                         builder: (context, _, _) {
@@ -720,9 +728,27 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       )
                           .animate()
-                          .fadeIn(delay: 350.ms, duration: 500.ms)
+                          .fadeIn(delay: 80.ms, duration: 500.ms)
                           .slideY(
-                              begin: 0.1, end: 0, curve: Curves.easeOutCubic),
+                              begin: 0.06, end: 0,
+                              curve: Curves.easeOutCubic),
+                      const SizedBox(height: 18),
+                      _MoodHeroCard(
+                        mood: _mood,
+                        energy: _energy,
+                        focus: _focus,
+                        savedFlash: _savedFlash,
+                        onMood: (v) => _onSliderChange(() => _mood = v),
+                        onEnergy: (v) =>
+                            _onSliderChange(() => _energy = v),
+                        onFocus: (v) =>
+                            _onSliderChange(() => _focus = v),
+                      )
+                          .animate()
+                          .fadeIn(delay: 150.ms, duration: 500.ms)
+                          .slideY(
+                              begin: 0.06, end: 0,
+                              curve: Curves.easeOutCubic),
                       if (_suggestionLoaded && _suggestion != null) ...[
                         const SizedBox(height: 18),
                         AdaptiveSuggestionCard(
@@ -732,7 +758,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           onDismiss: _dismissSuggestion,
                         )
                             .animate()
-                            .fadeIn(delay: 380.ms, duration: 500.ms)
+                            .fadeIn(delay: 220.ms, duration: 500.ms)
                             .slideY(
                                 begin: 0.05,
                                 end: 0,
@@ -817,83 +843,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   static const Set<int> _kStreakMilestones = {3, 7, 30, 100, 365};
 
-  Future<void> _handleSave() async {
-    if (_saving) return;
-    setState(() => _saving = true);
-    try {
-      await _moods.addEntry(
-        mood: _mood * 10,
-        energy: _energy * 10,
-        focus: _focus * 10,
-      );
-      final streak = _moods.calculateStreak();
-      final hitMilestone = _kStreakMilestones.contains(streak);
-      if (hitMilestone) {
-        SfxService().fire(SfxType.streakMilestone);
-        // ignore: discarded_futures
-        HapticService().reward();
-      } else {
-        SfxService().fire(SfxType.checkInSuccess);
-        HapticService().light();
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(hitMilestone
-              ? '🔥 $streak-day streak — keep going.'
-              : 'Check-in saved'),
-          backgroundColor: BrandColors.bgCard(context),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          duration: Duration(seconds: hitMilestone ? 3 : 2),
-        ),
-      );
-      if (hitMilestone) {
-        EffectsService().celebrateStreakMilestone(
-          context: context,
-          days: streak,
-        );
-      } else {
-        EffectsService().celebrateHabitComplete(context: context);
-      }
-      // First-ever milestone surfaces the Phoenix once.
-      final earned = await MilestoneService().checkStreak(streak);
-      if (earned != null && mounted && !hitMilestone) {
-        EffectsService().celebrateStreakMilestone(
-          context: context,
-          days: streak,
-        );
-      }
-      // Streak badges. Delay so PhoenixRise / streak chime resolve first.
-      Future<void>.delayed(const Duration(milliseconds: 1400), () async {
-        final awarded = await BadgeService().checkAndAwardBadges();
-        if (awarded.isNotEmpty && mounted) {
-          await showBadgeUnlockQueue(context, awarded);
-        }
-      });
-      // Smart reminders: suppress remaining slots today now that mood is in.
-      // ignore: unawaited_futures
-      ReminderService().onMoodLogged();
-    } catch (e) {
-      SfxService().fire(SfxType.errorGentle);
-      HapticService().heavy();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not save check-in: $e'),
-          backgroundColor: BrandColors.bgCard(context),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
 }
 
 class _BackgroundGlow extends StatelessWidget {
@@ -946,6 +895,9 @@ class _BackgroundGlow extends StatelessWidget {
   }
 }
 
+/// Clean two-row header.
+/// Row 1: greeting + name on the left, "+" + avatar on the right.
+/// Row 2: compact streak chip + freeze badge.
 class _Header extends StatelessWidget {
   const _Header({
     required this.name,
@@ -953,6 +905,7 @@ class _Header extends StatelessWidget {
     required this.profile,
     required this.onLongPressName,
     required this.onOpenSettings,
+    required this.onAddTap,
   });
 
   final String name;
@@ -960,121 +913,318 @@ class _Header extends StatelessWidget {
   final UserProfile? profile;
   final VoidCallback onLongPressName;
   final VoidCallback onOpenSettings;
+  final VoidCallback onAddTap;
+
+  String _firstName(String full) {
+    final t = full.trim();
+    if (t.isEmpty) return 'friend';
+    final parts = t.split(RegExp(r'\s+'));
+    return parts.first;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final date = DateFormat('EEEE, MMM d').format(now).toUpperCase();
-    final greeting = _greeting(now.hour);
-
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                date,
-                style: TextStyle(
-                  color: BrandColors.inkDim(context),
-                  fontSize: 11,
-                  letterSpacing: 1.6,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              GestureDetector(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: GestureDetector(
                 onLongPress: onLongPressName,
                 behavior: HitTestBehavior.opaque,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: RichText(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    text: TextSpan(
+                      style: brandFont(
+                        color: BrandColors.ink(context),
+                        fontSize: 30,
+                        weight: FontWeight.w800,
+                        height: 1.05,
+                        letterSpacing: -0.6,
+                      ),
+                      children: [
+                        const TextSpan(text: 'Hi '),
+                        TextSpan(
+                          text: _firstName(name),
+                          style: brandFont(
+                            fontSize: 30,
+                            weight: FontWeight.w800,
+                            height: 1.05,
+                            letterSpacing: -0.6,
+                            foreground: Paint()
+                              ..shader = AppColors.primaryGradient
+                                  .createShader(const Rect.fromLTWH(
+                                      0, 0, 220, 40)),
+                          ),
+                        ),
+                        const TextSpan(text: ' 👋'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            _HeaderAddButton(onTap: onAddTap),
+            const SizedBox(width: 10),
+            ColorAvatar(
+              key: TutorialTargets.settingsButton,
+              name: name,
+              size: 38,
+              onTap: onOpenSettings,
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: AppColors.softGradient,
+                borderRadius: BorderRadius.circular(40),
+                border: Border.all(
+                  color: AppColors.purple.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('🔥', style: TextStyle(fontSize: 14)),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$streak day streak',
+                    style: TextStyle(
+                      color: BrandColors.inkSoft(context),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (profile != null) ...[
+              const SizedBox(width: 8),
+              FreezeBadge(
+                count: profile!.freezesAvailable,
+                profile: profile,
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _HeaderAddButton extends StatelessWidget {
+  const _HeaderAddButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: AppColors.buttonGradient,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.pink.withValues(alpha: 0.45),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.add_rounded,
+            color: Colors.white, size: 22),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet from the header "+" button.
+class _HomeAddSheet extends StatelessWidget {
+  const _HomeAddSheet({
+    required this.onIntention,
+    required this.onGratitude,
+  });
+  final VoidCallback onIntention;
+  final VoidCallback onGratitude;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                BrandColors.bgCard(context),
+                BrandColors.bg(context),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: AppColors.purple.withValues(alpha: 0.35),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.purple.withValues(alpha: 0.22),
+                blurRadius: 30,
+                spreadRadius: -8,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: BrandColors.inkFaint(context),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Add to today',
+                style: brandFont(
+                  color: BrandColors.ink(context),
+                  fontSize: 22,
+                  weight: FontWeight.w800,
+                  height: 1.05,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _AddTile(
+                icon: Icons.wb_sunny_rounded,
+                title: "Today's intention",
+                subtitle:
+                    'Set the one thing that would make today great.',
+                onTap: onIntention,
+                accent: AppColors.pinkLight,
+              ),
+              const SizedBox(height: 10),
+              _AddTile(
+                icon: Icons.favorite_rounded,
+                title: "Today's gratitude",
+                subtitle: 'Log what you’re grateful for today.',
+                onTap: onGratitude,
+                accent: AppColors.purpleLight,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddTile extends StatelessWidget {
+  const _AddTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    required this.accent,
+  });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: BrandColors.bg(context).withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: accent.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accent.withValues(alpha: 0.18),
+                  border: Border.all(
+                    color: accent.withValues(alpha: 0.45),
+                  ),
+                ),
+                child: Icon(icon, color: accent, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '$greeting,',
-                        maxLines: 1,
-                        softWrap: false,
-                        style: Theme.of(context).textTheme.headlineLarge,
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: BrandColors.ink(context),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        name,
-                        maxLines: 1,
-                        softWrap: false,
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineLarge
-                            ?.copyWith(
-                              foreground: Paint()
-                                ..shader = AppColors.primaryGradient
-                                    .createShader(const Rect.fromLTWH(
-                                        0, 0, 220, 50)),
-                            ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: BrandColors.inkSoft(context),
+                        fontSize: 12,
+                        height: 1.4,
                       ),
                     ),
                   ],
                 ),
               ),
+              Icon(Icons.chevron_right_rounded,
+                  color: BrandColors.inkSoft(context)),
             ],
           ),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: AppColors.softGradient,
-            borderRadius: BorderRadius.circular(40),
-            border: Border.all(
-              color: AppColors.purple.withValues(alpha: 0.25),
-            ),
-          ),
-          child: Row(
-            children: [
-              const Text('🔥', style: TextStyle(fontSize: 16)),
-              const SizedBox(width: 6),
-              Text(
-                '$streak day streak',
-                style: TextStyle(
-                  color: BrandColors.inkSoft(context),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (profile != null) ...[
-          const SizedBox(width: 8),
-          FreezeBadge(
-            count: profile!.freezesAvailable,
-            profile: profile,
-          ),
-        ],
-        const SizedBox(width: 10),
-        ColorAvatar(
-          key: TutorialTargets.settingsButton,
-          name: name,
-          size: 38,
-          onTap: onOpenSettings,
-        ),
-      ],
+      ),
     );
-  }
-
-  String _greeting(int hour) {
-    if (hour < 5) return 'Late night';
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    if (hour < 21) return 'Good evening';
-    return 'Good night';
   }
 }
 
+/// Compact check-in: heading + three sliders. No mood orb, no save
+/// button — the parent owns a 2-second debounced auto-save that fires
+/// when the user stops touching sliders. [savedFlash] briefly shows a
+/// "Saved ✓" stamp in the header after each silent save.
 class _MoodHeroCard extends StatelessWidget {
   const _MoodHeroCard({
     required this.mood,
@@ -1083,6 +1233,7 @@ class _MoodHeroCard extends StatelessWidget {
     required this.onMood,
     required this.onEnergy,
     required this.onFocus,
+    required this.savedFlash,
   });
 
   final double mood;
@@ -1091,34 +1242,64 @@ class _MoodHeroCard extends StatelessWidget {
   final ValueChanged<double> onMood;
   final ValueChanged<double> onEnergy;
   final ValueChanged<double> onFocus;
+  final bool savedFlash;
 
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 8),
-          Center(child: const MoodOrb(size: 160)),
-          const SizedBox(height: 28),
-          Center(
-            child: Text(
-              'How are you,',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ),
-          Center(
-            child: Text(
-              'right now?',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    foreground: Paint()
-                      ..shader = AppColors.primaryGradient
-                          .createShader(const Rect.fromLTWH(0, 0, 220, 40)),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'How are you, right now?',
+                  style: brandFont(
+                    color: BrandColors.ink(context),
+                    fontSize: 22,
+                    weight: FontWeight.w800,
+                    height: 1.1,
+                    letterSpacing: -0.3,
                   ),
-            ),
+                ),
+              ),
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 220),
+                opacity: savedFlash ? 1.0 : 0.0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.purple.withValues(alpha: 0.20),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppColors.pinkLight.withValues(alpha: 0.45),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_rounded,
+                          color: AppColors.pinkLight, size: 12),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Saved',
+                        style: TextStyle(
+                          color: AppColors.pinkLight,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 14),
           Column(
             key: TutorialTargets.moodSliders,
             children: [
@@ -1128,14 +1309,14 @@ class _MoodHeroCard extends StatelessWidget {
                 value: mood,
                 onChanged: onMood,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               GlowSlider(
                 label: 'Energy',
                 icon: Icons.bolt_rounded,
                 value: energy,
                 onChanged: onEnergy,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               GlowSlider(
                 label: 'Focus',
                 icon: Icons.center_focus_strong_rounded,
@@ -1145,65 +1326,6 @@ class _MoodHeroCard extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SaveButton extends StatelessWidget {
-  const _SaveButton({required this.saving, required this.onTap});
-
-  final bool saving;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: saving ? null : onTap,
-      child: Opacity(
-        opacity: saving ? 0.7 : 1.0,
-        child: Container(
-          height: 56,
-          decoration: BoxDecoration(
-            gradient: AppColors.buttonGradient,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.pink.withValues(alpha: 0.45),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-              BoxShadow(
-                color: AppColors.purple.withValues(alpha: 0.40),
-                blurRadius: 30,
-                spreadRadius: -4,
-              ),
-            ],
-          ),
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                saving
-                    ? Icons.hourglass_top_rounded
-                    : Icons.check_circle_outline_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                saving ? 'Saving…' : 'Save check-in',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -1555,113 +1677,6 @@ class _ReflectionNudge extends StatelessWidget {
   }
 }
 
-class _IntentionCard extends StatelessWidget {
-  const _IntentionCard({required this.text, required this.onTap});
-  final String text;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.purple.withValues(alpha: 0.20),
-                AppColors.pink.withValues(alpha: 0.10),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: AppColors.purpleLight.withValues(alpha: 0.45),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.purple.withValues(alpha: 0.22),
-                blurRadius: 22,
-                spreadRadius: -6,
-              ),
-            ],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                margin: const EdgeInsets.only(top: 2),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      const Color(0xFFFFD08A).withValues(alpha: 0.85),
-                      AppColors.pink.withValues(alpha: 0.30),
-                      Colors.transparent,
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.pink.withValues(alpha: 0.40),
-                      blurRadius: 14,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.wb_sunny_rounded,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "TODAY'S FOCUS",
-                      style: TextStyle(
-                        color: BrandColors.inkDim(context),
-                        fontSize: 10,
-                        letterSpacing: 1.6,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      text,
-                      style: GoogleFonts.instrumentSerif(
-                        color: BrandColors.ink(context),
-                        fontStyle: FontStyle.italic,
-                        fontSize: 19,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 4, top: 4),
-                child: Icon(
-                  Icons.edit_outlined,
-                  color: AppColors.purpleLight.withValues(alpha: 0.85),
-                  size: 16,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _PatternsCarousel extends StatelessWidget {
   const _PatternsCarousel({
     required this.alerts,
@@ -1796,9 +1811,8 @@ class _GuestNudgeBanner extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       'Register to keep your data safe',
-                      style: GoogleFonts.instrumentSerif(
+                      style: GoogleFonts.bricolageGrotesque(
                         color: BrandColors.ink(context),
-                        fontStyle: FontStyle.italic,
                         fontSize: 18,
                         height: 1.1,
                       ),
@@ -1911,9 +1925,8 @@ class _RecapBanner extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       'Your week is ready',
-                      style: GoogleFonts.instrumentSerif(
+                      style: GoogleFonts.bricolageGrotesque(
                         color: BrandColors.ink(context),
-                        fontStyle: FontStyle.italic,
                         fontSize: 18,
                         height: 1.1,
                       ),
@@ -2012,9 +2025,8 @@ class _YirBanner extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       'Your $year is ready ✨',
-                      style: GoogleFonts.instrumentSerif(
+                      style: GoogleFonts.bricolageGrotesque(
                         color: BrandColors.ink(context),
-                        fontStyle: FontStyle.italic,
                         fontSize: 18,
                         height: 1.1,
                       ),
@@ -2044,272 +2056,3 @@ class _YirBanner extends StatelessWidget {
   }
 }
 
-class _ChallengesEntry extends StatelessWidget {
-  const _ChallengesEntry({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.purple.withValues(alpha: 0.40),
-                AppColors.pink.withValues(alpha: 0.26),
-                AppColors.blueAccent.withValues(alpha: 0.22),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: AppColors.purpleLight.withValues(alpha: 0.45),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.purple.withValues(alpha: 0.28),
-                blurRadius: 26,
-                spreadRadius: -8,
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: AppColors.orbGradient,
-                ),
-                child: const Icon(Icons.flag_rounded,
-                    color: Colors.white, size: 22),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'CHALLENGES',
-                      style: TextStyle(
-                        color: AppColors.pinkLight,
-                        fontSize: 10,
-                        letterSpacing: 1.8,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Push together, rank up',
-                      style: GoogleFonts.instrumentSerif(
-                        color: BrandColors.ink(context),
-                        fontStyle: FontStyle.italic,
-                        fontSize: 22,
-                        height: 1.05,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Join a group challenge — or start your own.',
-                      style: TextStyle(
-                        color: BrandColors.inkSoft(context),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded,
-                  color: BrandColors.inkSoft(context)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _IntentionNudge extends StatelessWidget {
-  const _IntentionNudge({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
-          decoration: BoxDecoration(
-            color: BrandColors.bgCard(context).withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: AppColors.purple.withValues(alpha: 0.22),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.wb_sunny_outlined,
-                color: AppColors.purpleLight,
-                size: 16,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  "Set today's intention",
-                  style: TextStyle(
-                    color: BrandColors.inkSoft(context),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_rounded,
-                color: AppColors.purpleLight,
-                size: 16,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GratitudeCard extends StatelessWidget {
-  const _GratitudeCard({
-    super.key,
-    required this.logged,
-    required this.onTap,
-    this.previewItem,
-  });
-
-  final bool logged;
-  final String? previewItem;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.pink.withValues(alpha: 0.22),
-                AppColors.pinkLight.withValues(alpha: 0.10),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: AppColors.pinkLight.withValues(alpha: 0.45),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.pink.withValues(alpha: 0.20),
-                blurRadius: 22,
-                spreadRadius: -6,
-              ),
-            ],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                margin: const EdgeInsets.only(top: 2),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      AppColors.pinkLight.withValues(alpha: 0.85),
-                      AppColors.pink.withValues(alpha: 0.30),
-                      Colors.transparent,
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.pink.withValues(alpha: 0.45),
-                      blurRadius: 14,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.favorite_rounded,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      logged
-                          ? '✓  LOGGED TODAY'
-                          : 'GRATITUDE',
-                      style: TextStyle(
-                        color: logged
-                            ? AppColors.pinkLight
-                            : BrandColors.inkDim(context),
-                        fontSize: 10,
-                        letterSpacing: 1.6,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      logged
-                          ? (previewItem ?? '')
-                          : "Add today's gratitude",
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.instrumentSerif(
-                        color: BrandColors.ink(context),
-                        fontStyle: FontStyle.italic,
-                        fontSize: logged ? 17 : 19,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 6, top: 4),
-                child: Icon(
-                  logged
-                      ? Icons.edit_outlined
-                      : Icons.arrow_forward_rounded,
-                  color: AppColors.pinkLight.withValues(alpha: 0.85),
-                  size: 16,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

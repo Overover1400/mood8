@@ -96,9 +96,8 @@ class AiSummaryCard extends StatelessWidget {
               summary == null || summary!.isEmpty
                   ? 'Generate your weekly narrative once you have a few patterns.'
                   : summary!,
-              style: GoogleFonts.instrumentSerif(
+              style: GoogleFonts.bricolageGrotesque(
                 color: BrandColors.ink(context),
-                fontStyle: FontStyle.italic,
                 fontSize: 17,
                 height: 1.45,
               ),

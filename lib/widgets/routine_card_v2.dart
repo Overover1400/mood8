@@ -101,9 +101,8 @@ class RoutineCardV2 extends StatelessWidget {
                       children: [
                         Text(
                           _kTimeFmt.format(item.time),
-                          style: GoogleFonts.instrumentSerif(
+                          style: GoogleFonts.bricolageGrotesque(
                             color: BrandColors.ink(context),
-                            fontStyle: FontStyle.italic,
                             fontSize: 16,
                             height: 1.0,
                           ),

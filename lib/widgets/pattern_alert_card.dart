@@ -79,9 +79,8 @@ class PatternAlertCard extends StatelessWidget {
                   alert.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: BrandColors.ink(context),
-                    fontStyle: FontStyle.italic,
                     fontSize: 18,
                     height: 1.2,
                   ),

@@ -116,7 +116,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     Text(
                       'Unlock your full',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.instrumentSerif(
+                      style: GoogleFonts.bricolageGrotesque(
                         color: BrandColors.ink(context),
                         fontSize: 42,
                         height: 1.0,
@@ -125,9 +125,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     Text(
                       'potential.',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.instrumentSerif(
+                      style: GoogleFonts.bricolageGrotesque(
                         color: AppColors.ink,
-                        fontStyle: FontStyle.italic,
                         fontSize: 42,
                         height: 1.05,
                         foreground: Paint()
@@ -394,9 +393,8 @@ class _PlanCard extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: GoogleFonts.instrumentSerif(
+                        style: GoogleFonts.bricolageGrotesque(
                           color: BrandColors.ink(context),
-                          fontStyle: FontStyle.italic,
                           fontSize: 22,
                           height: 1.0,
                         ),
@@ -442,9 +440,8 @@ class _PlanCard extends StatelessWidget {
               children: [
                 Text(
                   price,
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: BrandColors.ink(context),
-                    fontStyle: FontStyle.italic,
                     fontSize: 22,
                     height: 1.0,
                   ),
@@ -548,9 +545,8 @@ class _FeatureList extends StatelessWidget {
         children: [
           Text(
             "What's included",
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: BrandColors.ink(context),
-              fontStyle: FontStyle.italic,
               fontSize: 22,
             ),
           ),
@@ -611,9 +607,8 @@ class _Testimonials extends StatelessWidget {
       children: [
         Text(
           'What people say',
-          style: GoogleFonts.instrumentSerif(
+          style: GoogleFonts.bricolageGrotesque(
             color: BrandColors.ink(context),
-            fontStyle: FontStyle.italic,
             fontSize: 22,
           ),
         ),
@@ -634,9 +629,8 @@ class _Testimonials extends StatelessWidget {
               children: [
                 Text(
                   q.$1,
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: BrandColors.ink(context),
-                    fontStyle: FontStyle.italic,
                     fontSize: 15,
                     height: 1.4,
                   ),
@@ -698,9 +692,8 @@ class _FAQState extends State<_FAQ> {
       children: [
         Text(
           'Questions, answered',
-          style: GoogleFonts.instrumentSerif(
+          style: GoogleFonts.bricolageGrotesque(
             color: BrandColors.ink(context),
-            fontStyle: FontStyle.italic,
             fontSize: 22,
           ),
         ),

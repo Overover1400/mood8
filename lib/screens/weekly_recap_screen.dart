@@ -179,9 +179,8 @@ class _Header extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Your week in review',
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: BrandColors.ink(context),
-                    fontStyle: FontStyle.italic,
                     fontSize: 32,
                     height: 1.05,
                   ),
@@ -244,9 +243,8 @@ class _LoadingState extends StatelessWidget {
                 const SizedBox(height: 18),
                 Text(
                   'Reading your week…',
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: BrandColors.ink(context),
-                    fontStyle: FontStyle.italic,
                     fontSize: 20,
                   ),
                 ),
@@ -338,9 +336,8 @@ class _ErrorState extends StatelessWidget {
           children: [
             Text(
               'A little hiccup',
-              style: GoogleFonts.instrumentSerif(
+              style: GoogleFonts.bricolageGrotesque(
                 color: BrandColors.ink(context),
-                fontStyle: FontStyle.italic,
                 fontSize: 22,
               ),
             ),
@@ -563,9 +560,8 @@ class _StatPill extends StatelessWidget {
           children: [
             Text(
               value,
-              style: GoogleFonts.instrumentSerif(
+              style: GoogleFonts.bricolageGrotesque(
                 color: BrandColors.ink(context),
-                fontStyle: FontStyle.italic,
                 fontSize: 22,
                 height: 1.0,
               ),
@@ -688,9 +684,8 @@ class _GratitudeCard extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: GoogleFonts.instrumentSerif(
+        style: GoogleFonts.bricolageGrotesque(
           color: BrandColors.ink(context),
-          fontStyle: FontStyle.italic,
           fontSize: 15,
           height: 1.4,
         ),
@@ -721,9 +716,8 @@ class _LookingAheadCard extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: GoogleFonts.instrumentSerif(
+        style: GoogleFonts.bricolageGrotesque(
           color: BrandColors.ink(context),
-          fontStyle: FontStyle.italic,
           fontSize: 15,
           height: 1.5,
         ),

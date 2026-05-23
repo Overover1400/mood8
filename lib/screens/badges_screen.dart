@@ -191,9 +191,8 @@ class _StatsHeader extends StatelessWidget {
                       children: [
                         Text(
                           '$earned',
-                          style: GoogleFonts.instrumentSerif(
+                          style: GoogleFonts.bricolageGrotesque(
                             color: BrandColors.ink(context),
-                            fontStyle: FontStyle.italic,
                             fontSize: 32,
                             height: 1.0,
                           ),
@@ -456,9 +455,8 @@ class _BadgeTile extends StatelessWidget {
               maxLines: 2,
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.instrumentSerif(
+              style: GoogleFonts.bricolageGrotesque(
                 color: earned ? BrandColors.ink(context) : BrandColors.inkDim(context),
-                fontStyle: FontStyle.italic,
                 fontSize: 13,
                 height: 1.15,
               ),
@@ -541,9 +539,8 @@ class _BadgeTile extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   definition.title,
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: BrandColors.ink(context),
-                    fontStyle: FontStyle.italic,
                     fontSize: 22,
                   ),
                 ),

@@ -39,9 +39,8 @@ class _PatternsScreenState extends State<PatternsScreen> {
         ),
         title: Text(
           'Patterns noticed',
-          style: GoogleFonts.instrumentSerif(
+          style: GoogleFonts.bricolageGrotesque(
             color: BrandColors.ink(context),
-            fontStyle: FontStyle.italic,
             fontSize: 22,
           ),
         ),
@@ -222,9 +221,8 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'Nothing here yet',
-              style: GoogleFonts.instrumentSerif(
+              style: GoogleFonts.bricolageGrotesque(
                 color: BrandColors.ink(context),
-                fontStyle: FontStyle.italic,
                 fontSize: 22,
               ),
             ),

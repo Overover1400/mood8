@@ -84,9 +84,8 @@ class _WearCheckinScreenState extends State<WearCheckinScreen> {
                 const SizedBox(height: 6),
                 Text(
                   '$score',
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: BrandColors.ink(context),
-                    fontStyle: FontStyle.italic,
                     fontSize: 36,
                     height: 1.0,
                   ),

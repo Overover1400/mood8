@@ -42,9 +42,8 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
         ),
         title: Text(
           'Smart reminders',
-          style: GoogleFonts.instrumentSerif(
+          style: GoogleFonts.bricolageGrotesque(
             color: BrandColors.ink(context),
-            fontStyle: FontStyle.italic,
             fontSize: 22,
           ),
         ),
@@ -175,9 +174,8 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
         ),
         title: Text(
           'Allow notifications?',
-          style: GoogleFonts.instrumentSerif(
+          style: GoogleFonts.bricolageGrotesque(
             color: BrandColors.ink(context),
-            fontStyle: FontStyle.italic,
             fontSize: 22,
           ),
         ),
@@ -597,9 +595,8 @@ class _TimeRow extends StatelessWidget {
                   children: [
                     Text(
                       _formatMinute(minute),
-                      style: GoogleFonts.instrumentSerif(
+                      style: GoogleFonts.bricolageGrotesque(
                         color: BrandColors.ink(context),
-                        fontStyle: FontStyle.italic,
                         fontSize: 20,
                         height: 1.0,
                       ),
@@ -736,9 +733,8 @@ class _PickerTile extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 _formatMinute(value),
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: BrandColors.ink(context),
-                  fontStyle: FontStyle.italic,
                   fontSize: 22,
                   height: 1.0,
                 ),

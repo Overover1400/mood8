@@ -29,9 +29,8 @@ class PastRecapsScreen extends StatelessWidget {
         ),
         title: Text(
           'Past recaps',
-          style: GoogleFonts.instrumentSerif(
+          style: GoogleFonts.bricolageGrotesque(
             color: BrandColors.ink(context),
-            fontStyle: FontStyle.italic,
             fontSize: 22,
           ),
         ),
@@ -71,9 +70,8 @@ class PastRecapsScreen extends StatelessWidget {
                         const SizedBox(height: 16),
                         Text(
                           'No recaps yet',
-                          style: GoogleFonts.instrumentSerif(
+                          style: GoogleFonts.bricolageGrotesque(
                             color: BrandColors.ink(context),
-                            fontStyle: FontStyle.italic,
                             fontSize: 22,
                           ),
                         ),
@@ -188,9 +186,8 @@ class _RecapRow extends StatelessWidget {
                       preview,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.instrumentSerif(
+                      style: GoogleFonts.bricolageGrotesque(
                         color: BrandColors.ink(context),
-                        fontStyle: FontStyle.italic,
                         fontSize: 15,
                         height: 1.35,
                       ),

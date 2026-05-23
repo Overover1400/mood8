@@ -477,7 +477,7 @@ class _IntroCard extends StatelessWidget {
           Text(
             'Your',
             textAlign: TextAlign.center,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: AppColors.ink,
               fontSize: 64,
               height: 1.0,
@@ -489,9 +489,8 @@ class _IntroCard extends StatelessWidget {
           Text(
             '${data.year}',
             textAlign: TextAlign.center,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: AppColors.ink,
-              fontStyle: FontStyle.italic,
               fontSize: 132,
               height: 1.0,
               foreground: Paint()
@@ -506,9 +505,8 @@ class _IntroCard extends StatelessWidget {
           Text(
             'on Mood8',
             textAlign: TextAlign.center,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: AppColors.inkSoft,
-              fontStyle: FontStyle.italic,
               fontSize: 36,
             ),
           ).animate(delay: 600.ms).fadeIn(duration: 600.ms),
@@ -583,9 +581,8 @@ class _BigStatCard extends StatelessWidget {
                 end: int.tryParse(value) ?? 0,
                 builder: (n) => Text(
                   '$n',
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: AppColors.ink,
-                    fontStyle: FontStyle.italic,
                     fontSize: 140,
                     height: 0.95,
                     foreground: Paint()
@@ -611,9 +608,8 @@ class _BigStatCard extends StatelessWidget {
           const SizedBox(height: 18),
           Text(
             tagline,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: AppColors.inkSoft,
-              fontStyle: FontStyle.italic,
               fontSize: 22,
               height: 1.35,
             ),
@@ -668,9 +664,8 @@ class _MoodCard extends StatelessWidget {
             children: [
               Text(
                 avg,
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: AppColors.ink,
-                  fontStyle: FontStyle.italic,
                   fontSize: 120,
                   height: 0.95,
                   foreground: Paint()
@@ -713,9 +708,8 @@ class _MoodCard extends StatelessWidget {
             data.highestMoodDay != null
                 ? 'Your brightest day was ${DateFormat('MMMM d').format(data.highestMoodDay!)}.'
                 : 'You wrote your inner weather, all year.',
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: AppColors.inkSoft,
-              fontStyle: FontStyle.italic,
               fontSize: 20,
               height: 1.35,
             ),
@@ -794,9 +788,8 @@ class _BestMonthCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             name,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: AppColors.ink,
-              fontStyle: FontStyle.italic,
               fontSize: 96,
               height: 0.95,
               foreground: Paint()
@@ -810,9 +803,8 @@ class _BestMonthCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             '${data.bestMonthScore} days of presence — your most engaged month.',
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: AppColors.inkSoft,
-              fontStyle: FontStyle.italic,
               fontSize: 22,
               height: 1.35,
             ),
@@ -858,9 +850,8 @@ class _WordsCard extends StatelessWidget {
           const SizedBox(height: 30),
           Text(
             'You wrote your way through this year.',
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: AppColors.inkSoft,
-              fontStyle: FontStyle.italic,
               fontSize: 22,
               height: 1.35,
             ),
@@ -888,9 +879,8 @@ class _WordRow extends StatelessWidget {
       children: [
         Text(
           value,
-          style: GoogleFonts.instrumentSerif(
+          style: GoogleFonts.bricolageGrotesque(
             color: AppColors.ink,
-            fontStyle: FontStyle.italic,
             fontSize: 78,
             height: 1.0,
             foreground: Paint()
@@ -939,9 +929,8 @@ class _IdentityCard extends StatelessWidget {
           if (data.identities.isEmpty)
             Text(
               'Your identity is forming — and you’re paying attention.',
-              style: GoogleFonts.instrumentSerif(
+              style: GoogleFonts.bricolageGrotesque(
                 color: AppColors.ink,
-                fontStyle: FontStyle.italic,
                 fontSize: 40,
                 height: 1.15,
               ),
@@ -952,9 +941,8 @@ class _IdentityCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
                   data.identities[i],
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: AppColors.ink,
-                    fontStyle: FontStyle.italic,
                     fontSize: 64,
                     height: 1.05,
                     foreground: Paint()
@@ -997,9 +985,8 @@ class _ThemeCard extends StatelessWidget {
           const SizedBox(height: 22),
           Text(
             data.theme,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: AppColors.ink,
-              fontStyle: FontStyle.italic,
               fontSize: 72,
               height: 1.05,
               foreground: Paint()
@@ -1014,9 +1001,8 @@ class _ThemeCard extends StatelessWidget {
           const SizedBox(height: 18),
           Text(
             data.themeDescription,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: AppColors.inkSoft,
-              fontStyle: FontStyle.italic,
               fontSize: 22,
               height: 1.4,
             ),
@@ -1042,7 +1028,7 @@ class _OutroCard extends StatelessWidget {
           Text(
             'Here’s to',
             textAlign: TextAlign.center,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: AppColors.ink,
               fontSize: 56,
               height: 1.0,
@@ -1052,9 +1038,8 @@ class _OutroCard extends StatelessWidget {
           Text(
             '${data.year + 1}',
             textAlign: TextAlign.center,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: AppColors.ink,
-              fontStyle: FontStyle.italic,
               fontSize: 132,
               height: 1.0,
               foreground: Paint()
@@ -1070,9 +1055,8 @@ class _OutroCard extends StatelessWidget {
           Text(
             'May this year be a better year than the last.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: AppColors.inkSoft,
-              fontStyle: FontStyle.italic,
               fontSize: 20,
               height: 1.4,
             ),
@@ -1193,9 +1177,8 @@ class _EmptyState extends StatelessWidget {
             Text(
               'Not yet — but soon.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.instrumentSerif(
+              style: GoogleFonts.bricolageGrotesque(
                 color: AppColors.ink,
-                fontStyle: FontStyle.italic,
                 fontSize: 38,
                 height: 1.1,
               ),

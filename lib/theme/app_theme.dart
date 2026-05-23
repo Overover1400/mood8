@@ -120,70 +120,116 @@ class AppTheme {
     );
   }
 
+  // App-wide font: Bricolage Grotesque. Single typeface for the whole
+  // app — display + body — with hierarchy expressed through weight and
+  // size only. Picked for its slight humanist warmth + characterful
+  // modern proportions; tracks well at both giant display sizes and
+  // small captions, holds identity without leaning literary.
   static TextTheme _buildTextTheme(TextTheme base) {
-    final display = GoogleFonts.instrumentSerifTextTheme(base);
-    final body = GoogleFonts.plusJakartaSansTextTheme(base);
-
+    final t = GoogleFonts.bricolageGrotesqueTextTheme(base);
     return base.copyWith(
-      displayLarge: display.displayLarge?.copyWith(
+      displayLarge: t.displayLarge?.copyWith(
         color: AppColors.ink,
-        fontStyle: FontStyle.italic,
+        fontWeight: FontWeight.w800,
         fontSize: 56,
-        height: 1.05,
+        height: 1.0,
+        letterSpacing: -1.0,
       ),
-      displayMedium: display.displayMedium?.copyWith(
+      displayMedium: t.displayMedium?.copyWith(
         color: AppColors.ink,
-        fontStyle: FontStyle.italic,
+        fontWeight: FontWeight.w800,
         fontSize: 44,
-        height: 1.05,
+        height: 1.0,
+        letterSpacing: -0.6,
       ),
-      displaySmall: display.displaySmall?.copyWith(
+      displaySmall: t.displaySmall?.copyWith(
         color: AppColors.ink,
-        fontStyle: FontStyle.italic,
+        fontWeight: FontWeight.w800,
         fontSize: 32,
-        height: 1.1,
+        height: 1.05,
+        letterSpacing: -0.4,
       ),
-      headlineLarge: display.headlineLarge?.copyWith(
+      headlineLarge: t.headlineLarge?.copyWith(
         color: AppColors.ink,
-        fontStyle: FontStyle.italic,
+        fontWeight: FontWeight.w800,
         fontSize: 28,
-        height: 1.15,
+        height: 1.1,
+        letterSpacing: -0.3,
       ),
-      headlineMedium: display.headlineMedium?.copyWith(
+      headlineMedium: t.headlineMedium?.copyWith(
         color: AppColors.ink,
-        fontStyle: FontStyle.italic,
+        fontWeight: FontWeight.w700,
         fontSize: 24,
+        letterSpacing: -0.2,
       ),
-      headlineSmall: display.headlineSmall?.copyWith(
+      headlineSmall: t.headlineSmall?.copyWith(
         color: AppColors.ink,
-        fontStyle: FontStyle.italic,
+        fontWeight: FontWeight.w700,
         fontSize: 20,
+        letterSpacing: -0.1,
       ),
-      titleLarge: body.titleLarge?.copyWith(
+      titleLarge: t.titleLarge?.copyWith(
+        color: AppColors.ink,
+        fontWeight: FontWeight.w700,
+      ),
+      titleMedium: t.titleMedium?.copyWith(
         color: AppColors.ink,
         fontWeight: FontWeight.w600,
       ),
-      titleMedium: body.titleMedium?.copyWith(
-        color: AppColors.ink,
-        fontWeight: FontWeight.w600,
-      ),
-      titleSmall: body.titleSmall?.copyWith(
+      titleSmall: t.titleSmall?.copyWith(
         color: AppColors.inkSoft,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
       ),
-      bodyLarge: body.bodyLarge?.copyWith(color: AppColors.ink),
-      bodyMedium: body.bodyMedium?.copyWith(color: AppColors.inkSoft),
-      bodySmall: body.bodySmall?.copyWith(color: AppColors.inkDim),
-      labelLarge: body.labelLarge?.copyWith(
+      bodyLarge: t.bodyLarge?.copyWith(
         color: AppColors.ink,
+        fontWeight: FontWeight.w500,
+      ),
+      bodyMedium: t.bodyMedium?.copyWith(
+        color: AppColors.inkSoft,
+        fontWeight: FontWeight.w500,
+      ),
+      bodySmall: t.bodySmall?.copyWith(
+        color: AppColors.inkDim,
+        fontWeight: FontWeight.w500,
+      ),
+      labelLarge: t.labelLarge?.copyWith(
+        color: AppColors.ink,
+        fontWeight: FontWeight.w700,
+      ),
+      labelMedium: t.labelMedium?.copyWith(
+        color: AppColors.inkSoft,
         fontWeight: FontWeight.w600,
       ),
-      labelMedium: body.labelMedium?.copyWith(color: AppColors.inkSoft),
-      labelSmall: body.labelSmall?.copyWith(
+      labelSmall: t.labelSmall?.copyWith(
         color: AppColors.inkDim,
+        fontWeight: FontWeight.w700,
         letterSpacing: 1.2,
       ),
     );
   }
+}
+
+/// Centralised Bricolage TextStyle factory for inline use. Replaces
+/// the scattered `GoogleFonts.bricolageGrotesque(...)` call sites — call
+/// `brandFont(...)` and tweak weight/size to taste. Default is heavy
+/// because the majority of inline uses were big headlines.
+TextStyle brandFont({
+  Color? color,
+  double? fontSize,
+  FontWeight weight = FontWeight.w800,
+  double height = 1.05,
+  double letterSpacing = -0.2,
+  List<Shadow>? shadows,
+  Paint? foreground,
+}) {
+  return GoogleFonts.bricolageGrotesque(
+    color: foreground == null ? color : null,
+    fontSize: fontSize,
+    fontWeight: weight,
+    height: height,
+    letterSpacing: letterSpacing,
+    shadows: shadows,
+    foreground: foreground,
+  );
 }

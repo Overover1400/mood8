@@ -100,9 +100,8 @@ class _CompletionStepState extends State<CompletionStep> {
                   .fadeIn(delay: 150.ms, duration: 500.ms),
               Text(
                 name,
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: BrandColors.ink(context),
-                  fontStyle: FontStyle.italic,
                   fontSize: 48,
                   height: 1.0,
                   foreground: Paint()
@@ -192,9 +191,8 @@ class _IdentityPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.instrumentSerif(
+        style: GoogleFonts.bricolageGrotesque(
           color: BrandColors.ink(context),
-          fontStyle: FontStyle.italic,
           fontSize: 14,
         ),
       ),
@@ -261,9 +259,8 @@ class _StarterRow extends StatelessWidget {
           ),
           Text(
             time,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: BrandColors.inkSoft(context),
-              fontStyle: FontStyle.italic,
               fontSize: 16,
             ),
           ),

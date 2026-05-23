@@ -56,9 +56,8 @@ class AboutScreen extends StatelessWidget {
                         const SizedBox(height: 14),
                         Text(
                           'Mood8',
-                          style: GoogleFonts.instrumentSerif(
+                          style: GoogleFonts.bricolageGrotesque(
                             color: BrandColors.ink(context),
-                            fontStyle: FontStyle.italic,
                             fontSize: 32,
                             height: 1.0,
                           ),

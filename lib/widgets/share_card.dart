@@ -228,9 +228,8 @@ class _BrandRow extends StatelessWidget {
             const SizedBox(width: 18),
             Text(
               'Mood8',
-              style: GoogleFonts.instrumentSerif(
+              style: GoogleFonts.bricolageGrotesque(
                 color: AppColors.ink,
-                fontStyle: FontStyle.italic,
                 fontSize: 46,
                 height: 1.0,
               ),
@@ -254,9 +253,8 @@ class _HeadlineBlock extends StatelessWidget {
       children: [
         Text(
           headline,
-          style: GoogleFonts.instrumentSerif(
+          style: GoogleFonts.bricolageGrotesque(
             color: AppColors.ink,
-            fontStyle: FontStyle.italic,
             fontSize: 120,
             height: 1.0,
             foreground: Paint()
@@ -451,9 +449,8 @@ class _HeroNumber extends StatelessWidget {
           children: [
             Text(
               value,
-              style: GoogleFonts.instrumentSerif(
+              style: GoogleFonts.bricolageGrotesque(
                 color: AppColors.ink,
-                fontStyle: FontStyle.italic,
                 fontSize: 140,
                 height: 1.0,
                 foreground: Paint()
@@ -551,9 +548,8 @@ class _StatTile extends StatelessWidget {
         children: [
           Text(
             value,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: AppColors.ink,
-              fontStyle: FontStyle.italic,
               fontSize: 56,
               height: 1.0,
             ),
@@ -616,9 +612,8 @@ class _IdentityLine extends StatelessWidget {
           Flexible(
             child: Text(
               joined,
-              style: GoogleFonts.instrumentSerif(
+              style: GoogleFonts.bricolageGrotesque(
                 color: AppColors.ink,
-                fontStyle: FontStyle.italic,
                 fontSize: 34,
                 height: 1.1,
               ),
@@ -651,9 +646,8 @@ class _FooterRow extends StatelessWidget {
         ),
         Text(
           'mood8.app',
-          style: GoogleFonts.instrumentSerif(
+          style: GoogleFonts.bricolageGrotesque(
             color: AppColors.pinkLight,
-            fontStyle: FontStyle.italic,
             fontSize: 32,
           ),
         ),

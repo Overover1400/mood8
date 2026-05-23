@@ -14,7 +14,13 @@ import 'create_challenge_screen.dart';
 import 'my_challenges_screen.dart';
 
 class ChallengesListScreen extends StatefulWidget {
-  const ChallengesListScreen({super.key});
+  const ChallengesListScreen({super.key, this.embedded = false});
+
+  /// When `true` the screen renders as a top-level tab (no back button,
+  /// extra bottom padding so the floating nav doesn't cover content).
+  /// The push-routed variant (e.g. from Settings → Browse) leaves
+  /// `embedded` at its default false so the back arrow is shown.
+  final bool embedded;
 
   @override
   State<ChallengesListScreen> createState() => _ChallengesListScreenState();
@@ -93,7 +99,11 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
           maxWidth: 720,
           child: Column(
             children: [
-              _Header(onMine: _openMine, onCreate: _openCreate),
+              _Header(
+                onMine: _openMine,
+                onCreate: _openCreate,
+                embedded: widget.embedded,
+              ),
               _CategoryRow(
                 current: _category,
                 onSelect: _selectCategory,
@@ -132,7 +142,7 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
       color: AppColors.pinkLight,
       backgroundColor: BrandColors.bgCard(context),
       child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        padding: EdgeInsets.fromLTRB(20, 12, 20, widget.embedded ? 120 : 32),
         itemCount: list.length,
         separatorBuilder: (_, _) => const SizedBox(height: 14),
         itemBuilder: (_, i) {
@@ -159,31 +169,41 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.onMine, required this.onCreate});
+  const _Header({
+    required this.onMine,
+    required this.onCreate,
+    required this.embedded,
+  });
   final VoidCallback onMine;
   final VoidCallback onCreate;
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
+      padding: EdgeInsets.fromLTRB(embedded ? 20 : 20, 12, 12, 8),
       child: Row(
         children: [
-          IconButton(
-            icon: Icon(
-              Icons.arrow_back_rounded,
-              color: BrandColors.inkSoft(context),
+          if (!embedded)
+            IconButton(
+              icon: Icon(
+                Icons.arrow_back_rounded,
+                color: BrandColors.inkSoft(context),
+              ),
+              onPressed: () => Navigator.of(context).maybePop(),
             ),
-            onPressed: () => Navigator.of(context).maybePop(),
-          ),
           Expanded(
-            child: Text(
-              'Challenges',
-              style: GoogleFonts.instrumentSerif(
-                color: BrandColors.ink(context),
-                fontStyle: FontStyle.italic,
-                fontSize: 30,
-                height: 1.0,
+            child: Padding(
+              padding: EdgeInsets.only(left: embedded ? 0 : 0),
+              child: Text(
+                'Challenges',
+                style: brandFont(
+                  color: BrandColors.ink(context),
+                  fontSize: 30,
+                  weight: FontWeight.w800,
+                  height: 1.0,
+                  letterSpacing: -0.4,
+                ),
               ),
             ),
           ),
@@ -314,9 +334,8 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 18),
             Text(
               'No challenges yet.',
-              style: GoogleFonts.instrumentSerif(
+              style: GoogleFonts.bricolageGrotesque(
                 color: BrandColors.ink(context),
-                fontStyle: FontStyle.italic,
                 fontSize: 28,
               ),
             ),

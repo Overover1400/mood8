@@ -56,16 +56,19 @@ class AdaptiveSuggestion {
   }
 
   String get badge {
+    // "Challenge" now refers to the dedicated Challenges feature, so
+    // the AI recommendation card on Home uses the broader label
+    // "Suggestion" to avoid confusion.
     switch (actionType) {
       case AdaptiveActionType.addRoutine:
       case AdaptiveActionType.addHabit:
-        return 'Add';
+        return 'Suggestion';
       case AdaptiveActionType.moveRoutine:
-        return 'Move';
+        return 'Suggestion';
       case AdaptiveActionType.simplify:
-        return 'Simplify';
+        return 'Suggestion';
       case AdaptiveActionType.challenge:
-        return 'Challenge';
+        return 'Suggestion';
     }
   }
 }

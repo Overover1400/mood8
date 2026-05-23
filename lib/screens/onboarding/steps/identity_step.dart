@@ -180,9 +180,8 @@ class _IdentityCard extends StatelessWidget {
             Text(
               option.label,
               style: selected
-                  ? GoogleFonts.instrumentSerif(
+                  ? GoogleFonts.bricolageGrotesque(
                       color: Colors.white,
-                      fontStyle: FontStyle.italic,
                       fontSize: 22,
                       height: 1.0,
                     )

@@ -143,7 +143,6 @@ class _IntentionSheetState extends State<IntentionSheet> {
                   "Set today's intention",
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontStyle: FontStyle.italic,
                       ),
                 ),
               )

@@ -113,9 +113,8 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                         children: [
                           Text(
                             'Join requests',
-                            style: GoogleFonts.instrumentSerif(
+                            style: GoogleFonts.bricolageGrotesque(
                               color: BrandColors.ink(context),
-                              fontStyle: FontStyle.italic,
                               fontSize: 24,
                               height: 1.0,
                             ),

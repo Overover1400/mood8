@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit.dart';
 import '../models/habit_log.dart';
@@ -37,6 +38,14 @@ class HabitsScreen extends StatefulWidget {
   State<HabitsScreen> createState() => _HabitsScreenState();
 }
 
+/// Habit list sort modes — persisted in SharedPreferences via
+/// [_kSortPrefKey]. Manual mode flips the list into a
+/// ReorderableListView with drag handles; the manual order itself
+/// rides on the existing `sortOrder` field (already synced).
+enum HabitSortMode { dateAdded, az, za, manual }
+
+const String _kHabitSortPrefKey = 'mood8.habitSortMode';
+
 class _HabitsScreenState extends State<HabitsScreen> {
   final HabitRepository _repo = HabitRepository();
   final UserRepository _userRepo = UserRepository();
@@ -46,6 +55,61 @@ class _HabitsScreenState extends State<HabitsScreen> {
       _repo.watchLogs();
 
   String _filter = _kAllFilter;
+  HabitSortMode _sortMode = HabitSortMode.dateAdded;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSortPref();
+  }
+
+  Future<void> _loadSortPref() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_kHabitSortPrefKey);
+      if (raw == null) return;
+      final mode = HabitSortMode.values.firstWhere(
+        (m) => m.name == raw,
+        orElse: () => HabitSortMode.dateAdded,
+      );
+      if (mounted) setState(() => _sortMode = mode);
+    } catch (_) {/* fallback to default */}
+  }
+
+  Future<void> _setSortMode(HabitSortMode mode) async {
+    if (mode == _sortMode) return;
+    HapticService().selection();
+    setState(() => _sortMode = mode);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kHabitSortPrefKey, mode.name);
+    } catch (_) {}
+  }
+
+  List<Habit> _applySort(List<Habit> list) {
+    final out = [...list];
+    switch (_sortMode) {
+      case HabitSortMode.dateAdded:
+        out.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
+      case HabitSortMode.az:
+        out.sort((a, b) =>
+            a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        break;
+      case HabitSortMode.za:
+        out.sort((a, b) =>
+            b.title.toLowerCase().compareTo(a.title.toLowerCase()));
+        break;
+      case HabitSortMode.manual:
+        out.sort((a, b) {
+          final c = a.sortOrder.compareTo(b.sortOrder);
+          if (c != 0) return c;
+          return a.createdAt.compareTo(b.createdAt);
+        });
+        break;
+    }
+    return out;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,11 +137,12 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
                       final scheduled =
                           all.where((h) => h.isScheduledFor(today)).toList();
-                      final visible = _filter == _kAllFilter
+                      var visible = _filter == _kAllFilter
                           ? all
                           : all
                               .where((h) => h.identity == _filter)
                               .toList();
+                      visible = _applySort(visible);
 
                       final completedToday = scheduled.where((h) {
                         final l = _repo.getLogForDate(h.id, today);
@@ -103,7 +168,11 @@ class _HabitsScreenState extends State<HabitsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _Header(profile: user),
+                            _Header(
+                              profile: user,
+                              sortMode: _sortMode,
+                              onSortChanged: _setSortMode,
+                            ),
                             const SizedBox(height: 16),
                             _IdentityFilter(
                               identities: identities,
@@ -140,6 +209,36 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                     ),
                                   ),
                                 ),
+                              )
+                            else if (_sortMode == HabitSortMode.manual)
+                              _ManualList(
+                                habits: visible,
+                                todayValueFor: _todayValue,
+                                last7For: _last7,
+                                onTap: _openDetail,
+                                onIncrement: _increment,
+                                onDecrement: _decrement,
+                                onToggle: _toggle,
+                                onReorder: (oldIdx, newIdx) async {
+                                  // Map the in-list reorder back to the
+                                  // global active-habit index expected by
+                                  // HabitRepository.reorderHabits.
+                                  final active = _repo.getActiveHabits();
+                                  final moving = visible[oldIdx];
+                                  final destNeighbor = newIdx >= visible.length
+                                      ? null
+                                      : visible[newIdx];
+                                  final globalOld =
+                                      active.indexWhere((h) => h.id == moving.id);
+                                  final globalNew = destNeighbor == null
+                                      ? active.length
+                                      : active.indexWhere(
+                                          (h) => h.id == destNeighbor.id);
+                                  if (globalOld < 0 || globalNew < 0) return;
+                                  await _repo.reorderHabits(
+                                      globalOld, globalNew);
+                                  HapticService().selection();
+                                },
                               )
                             else
                               for (final entry in grouped.entries) ...[
@@ -393,8 +492,14 @@ class _BackgroundGlow extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({this.profile});
+  const _Header({
+    this.profile,
+    required this.sortMode,
+    required this.onSortChanged,
+  });
   final UserProfile? profile;
+  final HabitSortMode sortMode;
+  final ValueChanged<HabitSortMode> onSortChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -424,12 +529,187 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
+        _SortButton(current: sortMode, onSelect: onSortChanged),
+        const SizedBox(width: 8),
         if (profile != null)
           FreezeBadge(
             count: profile!.freezesAvailable,
             profile: profile,
           ),
       ],
+    );
+  }
+}
+
+class _SortButton extends StatelessWidget {
+  const _SortButton({required this.current, required this.onSelect});
+  final HabitSortMode current;
+  final ValueChanged<HabitSortMode> onSelect;
+
+  static const Map<HabitSortMode, String> _labels = {
+    HabitSortMode.dateAdded: 'Date added',
+    HabitSortMode.az: 'A–Z',
+    HabitSortMode.za: 'Z–A',
+    HabitSortMode.manual: 'Manual',
+  };
+
+  static const Map<HabitSortMode, IconData> _icons = {
+    HabitSortMode.dateAdded: Icons.schedule_rounded,
+    HabitSortMode.az: Icons.sort_by_alpha_rounded,
+    HabitSortMode.za: Icons.sort_by_alpha_rounded,
+    HabitSortMode.manual: Icons.drag_handle_rounded,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final activeIcon = _icons[current] ?? Icons.sort_rounded;
+    return PopupMenuButton<HabitSortMode>(
+      tooltip: 'Sort',
+      color: BrandColors.bgCard(context),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: AppColors.purple.withValues(alpha: 0.30),
+        ),
+      ),
+      onSelected: onSelect,
+      itemBuilder: (_) => [
+        for (final m in HabitSortMode.values)
+          PopupMenuItem<HabitSortMode>(
+            value: m,
+            child: Row(
+              children: [
+                Icon(_icons[m],
+                    color: m == current
+                        ? AppColors.pinkLight
+                        : BrandColors.inkSoft(context),
+                    size: 16),
+                const SizedBox(width: 10),
+                Text(
+                  _labels[m]!,
+                  style: TextStyle(
+                    color: m == current
+                        ? AppColors.pinkLight
+                        : BrandColors.ink(context),
+                    fontWeight: m == current
+                        ? FontWeight.w800
+                        : FontWeight.w600,
+                  ),
+                ),
+                if (m == current) ...[
+                  const Spacer(),
+                  Icon(Icons.check_rounded,
+                      color: AppColors.pinkLight, size: 16),
+                ],
+              ],
+            ),
+          ),
+      ],
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppColors.purple.withValues(alpha: 0.30),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(activeIcon,
+                color: BrandColors.inkSoft(context), size: 14),
+            const SizedBox(width: 6),
+            Text(
+              _labels[current]!,
+              style: TextStyle(
+                color: BrandColors.inkSoft(context),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Drag-to-reorder list for Manual sort mode. Each tile carries a
+/// drag handle on the trailing edge; release commits the new order
+/// via [onReorder] which the parent maps to
+/// [HabitRepository.reorderHabits].
+class _ManualList extends StatelessWidget {
+  const _ManualList({
+    required this.habits,
+    required this.todayValueFor,
+    required this.last7For,
+    required this.onTap,
+    required this.onIncrement,
+    required this.onDecrement,
+    required this.onToggle,
+    required this.onReorder,
+  });
+
+  final List<Habit> habits;
+  final int Function(Habit) todayValueFor;
+  final List<HabitLog> Function(Habit) last7For;
+  final void Function(Habit) onTap;
+  final void Function(Habit) onIncrement;
+  final void Function(Habit) onDecrement;
+  final void Function(Habit) onToggle;
+  final void Function(int oldIndex, int newIndex) onReorder;
+
+  @override
+  Widget build(BuildContext context) {
+    return ReorderableListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      buildDefaultDragHandles: false,
+      itemCount: habits.length,
+      onReorder: onReorder,
+      itemBuilder: (_, i) {
+        final h = habits[i];
+        return Padding(
+          key: ValueKey('habit-manual-${h.id}'),
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: HabitCard(
+                  habit: h,
+                  todayValue: todayValueFor(h),
+                  last7: last7For(h),
+                  onTap: () => onTap(h),
+                  onIncrement: () => onIncrement(h),
+                  onDecrement: () => onDecrement(h),
+                  onToggle: () => onToggle(h),
+                ),
+              ),
+              ReorderableDragStartListener(
+                index: i,
+                child: Container(
+                  margin: const EdgeInsets.only(left: 8),
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color:
+                        BrandColors.bgCard(context).withValues(alpha: 0.7),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.purple.withValues(alpha: 0.30),
+                    ),
+                  ),
+                  child: Icon(Icons.drag_indicator_rounded,
+                      color: BrandColors.inkSoft(context), size: 18),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

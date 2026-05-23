@@ -104,9 +104,8 @@ class _InsightCardState extends State<InsightCard> {
           const SizedBox(height: 8),
           Text(
             i.title,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: BrandColors.ink(context),
-              fontStyle: FontStyle.italic,
               fontSize: 22,
               height: 1.15,
             ),

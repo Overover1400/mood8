@@ -90,9 +90,8 @@ class ReflectionCard extends StatelessWidget {
                 body,
                 maxLines: compact ? 4 : null,
                 overflow: compact ? TextOverflow.ellipsis : null,
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: BrandColors.ink(context),
-                  fontStyle: FontStyle.italic,
                   fontSize: compact ? 17 : 19,
                   height: 1.35,
                 ),

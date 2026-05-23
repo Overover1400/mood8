@@ -15,16 +15,21 @@ const List<NavItem> kNavItems = [
   NavItem('Today', Icons.today_rounded),
   NavItem('Habits', Icons.check_circle_outline_rounded),
   NavItem('Routine', Icons.schedule_rounded),
+  NavItem('Challenge', Icons.flag_rounded),
   NavItem('Coach', Icons.chat_bubble_outline_rounded),
-  NavItem('Insights', Icons.auto_awesome_rounded),
   NavItem('Progress', Icons.bar_chart_rounded),
 ];
 
 const int kHabitsTabIndex = 1;
 const int kRoutineTabIndex = 2;
-const int kCoachTabIndex = 3;
-const int kInsightsTabIndex = 4;
+const int kChallengeTabIndex = 3;
+const int kCoachTabIndex = 4;
 const int kProgressTabIndex = 5;
+// Insights is no longer a tab — it now lives inside the Progress screen
+// as a segmented toggle. The legacy constant stays for any tutorial /
+// telemetry call site that still references it; it now aliases the
+// Progress tab so any redirect still lands the user in the right place.
+const int kInsightsTabIndex = kProgressTabIndex;
 
 class MoodBottomNav extends StatelessWidget {
   const MoodBottomNav({

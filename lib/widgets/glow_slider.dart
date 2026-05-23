@@ -44,9 +44,8 @@ class GlowSlider extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: score,
-                    style: GoogleFonts.instrumentSerif(
+                    style: GoogleFonts.bricolageGrotesque(
                       color: BrandColors.ink(context),
-                      fontStyle: FontStyle.italic,
                       fontSize: 22,
                       height: 1.0,
                     ),

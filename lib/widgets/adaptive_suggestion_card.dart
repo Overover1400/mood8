@@ -88,9 +88,8 @@ class AdaptiveSuggestionCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             suggestion.title,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: BrandColors.ink(context),
-              fontStyle: FontStyle.italic,
               fontSize: 20,
               height: 1.15,
             ),

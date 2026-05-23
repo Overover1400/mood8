@@ -5,11 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/tutorial_overlay.dart';
+import 'challenges/challenges_list_screen.dart';
 import 'coach_screen.dart';
 import 'habits_screen.dart';
 import 'home_screen.dart';
-import 'insights_screen.dart';
-import 'progress_screen.dart';
+import 'progress_insights_tab.dart';
 import 'routine_screen.dart';
 
 const String _kTabPrefKey = 'mood8.currentTab';
@@ -87,9 +87,9 @@ class _MainNavigationState extends State<MainNavigation> {
                 HomeScreen(),
                 HabitsScreen(),
                 RoutineScreen(),
+                ChallengesListScreen(embedded: true),
                 CoachScreen(),
-                InsightsScreen(),
-                ProgressScreen(),
+                ProgressInsightsTab(),
               ],
             ),
           Align(

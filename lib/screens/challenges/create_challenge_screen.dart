@@ -125,9 +125,8 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
               const SizedBox(height: 4),
               Text(
                 'Create a challenge',
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: BrandColors.ink(context),
-                  fontStyle: FontStyle.italic,
                   fontSize: 34,
                   height: 1.05,
                 ),
@@ -484,9 +483,8 @@ class _ReviewingOverlay extends StatelessWidget {
               Text(
                 'Reviewing your challenge…',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: BrandColors.ink(context),
-                  fontStyle: FontStyle.italic,
                   fontSize: 28,
                 ),
               ),
@@ -558,9 +556,8 @@ class _RejectionScreen extends StatelessWidget {
                 Text(
                   'Let’s rework this one.',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: BrandColors.ink(context),
-                    fontStyle: FontStyle.italic,
                     fontSize: 30,
                   ),
                 ),

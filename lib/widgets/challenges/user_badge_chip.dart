@@ -59,9 +59,8 @@ class UserBadgeChip extends StatelessWidget {
           if (hasBadge)
             Text(
               badge!,
-              style: GoogleFonts.instrumentSerif(
+              style: GoogleFonts.bricolageGrotesque(
                 color: BrandColors.ink(context),
-                fontStyle: FontStyle.italic,
                 fontSize: compact ? 12 : 14,
                 height: 1.0,
               ),

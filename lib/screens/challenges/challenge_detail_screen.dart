@@ -307,9 +307,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
           const SizedBox(height: 18),
           Text(
             d.title,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: BrandColors.ink(context),
-              fontStyle: FontStyle.italic,
               fontSize: 30,
               height: 1.1,
             ),
@@ -545,9 +544,8 @@ class _StatTile extends StatelessWidget {
         children: [
           Text(
             value,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: BrandColors.ink(context),
-              fontStyle: FontStyle.italic,
               fontSize: 26,
               height: 1.0,
             ),
@@ -759,9 +757,8 @@ class _CreatorPanel extends StatelessWidget {
                   children: [
                     Text(
                       'Join requests',
-                      style: GoogleFonts.instrumentSerif(
+                      style: GoogleFonts.bricolageGrotesque(
                         color: BrandColors.ink(context),
-                        fontStyle: FontStyle.italic,
                         fontSize: 20,
                       ),
                     ),
@@ -1033,9 +1030,8 @@ class _RankUpDialogState extends State<_RankUpDialog> {
                 Text(
                   'You advanced to',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: BrandColors.inkSoft(context),
-                    fontStyle: FontStyle.italic,
                     fontSize: 22,
                     height: 1.0,
                   ),
@@ -1044,9 +1040,8 @@ class _RankUpDialogState extends State<_RankUpDialog> {
                 Text(
                   widget.rankName,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: BrandColors.ink(context),
-                    fontStyle: FontStyle.italic,
                     fontSize: 40,
                     height: 1.05,
                     foreground: Paint()

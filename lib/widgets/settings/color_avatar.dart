@@ -46,9 +46,8 @@ class ColorAvatar extends StatelessWidget {
       ),
       child: Text(
         _initials,
-        style: GoogleFonts.instrumentSerif(
+        style: GoogleFonts.bricolageGrotesque(
           color: Colors.white,
-          fontStyle: FontStyle.italic,
           fontSize: size * 0.45,
           height: 1.0,
         ),

@@ -81,9 +81,8 @@ class ChallengeCard extends StatelessWidget {
               const SizedBox(height: 14),
               Text(
                 challenge.title,
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: BrandColors.ink(context),
-                  fontStyle: FontStyle.italic,
                   fontSize: 24,
                   height: 1.1,
                 ),

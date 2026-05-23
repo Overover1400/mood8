@@ -208,7 +208,6 @@ class _FreezeInfoSheet extends StatelessWidget {
                   'Streak Freeze',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontStyle: FontStyle.italic,
                       ),
                 ),
               ),

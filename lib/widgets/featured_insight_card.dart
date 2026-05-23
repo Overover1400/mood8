@@ -92,9 +92,8 @@ class FeaturedInsightCard extends StatelessWidget {
               const SizedBox(height: 14),
               Text(
                 insight.title,
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: BrandColors.ink(context),
-                  fontStyle: FontStyle.italic,
                   fontSize: 26,
                   height: 1.1,
                 ),

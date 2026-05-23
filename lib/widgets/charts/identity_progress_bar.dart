@@ -27,9 +27,8 @@ class IdentityProgressBar extends StatelessWidget {
             children: [
               Text(
                 identity,
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: BrandColors.ink(context),
-                  fontStyle: FontStyle.italic,
                   fontSize: 19,
                   height: 1.0,
                 ),

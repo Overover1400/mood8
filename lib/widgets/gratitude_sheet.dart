@@ -160,7 +160,6 @@ class _GratitudeSheetState extends State<GratitudeSheet> {
                   "Three things you're grateful for",
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontStyle: FontStyle.italic,
                       ),
                 ),
               )

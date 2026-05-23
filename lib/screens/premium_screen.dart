@@ -196,9 +196,8 @@ class _Hero extends StatelessWidget {
         const SizedBox(height: 18),
         Text(
           'Mood8 Premium',
-          style: GoogleFonts.instrumentSerif(
+          style: GoogleFonts.bricolageGrotesque(
             color: BrandColors.ink(context),
-            fontStyle: FontStyle.italic,
             fontSize: 36,
             height: 1.0,
           ),
@@ -309,9 +308,8 @@ class _PlanRow extends StatelessWidget {
                     children: [
                       TextSpan(
                         text: plan.price,
-                        style: GoogleFonts.instrumentSerif(
+                        style: GoogleFonts.bricolageGrotesque(
                           color: BrandColors.ink(context),
-                          fontStyle: FontStyle.italic,
                           fontSize: 26,
                           height: 1.0,
                         ),

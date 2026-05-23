@@ -179,9 +179,8 @@ class _StepperPill extends StatelessWidget {
             child: Center(
               child: Text(
                 label,
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: BrandColors.ink(context),
-                  fontStyle: FontStyle.italic,
                   fontSize: compact ? 16 : 18,
                   height: 1.0,
                 ),

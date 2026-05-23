@@ -67,9 +67,8 @@ class _WearHomeScreenState extends State<WearHomeScreen> {
               const SizedBox(height: 4),
               Text(
                 'Hi, Hamed',
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: BrandColors.ink(context),
-                  fontStyle: FontStyle.italic,
                   fontSize: 16,
                   height: 1.1,
                 ),
@@ -160,9 +159,8 @@ class _StreakCard extends StatelessWidget {
               children: [
                 TextSpan(
                   text: '$streak',
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: BrandColors.ink(context),
-                    fontStyle: FontStyle.italic,
                     fontSize: 16,
                     height: 1.0,
                   ),

@@ -41,6 +41,33 @@ class MoodRepository {
     return entry;
   }
 
+  /// Auto-save semantics for the home check-in: if today already has an
+  /// entry, update its mood/energy/focus in place and bump updatedAt;
+  /// otherwise create a new one. Single network round-trip via the
+  /// existing debounced push.
+  Future<MoodEntry> upsertTodayEntry({
+    required double mood,
+    required double energy,
+    required double focus,
+  }) async {
+    final existing = getTodayEntry();
+    if (existing == null) {
+      return addEntry(mood: mood, energy: energy, focus: focus);
+    }
+    existing.mood = mood;
+    existing.energy = energy;
+    existing.focus = focus;
+    existing.updatedAt = DateTime.now();
+    try {
+      await _box.put(existing.id, existing);
+      SyncService().debouncedPush();
+    } catch (e, st) {
+      debugPrint('MoodRepository.upsertTodayEntry failed: $e\n$st');
+      rethrow;
+    }
+    return existing;
+  }
+
   List<MoodEntry> getAllEntries() {
     final list = _box.values.toList()
       ..sort((a, b) => b.timestamp.compareTo(a.timestamp));

@@ -119,7 +119,7 @@ class _TutorialStep {
 }
 
 List<_TutorialStep> get _kSteps => <_TutorialStep>[
-      // ── Tab overview ────────────────────────────────────────────────
+      // ── Today + check-in ────────────────────────────────────────────
       _TutorialStep(
         tabIndex: 0,
         icon: Icons.today_rounded,
@@ -131,28 +131,29 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
       _TutorialStep(
         tabIndex: 0,
         icon: Icons.tune_rounded,
-        label: 'MOOD CHECK-IN',
-        title: 'Three sliders, ten seconds.',
+        label: 'CHECK-IN',
+        title: 'Slide. Done.',
         body:
-            'Slide Mood, Energy, and Focus to wherever you are right now. Save and you’re done.',
+            'Adjust Mood, Energy, and Focus — Mood8 saves automatically a moment after you stop.',
         targetKey: TutorialTargets.moodSliders,
       ),
       _TutorialStep(
         tabIndex: 0,
-        icon: Icons.favorite_rounded,
-        label: 'GRATITUDE',
-        title: 'Three things, daily.',
+        icon: Icons.add_rounded,
+        label: 'INTENTION + GRATITUDE',
+        title: 'The “+” adds depth.',
         body:
-            'Tap to log what you’re grateful for. Tiny, repeatable, identity-shaping.',
-        targetKey: TutorialTargets.gratitudeCard,
+            'Tap the plus next to your name to set today’s intention or log three gratitudes.',
+        targetKey: TutorialTargets.settingsButton,
       ),
+      // ── Habits ──────────────────────────────────────────────────────
       _TutorialStep(
         tabIndex: kHabitsTabIndex,
         icon: Icons.check_circle_outline_rounded,
         label: 'HABITS',
         title: 'Small votes, big identity.',
         body:
-            'Each habit is a quiet vote for who you are becoming. Tap to complete, hold to edit.',
+            'Each habit is a quiet vote for who you are becoming. Tap to complete, hold to edit, sort however suits you.',
       ),
       _TutorialStep(
         tabIndex: kHabitsTabIndex,
@@ -163,6 +164,7 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
             'The + button opens a quick sheet: name, identity, cadence. That’s the whole flow.',
         targetKey: TutorialTargets.addHabit,
       ),
+      // ── Routine ─────────────────────────────────────────────────────
       _TutorialStep(
         tabIndex: kRoutineTabIndex,
         icon: Icons.schedule_rounded,
@@ -180,6 +182,16 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
             'Tap + to drop a new ritual into your timeline — meditate, write, walk, anything.',
         targetKey: TutorialTargets.addRoutine,
       ),
+      // ── Challenge ───────────────────────────────────────────────────
+      _TutorialStep(
+        tabIndex: kChallengeTabIndex,
+        icon: Icons.flag_rounded,
+        label: 'CHALLENGE',
+        title: 'Push together. Rank up.',
+        body:
+            'Join (or start) a group challenge. One check-in a day before the deadline keeps your military rank climbing — Recruit to Legend.',
+      ),
+      // ── Coach ───────────────────────────────────────────────────────
       _TutorialStep(
         tabIndex: kCoachTabIndex,
         icon: Icons.chat_bubble_outline_rounded,
@@ -188,14 +200,7 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
         body:
             'Ask the coach anything. Get a nightly reflection that reads your day with care.',
       ),
-      _TutorialStep(
-        tabIndex: kInsightsTabIndex,
-        icon: Icons.auto_awesome_rounded,
-        label: 'INSIGHTS',
-        title: 'Patterns made visible.',
-        body:
-            'Mood8 surfaces the patterns behind your mood — what lifts you, what drains you.',
-      ),
+      // ── Progress (now also hosts Insights) ──────────────────────────
       _TutorialStep(
         tabIndex: kProgressTabIndex,
         icon: Icons.bar_chart_rounded,
@@ -206,6 +211,14 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
       ),
       _TutorialStep(
         tabIndex: kProgressTabIndex,
+        icon: Icons.auto_awesome_rounded,
+        label: 'INSIGHTS',
+        title: 'Patterns made visible.',
+        body:
+            'Tap “Insights” at the top of Progress to see what lifts you, what drains you, and what to try next.',
+      ),
+      _TutorialStep(
+        tabIndex: kProgressTabIndex,
         icon: Icons.ios_share_rounded,
         label: 'SHARE',
         title: 'Make it visible.',
@@ -213,6 +226,7 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
             'Export a beautiful card of your week — for your story, feed, or fridge.',
         targetKey: TutorialTargets.shareProgress,
       ),
+      // ── Settings ────────────────────────────────────────────────────
       _TutorialStep(
         tabIndex: 0,
         icon: Icons.settings_rounded,
@@ -634,9 +648,8 @@ class _StepCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             step.title,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: BrandColors.ink(context),
-              fontStyle: FontStyle.italic,
               fontSize: 28,
               height: 1.1,
             ),

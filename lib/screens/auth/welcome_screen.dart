@@ -58,9 +58,8 @@ class WelcomeScreen extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text(
                           'Mood8',
-                          style: GoogleFonts.instrumentSerif(
+                          style: GoogleFonts.bricolageGrotesque(
                             color: BrandColors.ink(context),
-                            fontStyle: FontStyle.italic,
                             fontSize: 22,
                           ),
                         ),

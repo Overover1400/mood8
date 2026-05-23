@@ -56,9 +56,8 @@ class BadgeLegendScreen extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 'The way up',
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: BrandColors.ink(context),
-                  fontStyle: FontStyle.italic,
                   fontSize: 34,
                   height: 1.05,
                 ),
@@ -119,9 +118,8 @@ class BadgeLegendScreen extends StatelessWidget {
               Text(
                 'Built to be earned. Worn forever.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: BrandColors.inkDim(context),
-                  fontStyle: FontStyle.italic,
                   fontSize: 16,
                 ),
               ),
@@ -283,9 +281,8 @@ class _RankRow extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: BrandColors.ink(context),
-                    fontStyle: FontStyle.italic,
                     fontSize: 20,
                   ),
                 ),
@@ -353,9 +350,8 @@ class _PrestigeRow extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: GoogleFonts.instrumentSerif(
+                  style: GoogleFonts.bricolageGrotesque(
                     color: BrandColors.ink(context),
-                    fontStyle: FontStyle.italic,
                     fontSize: 22,
                   ),
                 ),

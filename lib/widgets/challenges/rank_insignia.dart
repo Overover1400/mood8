@@ -44,9 +44,8 @@ class RankInsignia extends StatelessWidget {
           child: Text(
             rankName,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.instrumentSerif(
+            style: GoogleFonts.bricolageGrotesque(
               color: BrandColors.ink(context),
-              fontStyle: FontStyle.italic,
               fontSize: size * 0.78,
             ),
           ),

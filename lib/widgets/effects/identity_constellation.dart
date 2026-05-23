@@ -283,9 +283,8 @@ class _Toast extends StatelessWidget {
                       ),
                       child: Text(
                         "You're $pct% $identity.",
-                        style: GoogleFonts.instrumentSerif(
+                        style: GoogleFonts.bricolageGrotesque(
                           color: BrandColors.ink(context),
-                          fontStyle: FontStyle.italic,
                           fontSize: 22,
                           height: 1.0,
                         ),

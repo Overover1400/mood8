@@ -623,9 +623,8 @@ class _HeroCard extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: text,
-                    style: GoogleFonts.instrumentSerif(
+                    style: GoogleFonts.bricolageGrotesque(
                       color: BrandColors.ink(context),
-                      fontStyle: FontStyle.italic,
                       fontSize: 26,
                       height: 1.0,
                     ),
@@ -941,9 +940,8 @@ class _GratitudeStat extends StatelessWidget {
                   children: [
                     Text(
                       '$streak',
-                      style: GoogleFonts.instrumentSerif(
+                      style: GoogleFonts.bricolageGrotesque(
                         color: BrandColors.ink(context),
-                        fontStyle: FontStyle.italic,
                         fontSize: 24,
                         height: 1.0,
                       ),
@@ -977,9 +975,8 @@ class _GratitudeStat extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 '$monthCount',
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: AppColors.pinkLight,
-                  fontStyle: FontStyle.italic,
                   fontSize: 22,
                   height: 1.0,
                 ),
@@ -1046,9 +1043,8 @@ class _YearInReviewCta extends StatelessWidget {
                 children: [
                   Text(
                     'Your Year in Review',
-                    style: GoogleFonts.instrumentSerif(
+                    style: GoogleFonts.bricolageGrotesque(
                       color: BrandColors.ink(context),
-                      fontStyle: FontStyle.italic,
                       fontSize: 22,
                     ),
                   ),
@@ -1121,9 +1117,8 @@ class _ShareProgressCta extends StatelessWidget {
                 children: [
                   Text(
                     'Share your progress',
-                    style: GoogleFonts.instrumentSerif(
+                    style: GoogleFonts.bricolageGrotesque(
                       color: BrandColors.ink(context),
-                      fontStyle: FontStyle.italic,
                       fontSize: 22,
                     ),
                   ),

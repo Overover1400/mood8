@@ -70,9 +70,8 @@ class PremiumGate extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     title,
-                    style: GoogleFonts.instrumentSerif(
+                    style: GoogleFonts.bricolageGrotesque(
                       color: BrandColors.ink(context),
-                      fontStyle: FontStyle.italic,
                       fontSize: 22,
                     ),
                   ),

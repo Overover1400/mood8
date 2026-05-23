@@ -168,9 +168,8 @@ class _PrestigeUnlockScreenState extends State<PrestigeUnlockScreen> {
                   Text(
                     widget.badge,
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.instrumentSerif(
+                    style: GoogleFonts.bricolageGrotesque(
                       color: Colors.white,
-                      fontStyle: FontStyle.italic,
                       fontSize: 56,
                       height: 1.0,
                       foreground: Paint()
@@ -194,9 +193,8 @@ class _PrestigeUnlockScreenState extends State<PrestigeUnlockScreen> {
                   Text(
                     _flavorFor(widget.badge),
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.instrumentSerif(
+                    style: GoogleFonts.bricolageGrotesque(
                       color: AppColors.inkSoft,
-                      fontStyle: FontStyle.italic,
                       fontSize: 20,
                       height: 1.4,
                     ),

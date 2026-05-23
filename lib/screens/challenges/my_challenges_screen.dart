@@ -69,9 +69,8 @@ class _MyChallengesScreenState extends State<MyChallengesScreen> {
                     ),
                     Text(
                       'My challenges',
-                      style: GoogleFonts.instrumentSerif(
+                      style: GoogleFonts.bricolageGrotesque(
                         color: BrandColors.ink(context),
-                        fontStyle: FontStyle.italic,
                         fontSize: 24,
                       ),
                     ),

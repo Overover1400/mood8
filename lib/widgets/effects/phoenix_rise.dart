@@ -329,9 +329,8 @@ class _Badge extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text(
                           '$days day streak',
-                          style: GoogleFonts.instrumentSerif(
+                          style: GoogleFonts.bricolageGrotesque(
                             color: BrandColors.ink(context),
-                            fontStyle: FontStyle.italic,
                             fontSize: 22,
                             height: 1.0,
                           ),

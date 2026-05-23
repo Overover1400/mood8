@@ -178,9 +178,8 @@ class _BadgeUnlockModalState extends State<BadgeUnlockModal> {
                       Text(
                         widget.badge.title,
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.instrumentSerif(
+                        style: GoogleFonts.bricolageGrotesque(
                           color: BrandColors.ink(context),
-                          fontStyle: FontStyle.italic,
                           fontSize: 38,
                           height: 1.1,
                         ),
@@ -477,9 +476,8 @@ class BadgeDetailPopup extends StatelessWidget {
               child: Text(
                 badge.title,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.instrumentSerif(
+                style: GoogleFonts.bricolageGrotesque(
                   color: BrandColors.ink(context),
-                  fontStyle: FontStyle.italic,
                   fontSize: 26,
                   height: 1.15,
                 ),

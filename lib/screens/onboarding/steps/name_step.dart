@@ -111,16 +111,14 @@ class _GradientField extends StatelessWidget {
           textInputAction: TextInputAction.done,
           cursorColor: AppColors.pinkLight,
           textCapitalization: TextCapitalization.words,
-          style: GoogleFonts.instrumentSerif(
+          style: GoogleFonts.bricolageGrotesque(
             color: BrandColors.ink(context),
-            fontStyle: FontStyle.italic,
             fontSize: 28,
           ),
           decoration: InputDecoration(
             hintText: 'Your name',
-            hintStyle: GoogleFonts.instrumentSerif(
+            hintStyle: GoogleFonts.bricolageGrotesque(
               color: BrandColors.inkDim(context).withValues(alpha: 0.7),
-              fontStyle: FontStyle.italic,
               fontSize: 28,
             ),
             isDense: true,
