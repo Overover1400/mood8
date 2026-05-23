@@ -36,6 +36,15 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
   // The "Request to join" button stays disabled after a successful
   // request so the user knows it landed even before the next refresh.
   bool _hasJustRequested = false;
+  bool _upvoting = false;
+
+  // Comments
+  List<ChallengeComment> _comments = const [];
+  bool _loadingComments = false;
+  String? _commentsError;
+  bool _postingComment = false;
+  String? _commentRejection;
+  final TextEditingController _commentController = TextEditingController();
 
   Timer? _deadlineTicker;
   Duration _untilDeadline = Duration.zero;
@@ -44,6 +53,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
   void initState() {
     super.initState();
     _load();
+    _loadComments();
     _deadlineTicker =
         Timer.periodic(const Duration(seconds: 30), (_) => _refreshTick());
   }
@@ -51,6 +61,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
   @override
   void dispose() {
     _deadlineTicker?.cancel();
+    _commentController.dispose();
     super.dispose();
   }
 
@@ -92,6 +103,210 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
         _error = e is ChallengeError ? e.message : 'Could not load.';
       });
     }
+  }
+
+  Future<void> _loadComments() async {
+    if (_loadingComments) return;
+    setState(() {
+      _loadingComments = true;
+      _commentsError = null;
+    });
+    try {
+      final rows =
+          await ChallengeService().listComments(widget.challengeId);
+      if (!mounted) return;
+      setState(() {
+        _comments = rows;
+        _loadingComments = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingComments = false;
+        _commentsError =
+            e is ChallengeError ? e.message : 'Could not load comments.';
+      });
+    }
+  }
+
+  Future<void> _postComment() async {
+    final text = _commentController.text.trim();
+    if (_postingComment) return;
+    if (text.isEmpty) return;
+    setState(() {
+      _postingComment = true;
+      _commentRejection = null;
+    });
+    HapticService().selection();
+    try {
+      final result = await ChallengeService().postComment(
+        challengeId: widget.challengeId,
+        text: text,
+      );
+      if (!mounted) return;
+      if (result.isRejected) {
+        setState(() {
+          _postingComment = false;
+          _commentRejection = result.rejectionReason;
+        });
+        return;
+      }
+      _commentController.clear();
+      setState(() {
+        _postingComment = false;
+        _comments = [..._comments, result.comment!];
+        _detail = _detail?._withCounts(
+          commentCount: (_detail?.commentCount ?? 0) + 1,
+        );
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _postingComment = false;
+        _commentRejection =
+            e is ChallengeError ? e.message : 'Could not post.';
+      });
+    }
+  }
+
+  Future<void> _deleteComment(ChallengeComment c) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text('Delete this comment?',
+            style: TextStyle(color: BrandColors.ink(context))),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Delete',
+                style: TextStyle(color: AppColors.pinkLight)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ChallengeService().deleteComment(
+        challengeId: widget.challengeId,
+        commentId: c.id,
+      );
+      if (!mounted) return;
+      setState(() {
+        _comments = _comments.where((x) => x.id != c.id).toList();
+        _detail = _detail?._withCounts(
+          commentCount: (_detail!.commentCount - 1).clamp(0, 1 << 30),
+        );
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          e is ChallengeError ? e.message : 'Could not delete.',
+        )),
+      );
+    }
+  }
+
+  Future<void> _reportComment(ChallengeComment c) async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text('Report comment',
+            style: TextStyle(color: BrandColors.ink(context))),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          style: TextStyle(color: BrandColors.ink(context)),
+          decoration: const InputDecoration(
+            hintText: 'Why are you reporting this?',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(ctx).pop(controller.text.trim()),
+            child: Text('Submit',
+                style: TextStyle(color: AppColors.pinkLight)),
+          ),
+        ],
+      ),
+    );
+    if (reason == null || reason.length < 3) return;
+    try {
+      await ChallengeService().reportComment(
+        commentId: c.id,
+        reason: reason,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Thanks — the team will review.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          e is ChallengeError ? e.message : 'Could not report.',
+        )),
+      );
+    }
+  }
+
+  Future<void> _toggleUpvote() async {
+    final d = _detail;
+    if (d == null || _upvoting) return;
+    setState(() => _upvoting = true);
+    final wasUp = d.userUpvoted;
+    final optimisticCount =
+        (d.upvoteCount + (wasUp ? -1 : 1)).clamp(0, 1 << 30);
+    setState(() => _detail = d._withCounts(
+          userUpvoted: !wasUp,
+          upvoteCount: optimisticCount,
+        ));
+    HapticService().selection();
+    try {
+      final res = await ChallengeService().toggleUpvote(d.id);
+      if (!mounted) return;
+      setState(() {
+        _upvoting = false;
+        _detail = _detail!._withCounts(
+          userUpvoted: res.upvoted,
+          upvoteCount: res.count,
+        );
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _upvoting = false;
+        _detail = d;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          e is ChallengeError ? e.message : "Couldn't update upvote.",
+        )),
+      );
+    }
+  }
+
+  void _openUserProfile({required int userId, required String name}) {
+    HapticService().light();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            PublicProfileScreen(userId: userId, initialName: name),
+      ),
+    );
   }
 
   Future<void> _requestJoin() async {
@@ -199,6 +414,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       summary: d.summary,
       me: me,
       isCreator: d.isCreator,
+      upvoteCount: d.upvoteCount,
+      userUpvoted: d.userUpvoted,
+      commentCount: d.commentCount,
     );
   }
 
@@ -323,6 +541,12 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
               height: 1.55,
             ),
           ),
+          const SizedBox(height: 14),
+          _DetailUpvoteRow(
+            detail: d,
+            busy: _upvoting,
+            onTap: _toggleUpvote,
+          ),
           const SizedBox(height: 16),
           _StatsRow(d: d),
           const SizedBox(height: 18),
@@ -346,21 +570,21 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
             },
           ),
           const SizedBox(height: 24),
-          Text(
-            'PARTICIPANTS · ${d.participants.length}',
-            style: TextStyle(
-              color: BrandColors.inkDim(context),
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.6,
-            ),
+          _ParticipantHistory(detail: d),
+          const SizedBox(height: 28),
+          _CommentsSection(
+            detail: d,
+            comments: _comments,
+            loading: _loadingComments,
+            error: _commentsError,
+            posting: _postingComment,
+            rejectionReason: _commentRejection,
+            controller: _commentController,
+            onPost: _postComment,
+            onDelete: _deleteComment,
+            onReport: _reportComment,
+            onTapUser: _openUserProfile,
           ),
-          const SizedBox(height: 10),
-          for (final p in d.participants)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _ParticipantTile(p: p),
-            ),
         ],
       ),
     );
@@ -1199,4 +1423,597 @@ class _GlowingInsignia extends StatelessWidget {
       ),
     );
   }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Upvote pill in the detail header
+// ──────────────────────────────────────────────────────────────────
+
+class _DetailUpvoteRow extends StatelessWidget {
+  const _DetailUpvoteRow({
+    required this.detail,
+    required this.busy,
+    required this.onTap,
+  });
+  final ChallengeDetail detail;
+  final bool busy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final up = detail.userUpvoted;
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: busy ? null : onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: up
+                  ? LinearGradient(
+                      colors: [
+                        AppColors.purple.withValues(alpha: 0.35),
+                        AppColors.pink.withValues(alpha: 0.30),
+                      ],
+                    )
+                  : null,
+              color: up
+                  ? null
+                  : BrandColors.bgCard(context).withValues(alpha: 0.70),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: up
+                    ? AppColors.pinkLight.withValues(alpha: 0.55)
+                    : AppColors.purple.withValues(alpha: 0.30),
+              ),
+              boxShadow: up
+                  ? [
+                      BoxShadow(
+                        color: AppColors.pink.withValues(alpha: 0.40),
+                        blurRadius: 18,
+                        spreadRadius: -4,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  up
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  size: 16,
+                  color: up ? Colors.white : BrandColors.inkSoft(context),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${detail.upvoteCount}',
+                  style: TextStyle(
+                    color: up ? Colors.white : BrandColors.inkSoft(context),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  up ? 'upvoted' : 'upvote',
+                  style: TextStyle(
+                    color: (up ? Colors.white : BrandColors.inkSoft(context))
+                        .withValues(alpha: 0.85),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Participant history section — grouped by status
+// ──────────────────────────────────────────────────────────────────
+
+class _ParticipantHistory extends StatelessWidget {
+  const _ParticipantHistory({required this.detail});
+  final ChallengeDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = detail.participants;
+    final active = parts.where((p) => p.status == 'active').toList();
+    final completed =
+        parts.where((p) => p.status == 'completed').toList();
+    final removed = parts.where((p) => p.status == 'removed').toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'PARTICIPANT HISTORY · ${parts.length}',
+          style: TextStyle(
+            color: BrandColors.inkDim(context),
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.6,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (parts.isEmpty)
+          Text(
+            'No participants yet.',
+            style: TextStyle(
+              color: BrandColors.inkSoft(context),
+              fontSize: 13,
+            ),
+          )
+        else ...[
+          if (active.isNotEmpty)
+            _StatusGroup(label: 'STILL IN', participants: active),
+          if (completed.isNotEmpty)
+            _StatusGroup(label: 'COMPLETED', participants: completed),
+          if (removed.isNotEmpty)
+            _StatusGroup(label: 'GAVE UP', participants: removed),
+        ],
+      ],
+    );
+  }
+}
+
+class _StatusGroup extends StatelessWidget {
+  const _StatusGroup({required this.label, required this.participants});
+  final String label;
+  final List<ChallengeParticipant> participants;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: BrandColors.inkDim(context),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final p in participants)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _ParticipantTile(p: p),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Comments section
+// ──────────────────────────────────────────────────────────────────
+
+class _CommentsSection extends StatelessWidget {
+  const _CommentsSection({
+    required this.detail,
+    required this.comments,
+    required this.loading,
+    required this.error,
+    required this.posting,
+    required this.rejectionReason,
+    required this.controller,
+    required this.onPost,
+    required this.onDelete,
+    required this.onReport,
+    required this.onTapUser,
+  });
+
+  final ChallengeDetail detail;
+  final List<ChallengeComment> comments;
+  final bool loading;
+  final String? error;
+  final bool posting;
+  final String? rejectionReason;
+  final TextEditingController controller;
+  final VoidCallback onPost;
+  final void Function(ChallengeComment) onDelete;
+  final void Function(ChallengeComment) onReport;
+  final void Function({required int userId, required String name}) onTapUser;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'COMMENTS · ${comments.length}',
+          style: TextStyle(
+            color: BrandColors.inkDim(context),
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.6,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (loading && comments.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.0,
+                  valueColor: AlwaysStoppedAnimation(Color(0xFFEC4899)),
+                ),
+              ),
+            ),
+          )
+        else if (error != null && comments.isEmpty)
+          Text(
+            error!,
+            style: TextStyle(color: BrandColors.inkSoft(context)),
+          )
+        else if (comments.isEmpty)
+          Text(
+            'No comments yet. Say something kind.',
+            style: TextStyle(
+              color: BrandColors.inkSoft(context),
+              fontSize: 13,
+              height: 1.4,
+            ),
+          )
+        else
+          for (final c in comments)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _CommentTile(
+                comment: c,
+                canDelete:
+                    c.userId == detail.creator.id || detail.isCreator
+                        ? true
+                        : (c.userId == _selfId()),
+                onTap: () => onTapUser(userId: c.userId, name: c.userName),
+                onDelete: () => onDelete(c),
+                onReport: () => onReport(c),
+              ),
+            ),
+        const SizedBox(height: 12),
+        _CommentComposer(
+          controller: controller,
+          posting: posting,
+          rejection: rejectionReason,
+          onPost: onPost,
+        ),
+      ],
+    );
+  }
+
+  int _selfId() {
+    final id = int.tryParse(AuthService().currentUser?.id ?? '');
+    return id ?? -1;
+  }
+}
+
+class _CommentTile extends StatelessWidget {
+  const _CommentTile({
+    required this.comment,
+    required this.canDelete,
+    required this.onTap,
+    required this.onDelete,
+    required this.onReport,
+  });
+  final ChallengeComment comment;
+  final bool canDelete;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+  final VoidCallback onReport;
+
+  String _relativeTime(DateTime at) {
+    final diff = DateTime.now().difference(at);
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${(diff.inDays / 7).floor()}w';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = absoluteAvatarUrl(comment.userAvatarUrl);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: BrandColors.bgCard(context).withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.purple.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: onTap,
+            child: SizedBox(
+              width: 32,
+              height: 32,
+              child: ClipOval(
+                child: avatar != null
+                    ? Image.network(
+                        avatar,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) =>
+                            _AvatarFallback(name: comment.userName),
+                      )
+                    : _AvatarFallback(name: comment.userName),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: onTap,
+                      behavior: HitTestBehavior.opaque,
+                      child: Text(
+                        comment.userName,
+                        style: TextStyle(
+                          color: BrandColors.ink(context),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (comment.userProfileBadge != null)
+                      UserBadgeChip(
+                        badge: comment.userProfileBadge,
+                        compact: true,
+                      ),
+                    const Spacer(),
+                    Text(
+                      _relativeTime(comment.createdAt),
+                      style: TextStyle(
+                        color: BrandColors.inkDim(context),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  comment.text,
+                  style: TextStyle(
+                    color: BrandColors.inkSoft(context),
+                    fontSize: 13.5,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert_rounded,
+                color: BrandColors.inkDim(context), size: 18),
+            color: BrandColors.bgCard(context),
+            onSelected: (v) {
+              if (v == 'delete') onDelete();
+              if (v == 'report') onReport();
+            },
+            itemBuilder: (_) => [
+              if (canDelete)
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline_rounded,
+                          color: AppColors.pinkLight, size: 16),
+                      const SizedBox(width: 8),
+                      Text('Delete',
+                          style: TextStyle(color: BrandColors.ink(context))),
+                    ],
+                  ),
+                ),
+              PopupMenuItem(
+                value: 'report',
+                child: Row(
+                  children: [
+                    Icon(Icons.flag_outlined,
+                        color: BrandColors.inkSoft(context), size: 16),
+                    const SizedBox(width: 8),
+                    Text('Report',
+                        style: TextStyle(color: BrandColors.ink(context))),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AvatarFallback extends StatelessWidget {
+  const _AvatarFallback({required this.name});
+  final String name;
+  @override
+  Widget build(BuildContext context) {
+    final letter = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
+    return Container(
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: AppColors.orbGradient,
+      ),
+      child: Text(
+        letter,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _CommentComposer extends StatelessWidget {
+  const _CommentComposer({
+    required this.controller,
+    required this.posting,
+    required this.rejection,
+    required this.onPost,
+  });
+  final TextEditingController controller;
+  final bool posting;
+  final String? rejection;
+  final VoidCallback onPost;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 4, 6, 4),
+          decoration: BoxDecoration(
+            color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppColors.purple.withValues(alpha: 0.30),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  minLines: 1,
+                  maxLines: 4,
+                  maxLength: 500,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => onPost(),
+                  style: TextStyle(color: BrandColors.ink(context)),
+                  decoration: InputDecoration(
+                    counterText: '',
+                    hintText: 'Say something supportive…',
+                    hintStyle: TextStyle(
+                      color: BrandColors.inkFaint(context)
+                          .withValues(alpha: 0.7),
+                    ),
+                    border: InputBorder.none,
+                    isCollapsed: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: posting ? null : onPost,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: AppColors.buttonGradient,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.pink.withValues(alpha: 0.40),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    posting
+                        ? Icons.hourglass_top_rounded
+                        : Icons.send_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (rejection != null) ...[
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            decoration: BoxDecoration(
+              color: AppColors.pink.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.pinkLight.withValues(alpha: 0.45),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline_rounded,
+                    color: AppColors.pinkLight, size: 14),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    rejection!,
+                    style: TextStyle(
+                      color: BrandColors.ink(context),
+                      fontSize: 12.5,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+extension on ChallengeDetail {
+  ChallengeDetail _withCounts({
+    int? upvoteCount,
+    bool? userUpvoted,
+    int? commentCount,
+  }) =>
+      ChallengeDetail(
+        id: id,
+        title: title,
+        description: description,
+        category: category,
+        durationDays: durationDays,
+        dailyDeadlineMinutesUtc: dailyDeadlineMinutesUtc,
+        startDate: startDate,
+        endDate: endDate,
+        daysRemaining: daysRemaining,
+        maxParticipants: maxParticipants,
+        status: status,
+        aiReviewStatus: aiReviewStatus,
+        aiReviewReason: aiReviewReason,
+        createdAt: createdAt,
+        creator: creator,
+        participants: participants,
+        summary: summary,
+        me: me,
+        isCreator: isCreator,
+        upvoteCount: upvoteCount ?? this.upvoteCount,
+        userUpvoted: userUpvoted ?? this.userUpvoted,
+        commentCount: commentCount ?? this.commentCount,
+      );
 }

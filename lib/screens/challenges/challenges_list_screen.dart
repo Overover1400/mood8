@@ -82,6 +82,46 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
     }
   }
 
+  /// Optimistic per-row upvote toggle. Flips local state immediately,
+  /// fires the server toggle, reconciles with the canonical count or
+  /// rolls back on error.
+  Future<void> _toggleUpvote(int index, ChallengeSummary c) async {
+    final before = _challenges ?? const <ChallengeSummary>[];
+    if (index < 0 || index >= before.length) return;
+    final wasUp = c.userUpvoted;
+    final optimistic = c.copyWith(
+      userUpvoted: !wasUp,
+      upvoteCount: (c.upvoteCount + (wasUp ? -1 : 1)).clamp(0, 1 << 30),
+    );
+    setState(() => _challenges = [
+          for (var i = 0; i < before.length; i++)
+            if (i == index) optimistic else before[i],
+        ]);
+    try {
+      final res = await ChallengeService().toggleUpvote(c.id);
+      if (!mounted) return;
+      // Reconcile with the server's canonical count.
+      setState(() => _challenges = [
+            for (var i = 0; i < (_challenges ?? const []).length; i++)
+              if (i == index)
+                (_challenges![i]).copyWith(
+                  userUpvoted: res.upvoted,
+                  upvoteCount: res.count,
+                )
+              else
+                (_challenges![i]),
+          ]);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _challenges = before);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          e is ChallengeError ? e.message : "Couldn't update upvote.",
+        )),
+      );
+    }
+  }
+
   Future<void> _openMine() async {
     HapticService().light();
     await Navigator.of(context).push(
@@ -158,6 +198,7 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
               );
               _load();
             },
+            onToggleUpvote: () => _toggleUpvote(i, c),
           )
               .animate()
               .fadeIn(duration: 320.ms, delay: (40 * i).ms)

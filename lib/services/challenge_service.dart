@@ -177,6 +177,93 @@ class ChallengeService {
     _throwIfHttpError(res);
   }
 
+  // ── Upvotes ────────────────────────────────────────────────────────
+
+  /// Toggle the signed-in user's upvote. Returns the new state +
+  /// total count so callers can flip optimistically + reconcile.
+  Future<({bool upvoted, int count})> toggleUpvote(int challengeId) async {
+    final res = await _client
+        .post(Uri.parse('$_baseUrl/challenges/$challengeId/upvote'),
+            headers: _headers, body: '{}')
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return (
+      upvoted: body['upvoted'] as bool? ?? false,
+      count: (body['upvote_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  // ── Comments ───────────────────────────────────────────────────────
+
+  /// Post a comment. The server runs AI moderation; on rejection
+  /// returns `{saved:false, reason}` which we surface as a typed
+  /// result rather than throwing.
+  Future<CommentCreateResult> postComment({
+    required int challengeId,
+    required String text,
+  }) async {
+    final res = await _client
+        .post(
+          Uri.parse('$_baseUrl/challenges/$challengeId/comments'),
+          headers: _headers,
+          body: jsonEncode({'text': text}),
+        )
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (body['saved'] == false) {
+      return CommentCreateResult.rejected(
+        body['reason'] as String? ?? 'Please rephrase.',
+      );
+    }
+    return CommentCreateResult.saved(
+      ChallengeComment.fromJson(
+        body['comment'] as Map<String, dynamic>,
+      ),
+    );
+  }
+
+  Future<List<ChallengeComment>> listComments(int challengeId) async {
+    final res = await _client
+        .get(Uri.parse('$_baseUrl/challenges/$challengeId/comments'),
+            headers: _headers)
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((body['comments'] as List?) ?? const [])
+        .map((c) => ChallengeComment.fromJson(c as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> deleteComment({
+    required int challengeId,
+    required int commentId,
+  }) async {
+    final res = await _client
+        .delete(
+          Uri.parse(
+              '$_baseUrl/challenges/$challengeId/comments/$commentId'),
+          headers: _headers,
+        )
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+  }
+
+  Future<void> reportComment({
+    required int commentId,
+    required String reason,
+  }) async {
+    final res = await _client
+        .post(
+          Uri.parse('$_baseUrl/challenges/comments/$commentId/report'),
+          headers: _headers,
+          body: jsonEncode({'reason': reason}),
+        )
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+  }
+
   // ── Plumbing ──────────────────────────────────────────────────────
 
   void _throwIfHttpError(http.Response res) {
@@ -196,6 +283,19 @@ class ChallengeService {
         '[Challenges] HTTP ${res.statusCode}: $message');
     throw ChallengeError(res.statusCode, message);
   }
+}
+
+/// Tagged-union result for the comment-create endpoint.
+class CommentCreateResult {
+  const CommentCreateResult._({this.comment, this.rejectionReason});
+  final ChallengeComment? comment;
+  final String? rejectionReason;
+  bool get isSaved => comment != null;
+  bool get isRejected => rejectionReason != null;
+  factory CommentCreateResult.saved(ChallengeComment c) =>
+      CommentCreateResult._(comment: c);
+  factory CommentCreateResult.rejected(String reason) =>
+      CommentCreateResult._(rejectionReason: reason);
 }
 
 /// Thrown by [ChallengeService] when the backend returns a non-2xx.

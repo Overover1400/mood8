@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/challenge.dart';
+import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
 import 'user_badge_chip.dart';
 
@@ -11,10 +11,14 @@ class ChallengeCard extends StatelessWidget {
     super.key,
     required this.challenge,
     required this.onTap,
+    this.onToggleUpvote,
   });
 
   final ChallengeSummary challenge;
   final VoidCallback onTap;
+  /// When supplied, the upvote button is interactive. The list screen
+  /// wires this to optimistic per-row state + a server toggle.
+  final VoidCallback? onToggleUpvote;
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +56,12 @@ class ChallengeCard extends StatelessWidget {
               // Creator row
               Row(
                 children: [
-                  _Avatar(name: challenge.creator.name, size: 30),
+                  _CreatorAvatar(
+                    name: challenge.creator.name,
+                    avatarUrl:
+                        absoluteAvatarUrl(challenge.creator.avatarUrl),
+                    size: 30,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -81,10 +90,12 @@ class ChallengeCard extends StatelessWidget {
               const SizedBox(height: 14),
               Text(
                 challenge.title,
-                style: GoogleFonts.bricolageGrotesque(
+                style: brandFont(
                   color: BrandColors.ink(context),
-                  fontSize: 24,
-                  height: 1.1,
+                  fontSize: 22,
+                  weight: FontWeight.w800,
+                  height: 1.15,
+                  letterSpacing: -0.2,
                 ),
               ),
               const SizedBox(height: 12),
@@ -116,10 +127,22 @@ class ChallengeCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (challenge.participantsPreview.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _ParticipantAvatarRow(
+                  previews: challenge.participantsPreview,
+                  totalActive: challenge.activeCount,
+                ),
+              ],
               const SizedBox(height: 12),
               _StatsBar(
                 activePct: challenge.activePct,
                 gaveUpPct: challenge.gaveUpPct,
+              ),
+              const SizedBox(height: 12),
+              _EngagementRow(
+                challenge: challenge,
+                onToggleUpvote: onToggleUpvote,
               ),
             ],
           ),
@@ -129,15 +152,22 @@ class ChallengeCard extends StatelessWidget {
   }
 }
 
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.name, required this.size});
+/// Round avatar that renders the server-provided image when available
+/// and falls back to a gradient + initial.
+class _CreatorAvatar extends StatelessWidget {
+  const _CreatorAvatar({
+    required this.name,
+    required this.avatarUrl,
+    required this.size,
+  });
   final String name;
+  final String? avatarUrl;
   final double size;
 
   @override
   Widget build(BuildContext context) {
-    final initial = name.isEmpty ? '?' : name.trim()[0].toUpperCase();
-    return Container(
+    final letter = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
+    final fallback = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
@@ -146,10 +176,147 @@ class _Avatar extends StatelessWidget {
         gradient: AppColors.orbGradient,
       ),
       child: Text(
-        initial,
+        letter,
         style: TextStyle(
           color: Colors.white,
           fontSize: size * 0.45,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+    if (avatarUrl == null) return fallback;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: ClipOval(
+        child: Image.network(
+          avatarUrl!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => fallback,
+        ),
+      ),
+    );
+  }
+}
+
+/// Horizontal row of up to ~7 visible participant avatars with a
+/// "+N" pill at the end when there are more total active participants
+/// than fit in the row.
+class _ParticipantAvatarRow extends StatelessWidget {
+  const _ParticipantAvatarRow({
+    required this.previews,
+    required this.totalActive,
+  });
+  final List<ParticipantPreview> previews;
+  final int totalActive;
+
+  static const int _visible = 7;
+  static const double _size = 24;
+  static const double _overlap = 8;
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = previews.take(_visible).toList();
+    final overflow = totalActive - shown.length;
+    final children = <Widget>[];
+    for (var i = 0; i < shown.length; i++) {
+      children.add(Positioned(
+        left: i * (_size - _overlap),
+        child: _Avatar(
+          name: shown[i].name,
+          avatarUrl: absoluteAvatarUrl(shown[i].avatarUrl),
+        ),
+      ));
+    }
+    if (overflow > 0) {
+      children.add(Positioned(
+        left: shown.length * (_size - _overlap),
+        child: _OverflowChip(text: '+$overflow'),
+      ));
+    }
+    final width =
+        shown.length * (_size - _overlap) + _size + (overflow > 0 ? 4 : 0);
+    return SizedBox(
+      height: _size + 2,
+      width: width.toDouble(),
+      child: Stack(clipBehavior: Clip.none, children: children),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.name, required this.avatarUrl});
+  final String name;
+  final String? avatarUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final letter = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
+    final fallback = Container(
+      width: _ParticipantAvatarRow._size,
+      height: _ParticipantAvatarRow._size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: AppColors.orbGradient,
+        border: Border.all(
+          color: BrandColors.bgDeep(context),
+          width: 2,
+        ),
+      ),
+      child: Text(
+        letter,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+    if (avatarUrl == null) return fallback;
+    return Container(
+      width: _ParticipantAvatarRow._size,
+      height: _ParticipantAvatarRow._size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: BrandColors.bgDeep(context),
+          width: 2,
+        ),
+      ),
+      child: ClipOval(
+        child: Image.network(
+          avatarUrl!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => fallback,
+        ),
+      ),
+    );
+  }
+}
+
+class _OverflowChip extends StatelessWidget {
+  const _OverflowChip({required this.text});
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: _ParticipantAvatarRow._size,
+      height: _ParticipantAvatarRow._size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: BrandColors.bgCard(context),
+        border: Border.all(
+          color: BrandColors.bgDeep(context),
+          width: 2,
+        ),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: BrandColors.inkSoft(context),
+          fontSize: 9,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -181,6 +348,146 @@ class _CategoryPill extends StatelessWidget {
           fontWeight: FontWeight.w800,
           letterSpacing: 1.2,
         ),
+      ),
+    );
+  }
+}
+
+/// Upvote pill + comment-count chip in a row at the bottom of the
+/// card. The comment chip only renders when `commentCount > 0`
+/// (silent surface until there's something to read).
+class _EngagementRow extends StatelessWidget {
+  const _EngagementRow({
+    required this.challenge,
+    required this.onToggleUpvote,
+  });
+  final ChallengeSummary challenge;
+  final VoidCallback? onToggleUpvote;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _UpvoteButton(
+          upvoted: challenge.userUpvoted,
+          count: challenge.upvoteCount,
+          onTap: onToggleUpvote,
+        ),
+        if (challenge.commentCount > 0) ...[
+          const SizedBox(width: 10),
+          _CommentChip(count: challenge.commentCount),
+        ],
+        const Spacer(),
+      ],
+    );
+  }
+}
+
+class _UpvoteButton extends StatelessWidget {
+  const _UpvoteButton({
+    required this.upvoted,
+    required this.count,
+    required this.onTap,
+  });
+  final bool upvoted;
+  final int count;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap == null
+          ? null
+          : () {
+              HapticService().selection();
+              onTap!();
+            },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          gradient: upvoted
+              ? LinearGradient(
+                  colors: [
+                    AppColors.purple.withValues(alpha: 0.35),
+                    AppColors.pink.withValues(alpha: 0.30),
+                  ],
+                )
+              : null,
+          color: upvoted
+              ? null
+              : BrandColors.bgCard(context).withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: upvoted
+                ? AppColors.pinkLight.withValues(alpha: 0.55)
+                : AppColors.purple.withValues(alpha: 0.30),
+          ),
+          boxShadow: upvoted
+              ? [
+                  BoxShadow(
+                    color: AppColors.pink.withValues(alpha: 0.35),
+                    blurRadius: 14,
+                    spreadRadius: -4,
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              upvoted
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
+              size: 14,
+              color: upvoted ? Colors.white : BrandColors.inkSoft(context),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '$count',
+              style: TextStyle(
+                color: upvoted ? Colors.white : BrandColors.inkSoft(context),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CommentChip extends StatelessWidget {
+  const _CommentChip({required this.count});
+  final int count;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: BrandColors.bgCard(context).withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: AppColors.purple.withValues(alpha: 0.30),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.chat_bubble_outline_rounded,
+              size: 12, color: BrandColors.inkSoft(context)),
+          const SizedBox(width: 6),
+          Text(
+            '$count',
+            style: TextStyle(
+              color: BrandColors.inkSoft(context),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }

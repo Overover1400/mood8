@@ -1,18 +1,31 @@
 // Plain Dart models mirroring the backend `/api/challenges/*` shapes.
 // Build 1 of 3 wired these up server-side; Build 2 just consumes them.
 
+const _kAvatarHost = 'https://mood8.app';
+
+/// Turn a backend-relative avatar path ("/api/avatars/12-abc.jpg") into
+/// an absolute URL ready for `Image.network`. Pass-through for null /
+/// already-absolute URLs.
+String? absoluteAvatarUrl(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  if (raw.startsWith('http')) return raw;
+  return '$_kAvatarHost$raw';
+}
+
 class ChallengeCreator {
   const ChallengeCreator({
     required this.id,
     required this.name,
     required this.creatorScore,
     required this.profileBadge,
+    required this.avatarUrl,
   });
 
   final int? id;
   final String name;
   final int creatorScore;
   final String? profileBadge;
+  final String? avatarUrl;
 
   factory ChallengeCreator.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
@@ -21,6 +34,7 @@ class ChallengeCreator {
         name: 'Anonymous',
         creatorScore: 0,
         profileBadge: null,
+        avatarUrl: null,
       );
     }
     return ChallengeCreator(
@@ -28,8 +42,27 @@ class ChallengeCreator {
       name: (json['name'] as String?) ?? 'Anonymous',
       creatorScore: (json['creator_score'] as num?)?.toInt() ?? 0,
       profileBadge: json['profile_badge'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
     );
   }
+}
+
+/// Minimal user shape used by participant_preview on summary rows.
+class ParticipantPreview {
+  const ParticipantPreview({
+    required this.id,
+    required this.name,
+    required this.avatarUrl,
+  });
+  final int id;
+  final String name;
+  final String? avatarUrl;
+  factory ParticipantPreview.fromJson(Map<String, dynamic> json) =>
+      ParticipantPreview(
+        id: (json['id'] as num).toInt(),
+        name: (json['name'] as String?) ?? 'Anonymous',
+        avatarUrl: json['avatar_url'] as String?,
+      );
 }
 
 /// Summary as returned by `/api/challenges/list` and `/mine`.
@@ -48,6 +81,10 @@ class ChallengeSummary {
     required this.gaveUpPct,
     required this.status,
     required this.creator,
+    required this.upvoteCount,
+    required this.userUpvoted,
+    required this.commentCount,
+    required this.participantsPreview,
   });
 
   final int id;
@@ -63,6 +100,10 @@ class ChallengeSummary {
   final double gaveUpPct;
   final String status;
   final ChallengeCreator creator;
+  final int upvoteCount;
+  final bool userUpvoted;
+  final int commentCount;
+  final List<ParticipantPreview> participantsPreview;
 
   factory ChallengeSummary.fromJson(Map<String, dynamic> json) {
     return ChallengeSummary(
@@ -82,38 +123,88 @@ class ChallengeSummary {
       creator: ChallengeCreator.fromJson(
         json['creator'] as Map<String, dynamic>?,
       ),
+      upvoteCount: (json['upvote_count'] as num?)?.toInt() ?? 0,
+      userUpvoted: json['user_upvoted'] as bool? ?? false,
+      commentCount: (json['comment_count'] as num?)?.toInt() ?? 0,
+      participantsPreview: ((json['participants_preview'] as List?) ??
+              const [])
+          .map((p) => ParticipantPreview.fromJson(
+              p as Map<String, dynamic>))
+          .toList(),
     );
   }
+
+  /// Convenience: clone with mutated upvote fields for optimistic UI.
+  ChallengeSummary copyWith({
+    int? upvoteCount,
+    bool? userUpvoted,
+    int? commentCount,
+  }) =>
+      ChallengeSummary(
+        id: id,
+        title: title,
+        category: category,
+        durationDays: durationDays,
+        daysRemaining: daysRemaining,
+        participantCount: participantCount,
+        activeCount: activeCount,
+        gaveUpCount: gaveUpCount,
+        completedCount: completedCount,
+        activePct: activePct,
+        gaveUpPct: gaveUpPct,
+        status: status,
+        creator: creator,
+        upvoteCount: upvoteCount ?? this.upvoteCount,
+        userUpvoted: userUpvoted ?? this.userUpvoted,
+        commentCount: commentCount ?? this.commentCount,
+        participantsPreview: participantsPreview,
+      );
 }
 
 class ChallengeParticipant {
   const ChallengeParticipant({
     required this.userId,
     required this.name,
+    required this.avatarUrl,
+    required this.profileBadge,
     required this.rankIndex,
     required this.rankName,
     required this.status,
     required this.missedRankups,
     required this.joinedAfterStart,
+    required this.joinedAt,
+    required this.removedAt,
   });
 
   final int userId;
   final String name;
+  final String? avatarUrl;
+  final String? profileBadge;
   final int rankIndex;
   final String rankName;
   final String status; // active / removed / completed
   final int missedRankups;
   final bool joinedAfterStart;
+  final DateTime? joinedAt;
+  final DateTime? removedAt;
 
   factory ChallengeParticipant.fromJson(Map<String, dynamic> json) {
     return ChallengeParticipant(
       userId: (json['id'] as num).toInt(),
       name: (json['name'] as String?) ?? 'Anonymous',
+      avatarUrl: json['avatar_url'] as String?,
+      profileBadge: json['profile_badge'] as String?,
       rankIndex: (json['rank_index'] as num?)?.toInt() ?? 0,
       rankName: (json['rank_name'] as String?) ?? 'Recruit',
       status: (json['status'] as String?) ?? 'active',
       missedRankups: (json['missed_rankups'] as num?)?.toInt() ?? 0,
       joinedAfterStart: json['joined_after_start'] as bool? ?? false,
+      joinedAt: json['joined_at'] is String
+          ? DateTime.tryParse(json['joined_at'] as String)
+          : null,
+      removedAt: json['removed_at'] is String
+          ? DateTime.tryParse(json['removed_at'] as String)
+          : null,
     );
   }
 }
@@ -173,6 +264,9 @@ class ChallengeDetail {
     required this.summary,
     required this.me,
     required this.isCreator,
+    required this.upvoteCount,
+    required this.userUpvoted,
+    required this.commentCount,
   });
 
   final int id;
@@ -194,6 +288,9 @@ class ChallengeDetail {
   final ChallengeSummary summary;
   final ChallengeMe? me;
   final bool isCreator;
+  final int upvoteCount;
+  final bool userUpvoted;
+  final int commentCount;
 
   factory ChallengeDetail.fromJson(Map<String, dynamic> json) {
     return ChallengeDetail(
@@ -227,6 +324,48 @@ class ChallengeDetail {
           ? null
           : ChallengeMe.fromJson(json['me'] as Map<String, dynamic>),
       isCreator: json['is_creator'] as bool? ?? false,
+      upvoteCount: (json['upvote_count'] as num?)?.toInt() ?? 0,
+      userUpvoted: json['user_upvoted'] as bool? ?? false,
+      commentCount: (json['comment_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// One comment as returned by `/api/challenges/{id}/comments`.
+class ChallengeComment {
+  const ChallengeComment({
+    required this.id,
+    required this.challengeId,
+    required this.userId,
+    required this.userName,
+    required this.userAvatarUrl,
+    required this.userProfileBadge,
+    required this.text,
+    required this.createdAt,
+  });
+
+  final int id;
+  final int challengeId;
+  final int userId;
+  final String userName;
+  final String? userAvatarUrl;
+  final String? userProfileBadge;
+  final String text;
+  final DateTime createdAt;
+
+  factory ChallengeComment.fromJson(Map<String, dynamic> json) {
+    final user = (json['user'] as Map<String, dynamic>?) ?? const {};
+    return ChallengeComment(
+      id: (json['id'] as num).toInt(),
+      challengeId: (json['challenge_id'] as num).toInt(),
+      userId: (user['id'] as num?)?.toInt() ?? 0,
+      userName: (user['name'] as String?) ?? 'Anonymous',
+      userAvatarUrl: user['avatar_url'] as String?,
+      userProfileBadge: user['profile_badge'] as String?,
+      text: (json['text'] as String?) ?? '',
+      createdAt:
+          DateTime.tryParse(json['created_at'] as String? ?? '') ??
+              DateTime.now(),
     );
   }
 }
