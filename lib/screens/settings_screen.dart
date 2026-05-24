@@ -265,9 +265,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _playAllSounds() async {
+    // 1400ms between plays so each clip has room to breathe through its
+    // fade-in → steady → fade-out envelope before the next one starts.
     for (final t in SfxType.values) {
       _sfx.fire(t);
-      await Future<void>.delayed(const Duration(milliseconds: 750));
+      await Future<void>.delayed(const Duration(milliseconds: 1400));
     }
   }
 

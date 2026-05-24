@@ -28,15 +28,24 @@ const Map<SfxType, String> sfxAssetPaths = {
 
 /// Per-sound preferred volume in [0.0, 1.0]. Multiplied by the user's
 /// master volume at play time.
+///
+/// Calibrated low across the board so nothing jumps out — UI taps sit
+/// around 0.22, save/check-mark sounds around 0.32, big celebrations
+/// around 0.45. The audioplayers fade-in / fade-out envelope wrapped
+/// around each clip in SfxService softens the attack and tail; this
+/// map sets the steady-state level the fade-in ramps up to.
 const Map<SfxType, double> sfxBaseVolume = {
-  SfxType.checkInSuccess: 0.55,
-  SfxType.habitComplete: 0.50,
-  SfxType.routineDone: 0.55,
-  SfxType.streakMilestone: 0.75,
-  SfxType.onboardingStep: 0.40,
-  SfxType.onboardingFinish: 0.80,
-  SfxType.aiMessage: 0.45,
-  SfxType.insightDiscovered: 0.55,
-  SfxType.tabSwitch: 0.30,
-  SfxType.errorGentle: 0.35,
+  // Small confirmations — quiet, polite.
+  SfxType.tabSwitch: 0.20,
+  SfxType.onboardingStep: 0.22,
+  SfxType.errorGentle: 0.25,
+  SfxType.aiMessage: 0.28,
+  // Medium check-ins — present but not loud.
+  SfxType.habitComplete: 0.32,
+  SfxType.checkInSuccess: 0.34,
+  SfxType.routineDone: 0.35,
+  SfxType.insightDiscovered: 0.34,
+  // Bigger moments — slightly fuller, still gentle.
+  SfxType.streakMilestone: 0.45,
+  SfxType.onboardingFinish: 0.48,
 };
