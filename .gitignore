@@ -19,3 +19,11 @@ ios/.symlinks/
 *.log
 .env
 *.env
+
+# Android release signing — NEVER commit. Losing the keystore = can
+# never update the Play listing. The canonical copy lives as the
+# GitHub Actions secret + in the developer's password manager.
+android/mood8-release.jks
+android/*.jks
+android/*.keystore
+android/key.properties

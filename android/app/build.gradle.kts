@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -5,18 +8,53 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Release signing config sources:
+//
+//   1. Local builds — `android/key.properties` (gitignored). Copy
+//      `android/key.properties.example`, fill in the passwords, and
+//      `flutter build appbundle --release` signs locally.
+//   2. CI builds   — environment variables decoded from GitHub
+//      secrets in `.github/workflows/android-build.yml`:
+//        MOOD8_KEYSTORE_PATH    (path the workflow wrote the keystore to)
+//        MOOD8_KEYSTORE_PASSWORD
+//        MOOD8_KEY_ALIAS
+//        MOOD8_KEY_PASSWORD
+//
+// If NEITHER source is present (e.g. someone on a fresh checkout
+// runs `flutter build apk --release` without keys) we fall through
+// to the debug-signed config so the build still succeeds — the
+// resulting artifact just can't be uploaded to Play.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+fun signingValue(propKey: String, envKey: String): String? {
+    val fromProps = keystoreProperties.getProperty(propKey)
+    if (!fromProps.isNullOrBlank()) return fromProps
+    val fromEnv = System.getenv(envKey)
+    if (!fromEnv.isNullOrBlank()) return fromEnv
+    return null
+}
+
+val signingStorePath = signingValue("storeFile", "MOOD8_KEYSTORE_PATH")
+val signingStorePass = signingValue("storePassword", "MOOD8_KEYSTORE_PASSWORD")
+val signingAlias     = signingValue("keyAlias", "MOOD8_KEY_ALIAS")
+val signingKeyPass   = signingValue("keyPassword", "MOOD8_KEY_PASSWORD")
+val hasReleaseSigning = listOf(
+    signingStorePath, signingStorePass, signingAlias, signingKeyPass,
+).all { !it.isNullOrBlank() } && file(signingStorePath!!).let {
+    // Resolve relative paths against the android/ project dir.
+    val resolved = if (it.isAbsolute) it else rootProject.file(signingStorePath!!)
+    resolved.exists()
+}
+
 android {
     // `namespace` stays at the original Kotlin source-tree package so we don't
     // have to move MainActivity.kt on disk. The user-visible `applicationId`
     // is what Play Store + the launcher use.
     namespace = "app.mood8.mood8"
-    // 36 = Android 16. url_launcher_android 6.3.29 pulls in
-    // androidx.browser:browser:1.9.0 + androidx.core:core(-ktx):1.17.0,
-    // all of which require compileSdk >= 36 (CheckAarMetadata refuses
-    // the build otherwise). compileSdk is independent of targetSdk:
-    // bumping it just lets us *compile against* newer APIs, without
-    // opting in to new runtime behavior — that's still gated by
-    // targetSdk below.
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -32,12 +70,7 @@ android {
     defaultConfig {
         applicationId = "com.mood8.app"
         // 24 = Android 7.0. Required by url_launcher_android 6.3.29 which
-        // raised its plugin minSdk to 24 — without this override the
-        // manifest merger refuses the build with "uses-sdk:minSdkVersion
-        // X cannot be smaller than version 24 declared in library
-        // [:url_launcher_android]". 24 still covers ~98% of active
-        // Android devices and is a sensible floor for modern crypto +
-        // runtime permissions.
+        // raised its plugin minSdk to 24. Covers ~98% of active devices.
         minSdk = 24
         targetSdk = 34
         // Version is sourced from pubspec.yaml (`version: x.y.z+code`).
@@ -45,12 +78,31 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                val keystoreFile = file(signingStorePath!!)
+                storeFile = if (keystoreFile.isAbsolute) keystoreFile
+                            else rootProject.file(signingStorePath!!)
+                storePassword = signingStorePass
+                keyAlias = signingAlias
+                keyPassword = signingKeyPass
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Signing with the debug keys for now so `flutter run --release`
-            // and CI APK uploads work. Replace with a real keystore when
-            // we're ready to ship to Play.
-            signingConfig = signingConfigs.getByName("debug")
+            // Sign release with the real keystore when it's available
+            // (local key.properties or CI env vars). Otherwise fall
+            // back to the debug keystore so dev builds still link —
+            // those artifacts can't be uploaded to Play but are fine
+            // for sideload testing.
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

@@ -1,0 +1,13 @@
+# Local-only release signing config. Copy to `key.properties` (which
+# is .gitignored) and fill in real values. The actual keystore file
+# (mood8-release.jks) lives next to this file but is also
+# .gitignored — there is exactly one copy of it that matters and
+# it's the one stored as the GitHub Actions secret. Losing it means
+# we can never update the app on Play.
+#
+# CI uses the env-var fallback in app/build.gradle.kts instead of
+# this file (workflow base64-decodes the keystore from a secret).
+storeFile=../mood8-release.jks
+storePassword=REPLACE_WITH_REAL_PASSWORD
+keyAlias=mood8
+keyPassword=REPLACE_WITH_REAL_PASSWORD

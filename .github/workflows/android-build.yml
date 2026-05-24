@@ -76,7 +76,36 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${NDK_VERSION}"
           ls -la "$ANDROID_HOME/ndk/" || true
 
-      - name: Build APK (release, debug-signed)
+      # Decode the release keystore from the base64-encoded GitHub
+      # secret into a file on the runner. android/app/build.gradle.kts
+      # picks it up via the MOOD8_KEYSTORE_* env vars below — no
+      # key.properties needed for CI.
+      #
+      # If MOOD8_KEYSTORE_BASE64 isn't set (forks, PRs without secrets,
+      # someone forgot to add the secret), the step writes a 0-byte
+      # file and the Gradle config falls through to the debug keystore
+      # so the build still completes — the resulting AAB just won't be
+      # uploadable to Play.
+      - name: Decode release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.MOOD8_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p android
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > android/mood8-release.jks
+            ls -la android/mood8-release.jks
+            echo "RELEASE_SIGNED=true" >> "$GITHUB_ENV"
+          else
+            echo "warn: MOOD8_KEYSTORE_BASE64 secret is not set — falling back to debug signing."
+            echo "RELEASE_SIGNED=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build APK (release)
+        env:
+          MOOD8_KEYSTORE_PATH: ${{ github.workspace }}/android/mood8-release.jks
+          MOOD8_KEYSTORE_PASSWORD: ${{ secrets.MOOD8_KEYSTORE_PASSWORD }}
+          MOOD8_KEY_ALIAS: ${{ secrets.MOOD8_KEY_ALIAS }}
+          MOOD8_KEY_PASSWORD: ${{ secrets.MOOD8_KEY_PASSWORD }}
         run: |
           set -o pipefail
           flutter build apk --release --verbose \
@@ -119,7 +148,12 @@ jobs:
           git commit -m "phone log: run ${{ github.run_number }} (sha ${{ github.sha }})"
           git push origin ci-logs
 
-      - name: Build App Bundle (release, debug-signed)
+      - name: Build App Bundle (release)
+        env:
+          MOOD8_KEYSTORE_PATH: ${{ github.workspace }}/android/mood8-release.jks
+          MOOD8_KEYSTORE_PASSWORD: ${{ secrets.MOOD8_KEYSTORE_PASSWORD }}
+          MOOD8_KEY_ALIAS: ${{ secrets.MOOD8_KEY_ALIAS }}
+          MOOD8_KEY_PASSWORD: ${{ secrets.MOOD8_KEY_PASSWORD }}
         run: |
           flutter build appbundle --release \
             --build-name=0.1.${{ github.run_number }} \
@@ -153,6 +187,10 @@ jobs:
           AAB_PATH="artifacts/mood8-android-${{ github.run_number }}.aab"
           APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
           AAB_SIZE=$(du -h "$AAB_PATH" | cut -f1)
+          SIGNING="debug keys (cannot upload to Play)"
+          if [ "${RELEASE_SIGNED:-false}" = "true" ]; then
+            SIGNING="release keystore (Play-uploadable)"
+          fi
           {
             echo "## Mood8 Android build"
             echo ""
@@ -163,7 +201,7 @@ jobs:
             echo "| Application id | \`com.mood8.app\` |"
             echo "| Build number | ${{ github.run_number }} |"
             echo "| Version | 0.1.${{ github.run_number }} |"
-            echo "| Signing | debug keys (unsigned for release) |"
+            echo "| Signing | $SIGNING |"
             echo "| Commit | \`${{ github.sha }}\` |"
             echo ""
             echo "Download under **Artifacts** above."
@@ -172,4 +210,8 @@ jobs:
             echo "\`\`\`"
             echo "adb install -r mood8-android-${{ github.run_number }}.apk"
             echo "\`\`\`"
+            if [ "${RELEASE_SIGNED:-false}" = "true" ]; then
+              echo ""
+              echo "Upload \`*.aab\` to **Google Play Console → Production → Create new release**."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
