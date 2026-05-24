@@ -32,12 +32,18 @@ class SfxService extends ChangeNotifier {
   // off a sharp attack but short enough that the sound still feels
   // responsive to the tap.
   static const int _kFadeInMs = 160;
-  static const int _kFadeOutMs = 220;
+  static const int _kFadeOutMs = 150;
   static const int _kFadeInSteps = 10;
-  static const int _kFadeOutSteps = 12;
+  static const int _kFadeOutSteps = 10;
   // Rapid re-triggers of the SAME sound (e.g. mash + on a counter) are
   // dropped within this window so the user doesn't get a harsh stack.
   static const int _kDebounceMs = 150;
+  // Hard upper bound on every SFX. Any clip whose duration exceeds
+  // this gets a scheduled fade-out that lands at exactly 1000ms so
+  // sounds never feel long-winded — the source files vary from
+  // 200ms taps to 3s celebrations and we want the perceived length
+  // to feel consistent + snappy.
+  static const int _kMaxPlayMs = 1000;
 
   final Map<SfxType, AudioPlayer> _players = {};
   final Set<SfxType> _preloadFailed = {};
@@ -211,37 +217,36 @@ class SfxService extends ChangeNotifier {
       },
     );
 
-    // FADE OUT: read the clip's duration, schedule the ramp so it
-    // finishes exactly at the natural end. If duration isn't available
-    // (some web sources never resolve it), the ReleaseMode.stop on
-    // preloaded players + the player's natural end still cuts cleanly,
-    // just without the soft tail.
+    // FADE OUT scheduling. The endMs is the earlier of (natural end)
+    // and the hard _kMaxPlayMs cap — every sound stops at the 1s mark
+    // at the latest. The fade window is the standard _kFadeOutMs
+    // unless the effective length is so short the fade would
+    // dominate, in which case it shrinks to half-runtime so the tail
+    // still softens.
+    int naturalEndMs = _kMaxPlayMs;
     try {
       final dur = await player.getDuration();
-      if (dur != null && dur.inMilliseconds > _kFadeInMs + _kFadeOutMs) {
-        final scheduleAt = dur.inMilliseconds - _kFadeOutMs;
-        env.fadeOutScheduleTimer = Timer(
-          Duration(milliseconds: scheduleAt),
-          () => _startFadeOut(type, env, target, isLazy: isLazy),
-        );
-      } else if (dur != null) {
-        // Clip is shorter than the combined fade window — give it
-        // half the runtime as the fade-out instead so the tail still
-        // softens.
-        final scheduleAt = (dur.inMilliseconds * 0.5).round();
-        env.fadeOutScheduleTimer = Timer(
-          Duration(milliseconds: scheduleAt),
-          () => _startFadeOut(type, env, target, isLazy: isLazy),
-        );
+      if (dur != null && dur.inMilliseconds > 0) {
+        naturalEndMs = dur.inMilliseconds;
       }
     } catch (e) {
       debugPrint(
-          '$_kTag duration unavailable · ${type.name} · $e (no fade-out)');
+          '$_kTag duration unavailable · ${type.name} · $e (using cap)');
     }
+    final endMs =
+        naturalEndMs < _kMaxPlayMs ? naturalEndMs : _kMaxPlayMs;
+    final fadeWindowMs =
+        endMs > _kFadeOutMs * 2 ? _kFadeOutMs : (endMs ~/ 2);
+    final scheduleAt = endMs - fadeWindowMs;
+    env.fadeOutScheduleTimer = Timer(
+      Duration(milliseconds: scheduleAt.clamp(0, _kMaxPlayMs)),
+      () => _startFadeOut(type, env, target,
+          isLazy: isLazy, fadeMs: fadeWindowMs),
+    );
 
     debugPrint(
         '$_kTag enveloped · ${type.name} · target=${target.toStringAsFixed(2)} '
-        '(lazy=$isLazy)');
+        '(lazy=$isLazy · endMs=$endMs · fadeStart=$scheduleAt · fadeMs=$fadeWindowMs)');
   }
 
   void _startFadeOut(
@@ -249,11 +254,16 @@ class SfxService extends ChangeNotifier {
     _Envelope env,
     double from, {
     required bool isLazy,
+    required int fadeMs,
   }) {
     if (env.cancelled) return;
     env.fadeInTimer?.cancel();
-    final outStep = (_kFadeOutMs / _kFadeOutSteps).round();
-    var outIdx = _kFadeOutSteps;
+    // Scale the step count down for short fades so we never schedule
+    // a sub-1ms timer (which would coalesce in the event loop anyway).
+    final steps =
+        fadeMs >= _kFadeOutSteps ? _kFadeOutSteps : fadeMs.clamp(1, _kFadeOutSteps);
+    final outStep = (fadeMs / steps).round().clamp(1, fadeMs);
+    var outIdx = steps;
     env.fadeOutTimer = Timer.periodic(
       Duration(milliseconds: outStep),
       (t) {
@@ -262,7 +272,7 @@ class SfxService extends ChangeNotifier {
           return;
         }
         outIdx -= 1;
-        final v = (from * outIdx / _kFadeOutSteps).clamp(0.0, 1.0);
+        final v = (from * outIdx / steps).clamp(0.0, 1.0);
         // ignore: discarded_futures
         env.player.setVolume(v).catchError((_) {});
         if (outIdx <= 0) {
