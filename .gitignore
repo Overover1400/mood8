@@ -27,3 +27,7 @@ android/mood8-release.jks
 android/*.jks
 android/*.keystore
 android/key.properties
+
+# Handoff files for the Android release keystore. NEVER commit.
+android/keystore_base64.txt
+android/keystore_secrets.txt
