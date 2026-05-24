@@ -9,6 +9,7 @@ import '../main.dart' show AuthGate;
 import '../models/auth_user.dart';
 import '../models/effects_intensity.dart';
 import '../models/sfx_type.dart';
+import '../models/subscription.dart';
 import '../models/user_profile.dart';
 import '../services/analytics_service.dart';
 import '../services/auth_service.dart';
@@ -24,7 +25,6 @@ import '../services/subscription_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/feedback_dialog.dart';
-import '../widgets/premium_badge.dart';
 import '../widgets/responsive_container.dart';
 import '../widgets/settings/color_avatar.dart';
 import '../widgets/settings/settings_dropdown.dart';
@@ -324,6 +324,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _ProfileCard(user: user, onEditName: _editName),
+                    const SizedBox(height: 14),
+                    _PremiumHeroCard(
+                      onUpgrade: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const PaywallScreen(),
+                        ),
+                      ),
+                      onManage: _openBillingPortal,
+                    ),
                     SettingsSection(
                       title: 'Profile',
                       children: [
@@ -896,45 +905,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ],
                     ),
-                    SettingsSection(
-                      title: 'Membership',
-                      children: [
-                        if (SubscriptionService().isPremium)
+                    // Membership is surfaced at the top via _PremiumHeroCard,
+                    // so the lower-down "Membership" section is no longer
+                    // needed (was a tile-style duplicate of the hero card).
+                    if (SubscriptionService().isPremium)
+                      SettingsSection(
+                        title: 'Membership',
+                        children: [
                           SettingsTile(
                             icon: Icons.workspace_premium_rounded,
-                            title: 'Mood8 Premium',
-                            subtitle: 'Active',
-                            trailing: PremiumBadge(
-                              tier: SubscriptionService().tier,
-                              compact: true,
-                            ),
+                            title: 'Premium benefits',
+                            subtitle: 'What you have access to',
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => const PremiumScreen(),
                               ),
                             ),
-                          )
-                        else
-                          SettingsTile(
-                            icon: Icons.workspace_premium_rounded,
-                            title: 'Unlock Mood8 Premium',
-                            subtitle:
-                                'Unlimited habits, AI Coach, advanced insights',
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const PaywallScreen(),
-                              ),
-                            ),
                           ),
-                        if (SubscriptionService().isPremium)
-                          SettingsTile(
-                            icon: Icons.credit_card_rounded,
-                            title: 'Manage subscription',
-                            subtitle: 'Cancel anytime via Stripe',
-                            onTap: _openBillingPortal,
-                          ),
-                      ],
-                    ),
+                        ],
+                      ),
                     SettingsSection(
                       title: 'Beta tester',
                       subtitle: 'we read every word',
@@ -1506,6 +1495,275 @@ class _IdentityPill extends StatelessWidget {
           color: BrandColors.ink(context),
           fontSize: 13,
         ),
+      ),
+    );
+  }
+}
+
+/// Promoted Premium entry that sits right under the profile card at
+/// the top of Settings. Free users see a gradient "Upgrade" pitch;
+/// premium users see an "Active" status pill with a Manage Billing
+/// trailing action. Listens to SubscriptionService so a checkout that
+/// flips premium while this screen is open updates without a rebuild.
+class _PremiumHeroCard extends StatelessWidget {
+  const _PremiumHeroCard({
+    required this.onUpgrade,
+    required this.onManage,
+  });
+
+  final VoidCallback onUpgrade;
+  final VoidCallback onManage;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: SubscriptionService(),
+      builder: (context, _) {
+        final premium = SubscriptionService().isPremium;
+        return premium
+            ? _PremiumActiveCard(onManage: onManage)
+            : _PremiumUpgradeCard(onTap: onUpgrade);
+      },
+    );
+  }
+}
+
+/// Free user variant — a vivid gradient pitch tile that taps through
+/// to the paywall. Designed to feel like a hero CTA, not a list row.
+class _PremiumUpgradeCard extends StatelessWidget {
+  const _PremiumUpgradeCard({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFFA855F7),
+                Color(0xFFEC4899),
+                Color(0xFFF472B6),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFEC4899).withValues(alpha: 0.42),
+                blurRadius: 28,
+                spreadRadius: -6,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.18),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.45),
+                    width: 1.4,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.workspace_premium_rounded,
+                  color: Colors.white,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Upgrade to Premium',
+                      style: GoogleFonts.bricolageGrotesque(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Unlimited habits, AI Coach, cinematic celebrations',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: const Text(
+                  'See plans',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Premium user variant — a calm tinted card showing the active
+/// status with a Manage subscription trailing action that opens the
+/// Stripe billing portal.
+class _PremiumActiveCard extends StatelessWidget {
+  const _PremiumActiveCard({required this.onManage});
+  final VoidCallback onManage;
+
+  @override
+  Widget build(BuildContext context) {
+    final tier = SubscriptionService().tier;
+    final tierLabel = tier == SubscriptionTier.premiumLifetime
+        ? 'Lifetime'
+        : 'Premium · monthly';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.purple.withValues(alpha: 0.28),
+            AppColors.pink.withValues(alpha: 0.18),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: AppColors.pinkLight.withValues(alpha: 0.40),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.pink.withValues(alpha: 0.22),
+            blurRadius: 22,
+            spreadRadius: -8,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: AppColors.buttonGradient,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.pink.withValues(alpha: 0.40),
+                  blurRadius: 14,
+                ),
+              ],
+            ),
+            child: const Icon(Icons.workspace_premium_rounded,
+                color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Mood8 Premium',
+                      style: GoogleFonts.bricolageGrotesque(
+                        color: BrandColors.ink(context),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(Icons.check_circle_rounded,
+                        size: 14, color: AppColors.pinkLight),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  tierLabel,
+                  style: TextStyle(
+                    color: BrandColors.inkSoft(context),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              onManage();
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: BrandColors.ink(context),
+              backgroundColor:
+                  BrandColors.bgCard(context).withValues(alpha: 0.65),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(
+                  color: AppColors.purple.withValues(alpha: 0.35),
+                ),
+              ),
+            ),
+            child: const Text(
+              'Manage',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

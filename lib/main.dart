@@ -101,6 +101,15 @@ Future<void> main() async {
 final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
 
+/// Global navigator key so listener callbacks fired from outside the
+/// widget tree (e.g. the [EffectsService.premiumEffectHintNotifier]
+/// snackbar's "See" action) can push routes without needing a
+/// BuildContext. The root ScaffoldMessenger sits ABOVE the Navigator
+/// in MaterialApp's tree, so its `currentContext` can't resolve a
+/// `Navigator.of` — this key bypasses that.
+final GlobalKey<NavigatorState> rootNavigatorKey =
+    GlobalKey<NavigatorState>();
+
 class Mood8App extends StatefulWidget {
   const Mood8App({super.key});
 
@@ -175,6 +184,7 @@ class _Mood8AppState extends State<Mood8App> with WidgetsBindingObserver {
           theme: AppLightTheme.theme,
           darkTheme: AppTheme.dark,
           scaffoldMessengerKey: rootScaffoldMessengerKey,
+          navigatorKey: rootNavigatorKey,
           home: const AuthGate(),
         );
       },
@@ -273,18 +283,30 @@ class _AuthGateState extends State<AuthGate> {
     final hint = EffectsService().premiumEffectHintNotifier.value;
     if (hint == null) return;
     final messenger = rootScaffoldMessengerKey.currentState;
-    messenger?.showSnackBar(
+    if (messenger == null) return;
+    // Clear any previous snackbar before showing the new one so a
+    // rapid double-fire doesn't queue a second toast behind it.
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
       SnackBar(
         content: Text(hint),
-        duration: const Duration(seconds: 5),
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
-          label: 'See',
+          label: 'See Premium',
           onPressed: () {
-            final navContext = rootScaffoldMessengerKey.currentContext;
-            if (navContext == null) return;
-            Navigator.of(navContext, rootNavigator: true).push(
+            // Dismiss the toast immediately — otherwise it sits above
+            // the paywall route (the root ScaffoldMessenger is above
+            // the Navigator in MaterialApp's tree).
+            messenger.hideCurrentSnackBar();
+            // Use the global navigator key — `messenger.context` can't
+            // resolve a Navigator since the ScaffoldMessenger is its
+            // ancestor.
+            rootNavigatorKey.currentState?.push(
               MaterialPageRoute<void>(
-                builder: (_) => const PaywallScreen(),
+                builder: (_) => const PaywallScreen(
+                  contextNote: 'Premium unlocks cinematic celebrations.',
+                ),
               ),
             );
           },
