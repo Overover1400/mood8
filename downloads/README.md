@@ -2,34 +2,48 @@
 
 Anything in this folder is served at `https://mood8.app/download/`.
 
-## How to publish a new APK
+Two APKs land here:
 
-1. The GitHub Actions workflow `.github/workflows/android-build.yml`
-   builds the release APK on every push to `main`. Download the
-   artifact (`mood8-android-apk`) from the run page.
-2. Drop the APK into this folder as `mood8.apk` (the landing page +
-   `index.html` here both link to that exact filename):
+- `mood8.apk` — phone APK, served at `/download/mood8.apk`
+- `mood8-wear.apk` — Wear OS APK, served at `/download/mood8-wear.apk`
 
-   ```bash
-   scp ~/Downloads/mood8-<n>.apk admin@servermood81:/home/admin/projects/mood8/downloads/mood8.apk
-   ```
+Both are linked from the landing page: the phone APK is the primary
+"Download for Android" CTA, the Wear APK is a smaller "Also available"
+secondary tile with its own install note.
 
-3. No nginx reload needed — nginx just serves the new file.
+## Auto-pull from GitHub Actions
 
-## Why not pull automatically?
+`scripts/fetch_apks.sh` (one level up) downloads the latest successful
+build of each workflow and drops the APKs in place:
 
-Two options that were considered and skipped for now:
+```bash
+# one-time on the server
+gh auth login
 
-- **`gh run download` cron** — needs a GitHub token on the box and
-  has to know the latest run id. Worth doing if the cadence becomes
-  more than weekly, but for now manual is one `scp`.
-- **GitHub Releases + `wget` cron** — proper public-asset URL, but
-  requires also adding a Release-publishing step to the workflow.
-  Easy to add later if useful.
+# any time (cron, or manually after a release)
+./scripts/fetch_apks.sh
+```
+
+The script walks both `android-build.yml` and `wear-build.yml`,
+picks the most recent success on `main`, grabs the matching artifact,
+and writes `mood8.apk` + `mood8-wear.apk`. No nginx reload required —
+the alias serves whatever's in this folder.
+
+## Manual fallback
+
+If `gh` isn't authed or you have a build sitting on your laptop, you
+can drop APKs straight here:
+
+```bash
+scp ~/Downloads/mood8-<n>.apk        admin@servermood81:/home/admin/projects/mood8/downloads/mood8.apk
+scp ~/Downloads/mood8-wear-<n>.apk   admin@servermood81:/home/admin/projects/mood8/downloads/mood8-wear.apk
+```
 
 ## What's already in here
 
-- `index.html` — a tiny "click to download" landing with a 2s
-  auto-redirect to `/download/mood8.apk`. Shown if a user lands on
-  `/download/` without a trailing filename.
-- `mood8.apk` — the actual APK. Replace with each release.
+- `index.html` — a tiny "click to download" landing for the phone APK
+  with a 2-second auto-redirect to `/download/mood8.apk`. Shown if a
+  user lands on `/download/` without a filename.
+- `mood8.apk` / `mood8-wear.apk` — the actual APKs (or placeholders
+  until the script runs).
+- `.gitignore` — keeps real APKs out of the repo.

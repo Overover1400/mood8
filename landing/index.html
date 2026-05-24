@@ -209,6 +209,41 @@
             <li>Open Mood8 and sign in. Done.</li>
           </ol>
         </details>
+
+        <div class="also">
+          <span class="also-label">Also available</span>
+          <a href="/download/mood8-wear.apk" class="wear-tile">
+            <span class="wear-icon">⌚</span>
+            <span class="wear-body">
+              <strong>Mood8 for Wear OS</strong>
+              <span>Companion app for Wear OS 3+ watches · technical install</span>
+            </span>
+            <span class="wear-cta">Get APK</span>
+          </a>
+          <details class="install-note install-note-wear">
+            <summary>How to install on Wear OS (technical)</summary>
+            <p class="install-warn">
+              Wear OS doesn't have a sideload-from-watch flow — installing
+              a Wear APK is a developer process. Intended for technical
+              testers, not casual users.
+            </p>
+            <ol>
+              <li>On the watch: <em>Settings → System → About → Versions</em> — tap the build number 7 times to enable Developer options.</li>
+              <li>Back in Settings, open <em>Developer options</em> and turn on <strong>ADB debugging</strong> and <strong>Debug over Wi-Fi</strong>. The watch will show an IP address.</li>
+              <li>On your computer (with <code>adb</code> installed):
+                <code class="code">adb connect &lt;watch-ip&gt;:5555</code>
+                Accept the prompt on the watch.</li>
+              <li>Download <code>mood8-wear.apk</code> and install it:
+                <code class="code">adb install mood8-wear.apk</code></li>
+              <li>The app appears in the watch's launcher. Sign in with the same account as the phone — your check-ins sync.</li>
+            </ol>
+            <p class="install-warn">
+              If you don't recognise half the words above, stick with the
+              phone app — the Wear companion adds quick check-ins but
+              doesn't unlock anything you can't already do on phone.
+            </p>
+          </details>
+        </div>
       </div>
     </section>
   </main>
