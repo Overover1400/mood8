@@ -15,6 +15,31 @@ class GratitudeRepository {
 
   Box<GratitudeEntry> get _box => _db.gratitudeBox;
 
+  /// One-shot migration that undoes the historical UTC-shift bug in
+  /// the sync codec — see `_HabitLogCodec` for the full diagnosis.
+  /// Any GratitudeEntry whose `date` is UTC-flagged OR has a non-zero
+  /// time component (the fingerprint of a pulled row) gets snapped
+  /// back to its LOCAL calendar day. Safe to call on every cold start.
+  Future<void> repairCorruptedDates() async {
+    var repaired = 0;
+    for (final e in _box.values.toList()) {
+      final d = e.date;
+      if (d.isUtc ||
+          d.hour != 0 ||
+          d.minute != 0 ||
+          d.second != 0 ||
+          d.millisecond != 0) {
+        final local = d.isUtc ? d.toLocal() : d;
+        e.date = DateTime(local.year, local.month, local.day);
+        await _box.put(e.id, e);
+        repaired += 1;
+      }
+    }
+    if (repaired > 0) {
+      debugPrint('[Gratitude] repaired $repaired UTC-shifted date(s)');
+    }
+  }
+
   GratitudeEntry? getTodaysEntry() {
     final today = _dayKey(DateTime.now());
     for (final e in _box.values) {

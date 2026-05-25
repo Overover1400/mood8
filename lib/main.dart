@@ -15,8 +15,10 @@ import 'services/database_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/effects_service.dart';
 import 'services/freeze_service.dart';
+import 'services/gratitude_repository.dart';
 import 'services/habit_repository.dart';
 import 'services/haptic_service.dart';
+import 'services/intention_repository.dart';
 import 'services/notification_feed_service.dart';
 import 'services/reminder_service.dart';
 import 'services/sync_service.dart';
@@ -38,6 +40,12 @@ Future<void> main() async {
   // replays the durable shadow into the Hive box so the home Today
   // list paints the right number on cold start.
   await HabitRepository().ensureShadowReady();
+  // Same UTC-shift bug that ate counter logs also corrupted gratitude
+  // + morning intention dates (their codecs used the same `_iso` push
+  // path that converted local midnight to UTC). Heal any rows that
+  // landed on the wrong calendar day before first frame.
+  await IntentionRepository().repairCorruptedDates();
+  await GratitudeRepository().repairCorruptedDates();
   if (UserRepository().isOnboardingComplete()) {
     await RoutineRepository().seedDefaultRoutines();
   }

@@ -15,6 +15,32 @@ class IntentionRepository {
 
   Box<MorningIntention> get _box => _db.intentionBox;
 
+  /// One-shot migration that undoes the historical UTC-shift bug in the
+  /// sync codec — see `_HabitLogCodec` for the full diagnosis. Any
+  /// MorningIntention whose `date` is UTC-flagged OR has a non-zero
+  /// time component (the fingerprint of a pulled row) gets snapped
+  /// back to its LOCAL calendar day. Cheap — only rewrites rows that
+  /// actually need it. Safe to call on every cold start.
+  Future<void> repairCorruptedDates() async {
+    var repaired = 0;
+    for (final i in _box.values.toList()) {
+      final d = i.date;
+      if (d.isUtc ||
+          d.hour != 0 ||
+          d.minute != 0 ||
+          d.second != 0 ||
+          d.millisecond != 0) {
+        final local = d.isUtc ? d.toLocal() : d;
+        i.date = DateTime(local.year, local.month, local.day);
+        await _box.put(i.id, i);
+        repaired += 1;
+      }
+    }
+    if (repaired > 0) {
+      debugPrint('[Intention] repaired $repaired UTC-shifted date(s)');
+    }
+  }
+
   MorningIntention? getTodaysIntention() {
     final today = _dayKey(DateTime.now());
     for (final i in _box.values) {

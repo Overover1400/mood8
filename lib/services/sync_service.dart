@@ -1044,7 +1044,11 @@ class _MorningIntentionCodec implements _EntityCodec {
       if (since == null || upd.isAfter(since)) {
         yield _Change(id: m.id, updatedAt: upd, json: {
           'id': m.id,
-          'date': _iso(m.date),
+          // Date-only string — see _HabitLogCodec for the rationale.
+          // `_iso(m.date)` shifted local-midnight to UTC, which
+          // moved every day-keyed row to YESTERDAY for non-UTC users
+          // and made `getTodaysIntention()` miss them on next pull.
+          'date': _dateOnlyString(m.date),
           'text': m.text,
           'createdAt': _iso(m.createdAt),
           'wasSkipped': m.wasSkipped,
@@ -1056,13 +1060,24 @@ class _MorningIntentionCodec implements _EntityCodec {
 
   @override
   Future<void> upsertFromJson(String id, Map<String, dynamic> json) async {
+    final newDate =
+        _parseDateOnly(json['date']) ?? _localMidnight(DateTime.now());
+    final newUpdatedAt = _parseDate(json['updatedAt']);
+    // LWW guard — a stale pull must not clobber a fresher local row.
+    final existing = _box.get(id);
+    if (existing != null && newUpdatedAt != null) {
+      final localStamp = existing.updatedAt ?? existing.createdAt;
+      if (!newUpdatedAt.isAfter(localStamp)) {
+        return;
+      }
+    }
     final m = MorningIntention(
       id: id,
-      date: _parseDate(json['date']) ?? DateTime.now(),
+      date: newDate,
       text: json['text'] as String? ?? '',
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now(),
       wasSkipped: json['wasSkipped'] as bool? ?? false,
-      updatedAt: _parseDate(json['updatedAt']),
+      updatedAt: newUpdatedAt,
     );
     await _box.put(id, m);
   }
@@ -1092,7 +1107,9 @@ class _GratitudeEntryCodec implements _EntityCodec {
       if (since == null || upd.isAfter(since)) {
         yield _Change(id: g.id, updatedAt: upd, json: {
           'id': g.id,
-          'date': _iso(g.date),
+          // Same date-shift fix as the intention codec above — see
+          // _HabitLogCodec for the full diagnosis.
+          'date': _dateOnlyString(g.date),
           'items': g.items,
           'createdAt': _iso(g.createdAt),
           'updatedAt': _iso(upd),
@@ -1103,12 +1120,22 @@ class _GratitudeEntryCodec implements _EntityCodec {
 
   @override
   Future<void> upsertFromJson(String id, Map<String, dynamic> json) async {
+    final newDate =
+        _parseDateOnly(json['date']) ?? _localMidnight(DateTime.now());
+    final newUpdatedAt = _parseDate(json['updatedAt']);
+    final existing = _box.get(id);
+    if (existing != null && newUpdatedAt != null) {
+      final localStamp = existing.updatedAt ?? existing.createdAt;
+      if (!newUpdatedAt.isAfter(localStamp)) {
+        return;
+      }
+    }
     final g = GratitudeEntry(
       id: id,
-      date: _parseDate(json['date']) ?? DateTime.now(),
+      date: newDate,
       items: (json['items'] as List?)?.cast<String>() ?? const <String>[],
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now(),
-      updatedAt: _parseDate(json['updatedAt']),
+      updatedAt: newUpdatedAt,
     );
     await _box.put(id, g);
   }
