@@ -30,6 +30,7 @@ class Habit extends HiveObject {
     this.polarity = HabitPolarity.build,
     this.avoidMode,
     this.avoidDurationDays,
+    this.packageId,
   }) : frozenDates = frozenDates ?? <DateTime>[];
 
   @HiveField(0)
@@ -100,7 +101,15 @@ class Habit extends HiveObject {
   @HiveField(19)
   int? avoidDurationDays;
 
+  /// Set when this habit was materialised by starting an AI Habit
+  /// Package (Premium Plus). Stable id from `lib/data/habit_packages.dart`,
+  /// e.g. "pkg.morning_calm". Null for regular user-created habits.
+  /// Drives the per-package filter tab on the Habits screen.
+  @HiveField(20)
+  String? packageId;
+
   bool get isAvoid => polarity == HabitPolarity.avoid;
+  bool get isFromPackage => packageId != null;
   bool get isQuit => isAvoid && avoidMode == AvoidMode.quit;
   bool get isReduce => isAvoid && avoidMode == AvoidMode.reduce;
 

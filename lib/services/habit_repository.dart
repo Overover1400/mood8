@@ -176,6 +176,7 @@ class HabitRepository {
     HabitPolarity polarity = HabitPolarity.build,
     AvoidMode? avoidMode,
     int? avoidDurationDays,
+    String? packageId,
   }) async {
     final habit = Habit(
       id: _uuid.v4(),
@@ -196,6 +197,7 @@ class HabitRepository {
       polarity: polarity,
       avoidMode: avoidMode,
       avoidDurationDays: avoidDurationDays,
+      packageId: packageId,
     );
     try {
       await _habitBox.put(habit.id, habit);
@@ -205,6 +207,51 @@ class HabitRepository {
       rethrow;
     }
     return habit;
+  }
+
+  /// Materialise every item in [package] as a real Habit row tagged
+  /// with the package id. Skips items whose title is already present
+  /// in the same package (so calling startPackage twice doesn't dupe).
+  /// Returns the list of habits actually created.
+  Future<List<Habit>> startPackage(dynamic package) async {
+    // Loose-typed `package` so this file doesn't pull the data layer
+    // into the repo public API. Callers pass a HabitPackage.
+    final id = package.id as String;
+    final items = package.items as List<dynamic>;
+    final existing = _habitBox.values
+        .where((h) => h.packageId == id)
+        .map((h) => h.title)
+        .toSet();
+    final created = <Habit>[];
+    for (final item in items) {
+      if (existing.contains(item.title as String)) continue;
+      final h = await addHabit(
+        title: item.title as String,
+        icon: item.icon as String,
+        habitType: item.habitType,
+        identity: item.identity as String,
+        category: item.category,
+        frequency: item.frequency,
+        targetValue: item.targetValue as int?,
+        targetUnit: item.targetUnit as String?,
+        polarity: item.polarity,
+        avoidMode: item.avoidMode,
+        avoidDurationDays: item.avoidDurationDays as int?,
+        packageId: id,
+      );
+      created.add(h);
+    }
+    return created;
+  }
+
+  /// Distinct package ids of currently-active habits — used by the
+  /// Habits screen to render a fancy filter chip per running program.
+  List<String> activePackageIds() {
+    final ids = <String>{};
+    for (final h in _habitBox.values) {
+      if (!h.isArchived && h.packageId != null) ids.add(h.packageId!);
+    }
+    return ids.toList();
   }
 
   Future<void> updateHabit(Habit habit) async {

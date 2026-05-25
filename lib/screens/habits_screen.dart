@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/habit_packages.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/sfx_type.dart';
@@ -25,6 +26,7 @@ import '../widgets/habit_card.dart';
 import '../widgets/responsive_container.dart';
 import '../widgets/tutorial_overlay.dart';
 import 'habit_detail_screen.dart';
+import 'habit_packages_screen.dart';
 
 import '../models/user_profile.dart';
 import '../services/freeze_service.dart';
@@ -33,6 +35,9 @@ const String _kAllFilter = '__all__';
 /// Synthetic filter that surfaces only avoid-type habits. Sits next
 /// to the identity chips in [_IdentityFilter].
 const String _kAvoidFilter = '__avoid__';
+/// Prefix used by per-package filter chips. The remainder of the
+/// string is the package id (e.g. "__pkg__pkg.morning_calm").
+const String _kPackagePrefix = '__pkg__';
 
 class HabitsScreen extends StatefulWidget {
   const HabitsScreen({super.key});
@@ -155,11 +160,27 @@ class _HabitsScreenState extends State<HabitsScreen> {
                         _kAllFilter => all,
                         _kAvoidFilter =>
                           all.where((h) => h.isAvoid).toList(),
+                        final f when f.startsWith(_kPackagePrefix) =>
+                          all.where((h) =>
+                              h.packageId ==
+                              f.substring(_kPackagePrefix.length)).toList(),
                         _ => all
                             .where((h) => h.identity == _filter)
                             .toList(),
                       };
                       visible = _applySort(visible);
+
+                      // Distinct package ids on the user's active habits
+                      // — each becomes a fancy filter chip after All /
+                      // Bad habits, before the identity chips.
+                      final activePackageIds = <String>[];
+                      for (final h in all) {
+                        final pid = h.packageId;
+                        if (pid != null &&
+                            !activePackageIds.contains(pid)) {
+                          activePackageIds.add(pid);
+                        }
+                      }
 
                       final completedToday = scheduled.where((h) {
                         final l = _repo.getLogForDate(h.id, today);
@@ -193,6 +214,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                             const SizedBox(height: 16),
                             _IdentityFilter(
                               identities: identities,
+                              packageIds: activePackageIds,
                               value: _filter,
                               onChanged: (v) =>
                                   setState(() => _filter = v),
@@ -557,6 +579,8 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
+        _PackagesButton(),
+        const SizedBox(width: 8),
         _SortButton(current: sortMode, onSelect: onSortChanged),
         const SizedBox(width: 8),
         if (profile != null)
@@ -565,6 +589,58 @@ class _Header extends StatelessWidget {
             profile: profile,
           ),
       ],
+    );
+  }
+}
+
+/// Small gradient button in the Habits header — opens the AI Habit
+/// Packages browse screen. Visible to ALL users (free / Premium /
+/// Plus) so non-Plus testers can see what they'd unlock; gating
+/// happens on the start button inside the detail screen.
+class _PackagesButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticService().selection();
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const HabitPackagesScreen(),
+          ),
+        );
+      },
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          gradient: AppColors.buttonGradient,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.pink.withValues(alpha: 0.30),
+              blurRadius: 12,
+              spreadRadius: -4,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.auto_awesome_rounded,
+                color: Colors.white, size: 13),
+            SizedBox(width: 5),
+            Text(
+              'Packages',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -911,23 +987,33 @@ class _ManualLockBar extends StatelessWidget {
 class _IdentityFilter extends StatelessWidget {
   const _IdentityFilter({
     required this.identities,
+    required this.packageIds,
     required this.value,
     required this.onChanged,
   });
 
   final List<String> identities;
+  /// Distinct package ids currently active on the user's habits. Each
+  /// one becomes a fancy gradient chip (emoji + package name) between
+  /// "Bad habits" and the identity chips.
+  final List<String> packageIds;
   final String value;
   final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    // Order: All → Bad habits (avoid filter) → identity chips. Bad
-    // habits sits second so the visual "spotlight the avoid set"
-    // affordance is always one tap away, regardless of how many
-    // identity chips scroll off to the right.
-    final all = [_kAllFilter, _kAvoidFilter, ...identities];
+    // Order: All → Bad habits → 1 chip per running package → identity
+    // chips. Package chips sit before identities because a running
+    // program is a strong intentional context the user opted into;
+    // identities are background organisational tags.
+    final all = <String>[
+      _kAllFilter,
+      _kAvoidFilter,
+      for (final pid in packageIds) '$_kPackagePrefix$pid',
+      ...identities,
+    ];
     return SizedBox(
-      height: 38,
+      height: 40,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: all.length,
@@ -936,19 +1022,34 @@ class _IdentityFilter extends StatelessWidget {
           final id = all[i];
           final selected = id == value;
           final isAvoid = id == _kAvoidFilter;
+          final isPackage = id.startsWith(_kPackagePrefix);
+          final pkg = isPackage
+              ? habitPackageById(id.substring(_kPackagePrefix.length))
+              : null;
           final label = id == _kAllFilter
               ? 'All'
               : id == _kAvoidFilter
                   ? 'Bad habits'
-                  : id;
+                  : pkg?.name ?? id;
           final selectedGradient = isAvoid
               ? const LinearGradient(
                   colors: [Color(0xFFEC4899), Color(0xFFFB7185)],
                 )
-              : AppColors.buttonGradient;
+              : isPackage && pkg != null
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        pkg.accent,
+                        AppColors.pink,
+                      ],
+                    )
+                  : AppColors.buttonGradient;
           final selectedShadow = isAvoid
               ? AppColors.pinkLight.withValues(alpha: 0.40)
-              : AppColors.pink.withValues(alpha: 0.35);
+              : isPackage && pkg != null
+                  ? pkg.accent.withValues(alpha: 0.50)
+                  : AppColors.pink.withValues(alpha: 0.35);
           return GestureDetector(
             onTap: () {
               HapticService().selection();
@@ -960,16 +1061,23 @@ class _IdentityFilter extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 gradient: selected ? selectedGradient : null,
+                // Idle package chips get a faint tinted background so
+                // they read as premium-program affordances at rest too
+                // — not just when selected.
                 color: selected
                     ? null
-                    : BrandColors.bgCard(context).withValues(alpha: 0.7),
+                    : isPackage && pkg != null
+                        ? pkg.accent.withValues(alpha: 0.12)
+                        : BrandColors.bgCard(context).withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(
                   color: selected
                       ? Colors.transparent
                       : (isAvoid
                           ? AppColors.pinkLight.withValues(alpha: 0.30)
-                          : AppColors.purple.withValues(alpha: 0.20)),
+                          : isPackage && pkg != null
+                              ? pkg.accent.withValues(alpha: 0.42)
+                              : AppColors.purple.withValues(alpha: 0.20)),
                 ),
                 boxShadow: selected
                     ? [
@@ -992,6 +1100,10 @@ class _IdentityFilter extends StatelessWidget {
                           : AppColors.pinkLight,
                     ),
                     const SizedBox(width: 5),
+                  ] else if (isPackage && pkg != null) ...[
+                    Text(pkg.emoji,
+                        style: const TextStyle(fontSize: 14)),
+                    const SizedBox(width: 6),
                   ],
                   Text(
                     label,

@@ -37,13 +37,14 @@ class HabitAdapter extends TypeAdapter<Habit> {
       polarity: (fields[17] as HabitPolarity?) ?? HabitPolarity.build,
       avoidMode: fields[18] as AvoidMode?,
       avoidDurationDays: fields[19] as int?,
+      packageId: fields[20] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Habit obj) {
     writer
-      ..writeByte(20)
+      ..writeByte(21)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -83,7 +84,9 @@ class HabitAdapter extends TypeAdapter<Habit> {
       ..writeByte(18)
       ..write(obj.avoidMode)
       ..writeByte(19)
-      ..write(obj.avoidDurationDays);
+      ..write(obj.avoidDurationDays)
+      ..writeByte(20)
+      ..write(obj.packageId);
   }
 
   @override

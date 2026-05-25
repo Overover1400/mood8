@@ -13,20 +13,42 @@ import '../widgets/mood_orb.dart';
 import '../widgets/responsive_container.dart';
 
 class PaywallScreen extends StatefulWidget {
-  const PaywallScreen({super.key, this.contextNote});
+  const PaywallScreen({
+    super.key,
+    this.contextNote,
+    this.highlightPlus = false,
+  });
 
   /// Optional in-screen explanation of *why* the paywall fired
   /// (e.g. "Unlimited habits is a Premium feature").
   final String? contextNote;
+
+  /// When true, the paywall opens on the Premium Plus tier toggle
+  /// instead of Premium. Used by entry points where the paywall fires
+  /// from a Plus-only feature (the AI Habit Packages screen).
+  final bool highlightPlus;
 
   @override
   State<PaywallScreen> createState() => _PaywallScreenState();
 }
 
 class _PaywallScreenState extends State<PaywallScreen> {
-  String _selectedPlan = 'annual'; // default-on most-value plan
+  /// Which tier the user is shopping for right now — flips the price
+  /// labels + the plan_key prefix sent to the backend. Premium Plus
+  /// plan keys are `plus_monthly`/`plus_annual`/`plus_lifetime`.
+  bool _shoppingPlus = false;
+  String _selectedCadence = 'annual'; // default-on most-value plan
   bool _loading = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _shoppingPlus = widget.highlightPlus;
+  }
+
+  String get _selectedPlan =>
+      _shoppingPlus ? 'plus_$_selectedCadence' : _selectedCadence;
 
   Future<void> _startCheckout() async {
     if (_loading) return;
@@ -157,44 +179,91 @@ class _PaywallScreenState extends State<PaywallScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 26),
-                    _PlanCard(
-                      title: 'Annual',
-                      price: r'$29',
-                      cadence: '/year',
-                      monthlyEquivalent: r'$2.42 / mo',
-                      badge: 'Best value — save 39%',
-                      selected: _selectedPlan == 'annual',
-                      accent: AppColors.pinkLight,
-                      onTap: () =>
-                          setState(() => _selectedPlan = 'annual'),
+                    const SizedBox(height: 22),
+                    _TierToggle(
+                      plus: _shoppingPlus,
+                      onChanged: (v) =>
+                          setState(() => _shoppingPlus = v),
                     ),
-                    const SizedBox(height: 10),
-                    _PlanCard(
-                      title: 'Monthly',
-                      price: r'$3.99',
-                      cadence: '/month',
-                      monthlyEquivalent: 'Try it. Cancel anytime.',
-                      selected: _selectedPlan == 'monthly',
-                      accent: AppColors.purpleLight,
-                      onTap: () =>
-                          setState(() => _selectedPlan = 'monthly'),
-                    ),
-                    const SizedBox(height: 10),
-                    _PlanCard(
-                      title: 'Lifetime',
-                      price: r'$129',
-                      cadence: 'one-time',
-                      monthlyEquivalent: 'Pay once. Forever.',
-                      badge: 'Pay once',
-                      selected: _selectedPlan == 'lifetime',
-                      accent: AppColors.blueAccent,
-                      onTap: () =>
-                          setState(() => _selectedPlan = 'lifetime'),
-                    ),
+                    const SizedBox(height: 18),
+                    if (_shoppingPlus) ...[
+                      _PlanCard(
+                        title: 'Annual',
+                        price: r'$49',
+                        cadence: '/year',
+                        monthlyEquivalent: r'$4.08 / mo',
+                        badge: 'Best value — save 41%',
+                        selected: _selectedCadence == 'annual',
+                        accent: AppColors.pinkLight,
+                        onTap: () =>
+                            setState(() => _selectedCadence = 'annual'),
+                      ),
+                      const SizedBox(height: 10),
+                      _PlanCard(
+                        title: 'Monthly',
+                        price: r'$6.99',
+                        cadence: '/month',
+                        monthlyEquivalent: 'Try it. Cancel anytime.',
+                        selected: _selectedCadence == 'monthly',
+                        accent: AppColors.purpleLight,
+                        onTap: () =>
+                            setState(() => _selectedCadence = 'monthly'),
+                      ),
+                      const SizedBox(height: 10),
+                      _PlanCard(
+                        title: 'Lifetime',
+                        price: r'$199',
+                        cadence: 'one-time',
+                        monthlyEquivalent: 'Pay once. Forever.',
+                        badge: 'Pay once',
+                        selected: _selectedCadence == 'lifetime',
+                        accent: AppColors.blueAccent,
+                        onTap: () =>
+                            setState(() => _selectedCadence = 'lifetime'),
+                      ),
+                    ] else ...[
+                      _PlanCard(
+                        title: 'Annual',
+                        price: r'$29',
+                        cadence: '/year',
+                        monthlyEquivalent: r'$2.42 / mo',
+                        badge: 'Best value — save 39%',
+                        selected: _selectedCadence == 'annual',
+                        accent: AppColors.pinkLight,
+                        onTap: () =>
+                            setState(() => _selectedCadence = 'annual'),
+                      ),
+                      const SizedBox(height: 10),
+                      _PlanCard(
+                        title: 'Monthly',
+                        price: r'$3.99',
+                        cadence: '/month',
+                        monthlyEquivalent: 'Try it. Cancel anytime.',
+                        selected: _selectedCadence == 'monthly',
+                        accent: AppColors.purpleLight,
+                        onTap: () =>
+                            setState(() => _selectedCadence = 'monthly'),
+                      ),
+                      const SizedBox(height: 10),
+                      _PlanCard(
+                        title: 'Lifetime',
+                        price: r'$129',
+                        cadence: 'one-time',
+                        monthlyEquivalent: 'Pay once. Forever.',
+                        badge: 'Pay once',
+                        selected: _selectedCadence == 'lifetime',
+                        accent: AppColors.blueAccent,
+                        onTap: () =>
+                            setState(() => _selectedCadence = 'lifetime'),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     _CTAButton(
-                      label: _loading ? 'Opening…' : 'Start Premium',
+                      label: _loading
+                          ? 'Opening…'
+                          : (_shoppingPlus
+                              ? 'Start Premium Plus'
+                              : 'Start Premium'),
                       onTap: _loading ? null : _startCheckout,
                     ),
                     if (_error != null) ...[
@@ -777,6 +846,130 @@ class _FAQRow extends StatelessWidget {
               duration: const Duration(milliseconds: 240),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Premium ↔ Premium Plus segmented toggle. Visually mirrors the
+/// other segmented controls in the app (Progress/Insights, freq
+/// picker, etc.) but with a pink-tinted "PLUS" side and a small
+/// "+ Habit Packages" badge on the Plus end to signal what the extra
+/// $3/mo buys.
+class _TierToggle extends StatelessWidget {
+  const _TierToggle({required this.plus, required this.onChanged});
+
+  final bool plus;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: AppColors.purple.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Row(
+        children: [
+          _TierTab(
+            label: 'Premium',
+            selected: !plus,
+            gradient: AppColors.buttonGradient,
+            onTap: () => onChanged(false),
+          ),
+          _TierTab(
+            label: 'Premium Plus',
+            sub: '+ Habit Packages',
+            selected: plus,
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFFA855F7),
+                Color(0xFFEC4899),
+                Color(0xFFF472B6),
+              ],
+            ),
+            onTap: () => onChanged(true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TierTab extends StatelessWidget {
+  const _TierTab({
+    required this.label,
+    required this.selected,
+    required this.gradient,
+    required this.onTap,
+    this.sub,
+  });
+
+  final String label;
+  final String? sub;
+  final bool selected;
+  final Gradient gradient;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          HapticService().selection();
+          onTap();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: selected ? gradient : null,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.pink.withValues(alpha: 0.35),
+                      blurRadius: 14,
+                      spreadRadius: -3,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected
+                      ? Colors.white
+                      : BrandColors.inkSoft(context),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              if (sub != null)
+                Text(
+                  sub!,
+                  style: TextStyle(
+                    color: selected
+                        ? Colors.white.withValues(alpha: 0.92)
+                        : BrandColors.inkDim(context),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 10,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

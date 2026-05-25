@@ -19,6 +19,10 @@ class SubscriptionTierAdapter extends TypeAdapter<SubscriptionTier> {
         return SubscriptionTier.premium;
       case 2:
         return SubscriptionTier.premiumLifetime;
+      case 3:
+        return SubscriptionTier.premiumPlus;
+      case 4:
+        return SubscriptionTier.premiumPlusLifetime;
       default:
         return SubscriptionTier.free;
     }
@@ -35,6 +39,12 @@ class SubscriptionTierAdapter extends TypeAdapter<SubscriptionTier> {
         break;
       case SubscriptionTier.premiumLifetime:
         writer.writeByte(2);
+        break;
+      case SubscriptionTier.premiumPlus:
+        writer.writeByte(3);
+        break;
+      case SubscriptionTier.premiumPlusLifetime:
+        writer.writeByte(4);
         break;
     }
   }

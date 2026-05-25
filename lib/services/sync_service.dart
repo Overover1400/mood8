@@ -813,6 +813,7 @@ class _HabitCodec implements _EntityCodec {
           'polarity': h.polarity.name,
           'avoidMode': h.avoidMode?.name,
           'avoidDurationDays': h.avoidDurationDays,
+          'packageId': h.packageId,
         });
       }
     }
@@ -870,6 +871,7 @@ class _HabitCodec implements _EntityCodec {
       polarity: polarity,
       avoidMode: avoidMode,
       avoidDurationDays: (json['avoidDurationDays'] as num?)?.toInt(),
+      packageId: json['packageId'] as String?,
     );
     await _box.put(id, h);
   }

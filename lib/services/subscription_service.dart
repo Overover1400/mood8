@@ -42,12 +42,20 @@ class SubscriptionService extends ChangeNotifier {
 
   SubscriptionTier get tier => _tier;
   bool get isPremium => _tier.isPaid && !_isExpired();
+
+  /// True only for Premium Plus tiers — gates the AI Habit Packages.
+  /// Plus is a strict superset of Premium, so anything gated by
+  /// `isPremium` is also unlocked for Plus users.
+  bool get isPremiumPlus => _tier.isPlus && !_isExpired();
+
   DateTime? get expiresAt => _expiresAt;
   String? get premiumType {
     switch (_tier) {
       case SubscriptionTier.premium:
+      case SubscriptionTier.premiumPlus:
         return 'monthly_or_annual';
       case SubscriptionTier.premiumLifetime:
+      case SubscriptionTier.premiumPlusLifetime:
         return 'lifetime';
       case SubscriptionTier.free:
         return null;
@@ -55,7 +63,7 @@ class SubscriptionService extends ChangeNotifier {
   }
 
   bool _isExpired() {
-    if (_tier == SubscriptionTier.premiumLifetime) return false;
+    if (_tier.isLifetime) return false;
     if (_expiresAt == null) return false;
     return DateTime.now().isAfter(_expiresAt!);
   }
@@ -114,10 +122,14 @@ class SubscriptionService extends ChangeNotifier {
   /// Manual override (rarely needed — webhook-driven state is canonical).
   Future<void> setTier(SubscriptionTier tier, {DateTime? expiresAt}) async {
     _tier = tier;
-    _expiresAt = tier == SubscriptionTier.premiumLifetime ? null : expiresAt;
+    _expiresAt = tier.isLifetime ? null : expiresAt;
     notifyListeners();
     await _persist();
   }
+
+  /// Premium-feature gates apply to BOTH Premium and Premium Plus —
+  /// the latter is a strict superset that adds the Habit Packages.
+  bool get hasHabitPackages => isPremiumPlus;
 
   Future<void> _persist() async {
     try {
@@ -167,11 +179,23 @@ class SubscriptionService extends ChangeNotifier {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       final apiIsPremium = body['is_premium'] as bool? ?? false;
       final type = body['premium_type'] as String?;
+      // premium_plan distinguishes "premium" vs "premium_plus". Legacy
+      // backends or fresh free users may return null — collapse to
+      // "premium" for paying users so we don't drop them to free.
+      final plan = body['premium_plan'] as String?;
       final expiresIso = body['premium_expires_at'] as String?;
+      final isLifetime = type == 'lifetime';
+      final isPlus = plan == 'premium_plus';
       if (!apiIsPremium) {
         _tier = SubscriptionTier.free;
         _expiresAt = null;
-      } else if (type == 'lifetime') {
+      } else if (isPlus && isLifetime) {
+        _tier = SubscriptionTier.premiumPlusLifetime;
+        _expiresAt = null;
+      } else if (isPlus) {
+        _tier = SubscriptionTier.premiumPlus;
+        _expiresAt = expiresIso != null ? DateTime.tryParse(expiresIso) : null;
+      } else if (isLifetime) {
         _tier = SubscriptionTier.premiumLifetime;
         _expiresAt = null;
       } else {
@@ -181,7 +205,7 @@ class SubscriptionService extends ChangeNotifier {
       await _persist();
       notifyListeners();
       debugPrint(
-          '[Subscription] refreshed · isPremium=$apiIsPremium · type=$type · expires=$expiresIso');
+          '[Subscription] refreshed · isPremium=$apiIsPremium · type=$type · plan=$plan · expires=$expiresIso');
       final justUnlocked = !wasPremium && isPremium;
       if (justUnlocked) {
         // Pulse the notifier so AuthGate can show its celebration.
