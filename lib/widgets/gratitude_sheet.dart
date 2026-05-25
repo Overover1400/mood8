@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../models/gratitude_entry.dart';
+import '../screens/gratitude_history_screen.dart';
 import '../services/badge_service.dart';
 import '../services/gratitude_repository.dart';
 import '../services/haptic_service.dart';
@@ -205,17 +206,46 @@ class _GratitudeSheetState extends State<GratitudeSheet> {
               )
                   .animate(delay: 380.ms)
                   .fadeIn(duration: 320.ms),
-              const SizedBox(height: 6),
-              TextButton(
-                onPressed: _saving ? null : _skip,
-                child: Text(
-                  'Maybe later',
-                  style: TextStyle(
-                    color: BrandColors.inkDim(context),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: _saving ? null : _skip,
+                    child: Text(
+                      'Maybe later',
+                      style: TextStyle(
+                        color: BrandColors.inkDim(context),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
-                ),
+                  TextButton.icon(
+                    onPressed: _saving
+                        ? null
+                        : () {
+                            Navigator.of(context).pop();
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    const GratitudeHistoryScreen(),
+                              ),
+                            );
+                          },
+                    icon: Icon(Icons.history_rounded,
+                        size: 16, color: AppColors.purpleLight),
+                    label: Text(
+                      'View past',
+                      style: TextStyle(
+                        color: AppColors.purpleLight,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12.5,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

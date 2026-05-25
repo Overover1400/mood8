@@ -13,6 +13,7 @@ import '../models/gratitude_entry.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/mood_entry.dart';
+import '../models/morning_intention.dart';
 import '../models/reflection.dart';
 import '../models/routine_item.dart';
 import '../models/sfx_type.dart';
@@ -751,6 +752,29 @@ class _HomeScreenState extends State<HomeScreen> {
                               begin: 0.06, end: 0,
                               curve: Curves.easeOutCubic),
                       const SizedBox(height: 18),
+                      // Today's intention. Shown once the user has set
+                      // one via the "+" sheet; tap to edit. Hidden when
+                      // unset so it doesn't nag — the prompt path
+                      // (_maybePromptIntention) handles the empty case.
+                      ValueListenableBuilder<Box<MorningIntention>>(
+                        valueListenable: _intentions.watchIntentions(),
+                        builder: (context, _, _) {
+                          final i = _intentions.getTodaysIntention();
+                          if (i == null ||
+                              i.wasSkipped ||
+                              i.text.trim().isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: _IntentionPill(
+                              text: i.text,
+                              onTap: () =>
+                                  _openIntentionSheet(existing: i.text),
+                            ),
+                          );
+                        },
+                      ),
                       _MoodHeroCard(
                         mood: _mood,
                         energy: _energy,
@@ -1826,6 +1850,19 @@ class _MiniHabitRow extends StatelessWidget {
                       ? 5
                       : 1;
                   await repo.incrementLog(habitId: habit.id, by: step);
+                  // Mirror the Habits-screen completion celebration:
+                  // when the increment crossed the target, fire the
+                  // sound + animation so finishing from Home/Today
+                  // feels identical to finishing from Habits.
+                  if (!context.mounted) return;
+                  final after =
+                      repo.getLogForDate(habit.id, DateTime.now());
+                  if (after != null &&
+                      after.isCompleted &&
+                      (after.value - step) < after.targetValue &&
+                      !habit.isReduce) {
+                    _celebrateHabitFromHome(context, habit, repo);
+                  }
                 },
                 onDecrement: () async {
                   final step = habit.targetUnit
@@ -1836,8 +1873,19 @@ class _MiniHabitRow extends StatelessWidget {
                       : 1;
                   await repo.incrementLog(habitId: habit.id, by: -step);
                 },
-                onToggle: () async =>
-                    repo.toggleYesNoLog(habitId: habit.id),
+                onToggle: () async {
+                  final before =
+                      repo.getLogForDate(habit.id, DateTime.now());
+                  final wasCompleted = (before?.value ?? 0) > 0;
+                  await repo.toggleYesNoLog(habitId: habit.id);
+                  if (!context.mounted) return;
+                  final after =
+                      repo.getLogForDate(habit.id, DateTime.now());
+                  final isCompleted = (after?.value ?? 0) > 0;
+                  if (!wasCompleted && isCompleted) {
+                    _celebrateHabitFromHome(context, habit, repo);
+                  }
+                },
               ),
             ],
           ),
@@ -2303,3 +2351,122 @@ class _YirBanner extends StatelessWidget {
   }
 }
 
+
+/// Slim "Today's intention" surface shown on Home when the user has
+/// set one via the "+" sheet. Tap to edit (re-opens the sheet
+/// prefilled with the current text). Hidden when no intention is
+/// set so it doesn't compete with the mood hero.
+class _IntentionPill extends StatelessWidget {
+  const _IntentionPill({required this.text, required this.onTap});
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.purple.withValues(alpha: 0.22),
+                AppColors.pink.withValues(alpha: 0.14),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: AppColors.pinkLight.withValues(alpha: 0.42),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppColors.buttonGradient,
+                ),
+                child: const Icon(Icons.wb_sunny_rounded,
+                    color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Today's intention",
+                      style: TextStyle(
+                        color: BrandColors.inkDim(context),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      text,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: BrandColors.ink(context),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.edit_outlined,
+                  size: 16, color: BrandColors.inkSoft(context)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shared celebration path for habit completion from the Home/Today
+/// list. Mirrors the Habits-screen `_celebrateHabit` so finishing
+/// a habit from either surface feels identical: SFX, haptic, the
+/// PremiumBloom (or fancier free-fallback) animation, a streak-
+/// milestone overlay when one is crossed, and a delayed badge check.
+/// Respects the existing premium-effect gating + SfxService toggle —
+/// both gate themselves internally, so the helper just fires.
+void _celebrateHabitFromHome(
+  BuildContext context,
+  Habit habit,
+  HabitRepository repo,
+) {
+  SfxService().fire(SfxType.habitComplete);
+  HapticService().medium();
+  EffectsService().celebrateHabitComplete(context: context);
+  final streak = repo.getStreakForHabit(habit.id);
+  // ignore: discarded_futures
+  MilestoneService().checkStreak(streak).then((milestone) {
+    if (milestone == null || !context.mounted) return;
+    EffectsService().celebrateStreakMilestone(
+      context: context,
+      days: streak,
+    );
+  });
+  // Badge check after the cinematic so the unlock toast doesn't
+  // crash into the bloom — same delay the Habits screen uses.
+  Future<void>.delayed(const Duration(milliseconds: 1200), () async {
+    final awarded = await BadgeService().checkAndAwardBadges();
+    if (awarded.isNotEmpty && context.mounted) {
+      await showBadgeUnlockQueue(context, awarded);
+    }
+  });
+}

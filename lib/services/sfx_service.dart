@@ -38,6 +38,23 @@ class SfxService extends ChangeNotifier {
   // Rapid re-triggers of the SAME sound (e.g. mash + on a counter) are
   // dropped within this window so the user doesn't get a harsh stack.
   static const int _kDebounceMs = 150;
+
+  /// Audio context applied to every SFX player so our UI feedback
+  /// never preempts the user's music / podcast / video. See the
+  /// long-form rationale on the global call in [initialize].
+  static const AudioContext _kSfxAudioContext = AudioContext(
+    android: AudioContextAndroid(
+      isSpeakerphoneOn: false,
+      stayAwake: false,
+      contentType: AndroidContentType.sonification,
+      usageType: AndroidUsageType.assistanceSonification,
+      audioFocus: AndroidAudioFocus.none,
+    ),
+    iOS: AudioContextIOS(
+      category: AVAudioSessionCategory.ambient,
+      options: [AVAudioSessionOptions.mixWithOthers],
+    ),
+  );
   // Hard upper bound on every SFX. Any clip whose duration exceeds
   // this gets a scheduled fade-out that lands at exactly 1000ms so
   // sounds never feel long-winded — the source files vary from
@@ -79,6 +96,38 @@ class SfxService extends ChangeNotifier {
       debugPrint('$_kTag prefs load failed: $e');
     }
 
+    // Mood8 SFX are short UI feedback (tap, ping, celebration) — NEVER
+    // long-form playback the user is choosing to consume. They must
+    // not interrupt the user's music, podcast, or video in another
+    // app. Configure the global audio context to:
+    //   - Android: usage=ASSISTANCE_SONIFICATION, content=SONIFICATION,
+    //     audioFocus=NONE — explicitly requests no focus, so the OS
+    //     mixes our blip on top of whatever else is playing.
+    //   - iOS:     AVAudioSessionCategory.ambient + mixWithOthers —
+    //     the iOS equivalent of "I'm a side channel; don't steal the
+    //     foreground".
+    // Best-effort; failure is non-fatal (older devices, web, etc.).
+    try {
+      await AudioPlayer.global.setAudioContext(
+        const AudioContext(
+          android: AudioContextAndroid(
+            isSpeakerphoneOn: false,
+            stayAwake: false,
+            contentType: AndroidContentType.sonification,
+            usageType: AndroidUsageType.assistanceSonification,
+            audioFocus: AndroidAudioFocus.none,
+          ),
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.ambient,
+            options: [AVAudioSessionOptions.mixWithOthers],
+          ),
+        ),
+      );
+      debugPrint('$_kTag global AudioContext set (mix, no focus)');
+    } catch (e) {
+      debugPrint('$_kTag global AudioContext setup failed: $e');
+    }
+
     for (final entry in sfxAssetPaths.entries) {
       final type = entry.key;
       final path = entry.value;
@@ -98,6 +147,11 @@ class SfxService extends ChangeNotifier {
       try {
         final player = AudioPlayer(playerId: 'sfx_${type.name}');
         await player.setReleaseMode(ReleaseMode.stop);
+        // Per-player context so each SFX is independently flagged
+        // as "side-channel, don't take focus" — see _kSfxAudioContext.
+        try {
+          await player.setAudioContext(_kSfxAudioContext);
+        } catch (_) {}
         await player.setSource(AssetSource(path));
         _players[type] = player;
         debugPrint('$_kTag preloaded · ${type.name}');
@@ -175,6 +229,9 @@ class SfxService extends ChangeNotifier {
     try {
       final player = AudioPlayer(playerId: 'sfx_lazy_${type.name}');
       await player.setReleaseMode(ReleaseMode.release);
+      try {
+        await player.setAudioContext(_kSfxAudioContext);
+      } catch (_) {}
       await player.setSource(AssetSource(sfxAssetPaths[type]!));
       await _playWithEnvelope(type, player, target, isLazy: true);
     } catch (e) {
