@@ -814,6 +814,9 @@ class _HabitCodec implements _EntityCodec {
           'avoidMode': h.avoidMode?.name,
           'avoidDurationDays': h.avoidDurationDays,
           'packageId': h.packageId,
+          'aiManaged': h.aiManaged,
+          'goalDescription': h.goalDescription,
+          'programDurationDays': h.programDurationDays,
         });
       }
     }
@@ -872,6 +875,10 @@ class _HabitCodec implements _EntityCodec {
       avoidMode: avoidMode,
       avoidDurationDays: (json['avoidDurationDays'] as num?)?.toInt(),
       packageId: json['packageId'] as String?,
+      aiManaged: json['aiManaged'] as bool? ?? false,
+      goalDescription: json['goalDescription'] as String?,
+      programDurationDays:
+          (json['programDurationDays'] as num?)?.toInt(),
     );
     await _box.put(id, h);
   }

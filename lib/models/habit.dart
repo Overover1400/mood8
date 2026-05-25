@@ -31,6 +31,9 @@ class Habit extends HiveObject {
     this.avoidMode,
     this.avoidDurationDays,
     this.packageId,
+    this.aiManaged = false,
+    this.goalDescription,
+    this.programDurationDays,
   }) : frozenDates = frozenDates ?? <DateTime>[];
 
   @HiveField(0)
@@ -108,8 +111,29 @@ class Habit extends HiveObject {
   @HiveField(20)
   String? packageId;
 
+  /// True when this habit was designed by the Mood8 AI Coach via the
+  /// `/api/coach/chat` flow (Premium Plus). Drives the "Mood8 AI
+  /// Habits" filter tab on the Habits screen and, in future builds,
+  /// failure-recovery conversations + program-progress display.
+  @HiveField(21)
+  bool aiManaged;
+
+  /// The user's stated goal in their own words, captured at proposal
+  /// time ("I want to be a book reader", "wake up earlier"). Stored
+  /// so future builds can show the why on each habit + reference it
+  /// in coach follow-ups. Null when [aiManaged] is false.
+  @HiveField(22)
+  String? goalDescription;
+
+  /// The coach's suggested program window in days (7/14/21/30/60/90).
+  /// Drives future build-2/3 progress display ("day 12 of 30"). Null
+  /// when [aiManaged] is false.
+  @HiveField(23)
+  int? programDurationDays;
+
   bool get isAvoid => polarity == HabitPolarity.avoid;
   bool get isFromPackage => packageId != null;
+  bool get isAiManaged => aiManaged;
   bool get isQuit => isAvoid && avoidMode == AvoidMode.quit;
   bool get isReduce => isAvoid && avoidMode == AvoidMode.reduce;
 

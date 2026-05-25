@@ -89,6 +89,35 @@ class AiService {
     );
   }
 
+  /// Coach chat — same payload shape as [chat] but routes to the
+  /// habit-design endpoint and may include a structured
+  /// [proposedHabits] block the UI renders as a "Add these habits?"
+  /// card. Throws [AiException] with `dailyLimitReached: true` on
+  /// the free-tier 402 so callers can pop the upgrade prompt.
+  Future<CoachChatReply> coachChat(
+    List<ChatMessage> messages, {
+    DailyData? context,
+  }) async {
+    final payload = <String, dynamic>{
+      'messages': messages
+          .map((m) => {'role': m.role, 'content': m.content})
+          .toList(),
+      if (context != null) 'context': context.toJson(),
+    };
+    final body = await _postJson('/coach/chat', payload);
+    final reply = _pickString(body, const ['reply']) ?? '';
+    final proposedRaw = body['proposed_habits'];
+    final proposed = proposedRaw is Map<String, dynamic>
+        ? ProposedHabits.fromJson(proposedRaw)
+        : null;
+    return CoachChatReply(
+      reply: reply,
+      proposed: proposed,
+      freeUsed: (body['free_messages_used'] as num?)?.toInt() ?? 0,
+      freeLimit: (body['free_messages_limit'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   Future<String> chat(
     List<ChatMessage> messages, {
     DailyData? context,
@@ -282,4 +311,80 @@ class AiService {
   }
 
   void close() => _client.close();
+}
+
+/// One habit the coach suggested. All optional fields are filled
+/// when the model can; the client backfills sensible defaults.
+class ProposedHabit {
+  ProposedHabit({
+    required this.title,
+    this.icon,
+    this.type,
+    this.frequency,
+    this.targetValue,
+    this.targetUnit,
+  });
+
+  final String title;
+  final String? icon;
+  /// "yes_no" | "counter" | "duration"
+  final String? type;
+  /// "daily" | "weekdays" | "weekends" | "x_per_week"
+  final String? frequency;
+  final int? targetValue;
+  final String? targetUnit;
+
+  factory ProposedHabit.fromJson(Map<String, dynamic> json) => ProposedHabit(
+        title: (json['title'] as String? ?? '').trim(),
+        icon: json['icon'] as String?,
+        type: json['type'] as String?,
+        frequency: json['frequency'] as String?,
+        targetValue: (json['target_value'] as num?)?.toInt(),
+        targetUnit: json['target_unit'] as String?,
+      );
+}
+
+/// Full proposal block the coach returns when it's ready to suggest
+/// habits. Empty / malformed blocks resolve to `null` on the wire
+/// and don't surface a card in the UI.
+class ProposedHabits {
+  ProposedHabits({
+    required this.goal,
+    required this.durationDays,
+    required this.habits,
+  });
+
+  final String goal;
+  final int durationDays;
+  final List<ProposedHabit> habits;
+
+  factory ProposedHabits.fromJson(Map<String, dynamic> json) => ProposedHabits(
+        goal: (json['goal'] as String? ?? '').trim(),
+        durationDays: (json['duration_days'] as num?)?.toInt() ?? 30,
+        habits: ((json['habits'] as List?) ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(ProposedHabit.fromJson)
+            .where((h) => h.title.isNotEmpty)
+            .toList(),
+      );
+}
+
+/// Wire-level response from POST /api/coach/chat. `proposed` is null
+/// for ordinary back-and-forth turns and only populated when the
+/// model decides the user has shared enough context to commit to
+/// suggestions.
+class CoachChatReply {
+  CoachChatReply({
+    required this.reply,
+    this.proposed,
+    this.freeUsed = 0,
+    this.freeLimit = 0,
+  });
+
+  final String reply;
+  final ProposedHabits? proposed;
+  /// Free-tier counters (server echo). Both 0 for premium users —
+  /// the client uses these to render "X of Y messages today".
+  final int freeUsed;
+  final int freeLimit;
 }

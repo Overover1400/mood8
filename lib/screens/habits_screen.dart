@@ -35,6 +35,11 @@ const String _kAllFilter = '__all__';
 /// Synthetic filter that surfaces only avoid-type habits. Sits next
 /// to the identity chips in [_IdentityFilter].
 const String _kAvoidFilter = '__avoid__';
+/// Surfaces only Coach-designed (aiManaged=true) habits. Appears
+/// between the avoid chip and the per-package chips when the user
+/// has at least one AI-managed habit. Build 1 of 3 — future builds
+/// will hang failure-recovery + program-progress UI off this filter.
+const String _kAiManagedFilter = '__ai_managed__';
 /// Prefix used by per-package filter chips. The remainder of the
 /// string is the package id (e.g. "__pkg__pkg.morning_calm").
 const String _kPackagePrefix = '__pkg__';
@@ -160,6 +165,8 @@ class _HabitsScreenState extends State<HabitsScreen> {
                         _kAllFilter => all,
                         _kAvoidFilter =>
                           all.where((h) => h.isAvoid).toList(),
+                        _kAiManagedFilter =>
+                          all.where((h) => h.aiManaged).toList(),
                         final f when f.startsWith(_kPackagePrefix) =>
                           all.where((h) =>
                               h.packageId ==
@@ -181,6 +188,8 @@ class _HabitsScreenState extends State<HabitsScreen> {
                           activePackageIds.add(pid);
                         }
                       }
+                      final hasAiManaged =
+                          all.any((h) => h.aiManaged);
 
                       final completedToday = scheduled.where((h) {
                         final l = _repo.getLogForDate(h.id, today);
@@ -215,6 +224,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                             _IdentityFilter(
                               identities: identities,
                               packageIds: activePackageIds,
+                              showAiManaged: hasAiManaged,
                               value: _filter,
                               onChanged: (v) =>
                                   setState(() => _filter = v),
@@ -988,6 +998,7 @@ class _IdentityFilter extends StatelessWidget {
   const _IdentityFilter({
     required this.identities,
     required this.packageIds,
+    required this.showAiManaged,
     required this.value,
     required this.onChanged,
   });
@@ -997,18 +1008,23 @@ class _IdentityFilter extends StatelessWidget {
   /// one becomes a fancy gradient chip (emoji + package name) between
   /// "Bad habits" and the identity chips.
   final List<String> packageIds;
+  /// True when the user has at least one AI-managed habit — surfaces
+  /// the gradient "Mood8 AI Habits" chip. Hidden otherwise so the
+  /// filter row doesn't have a tab the user can't fill.
+  final bool showAiManaged;
   final String value;
   final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    // Order: All → Bad habits → 1 chip per running package → identity
-    // chips. Package chips sit before identities because a running
-    // program is a strong intentional context the user opted into;
-    // identities are background organisational tags.
+    // Order: All → Bad habits → Mood8 AI Habits (if any) → 1 chip per
+    // running package → identity chips. The Coach-designed tab sits
+    // ahead of the package tabs because it's the most "alive" group
+    // the user actively curated through conversation.
     final all = <String>[
       _kAllFilter,
       _kAvoidFilter,
+      if (showAiManaged) _kAiManagedFilter,
       for (final pid in packageIds) '$_kPackagePrefix$pid',
       ...identities,
     ];
@@ -1022,6 +1038,7 @@ class _IdentityFilter extends StatelessWidget {
           final id = all[i];
           final selected = id == value;
           final isAvoid = id == _kAvoidFilter;
+          final isAi = id == _kAiManagedFilter;
           final isPackage = id.startsWith(_kPackagePrefix);
           final pkg = isPackage
               ? habitPackageById(id.substring(_kPackagePrefix.length))
@@ -1030,26 +1047,43 @@ class _IdentityFilter extends StatelessWidget {
               ? 'All'
               : id == _kAvoidFilter
                   ? 'Bad habits'
-                  : pkg?.name ?? id;
+                  : isAi
+                      ? 'Mood8 AI Habits'
+                      : pkg?.name ?? id;
+          // The AI chip gets the brand purple→pink→blue gradient
+          // (same vocabulary as the Premium hero card) so it reads
+          // as the "this is the AI-shaped surface" affordance.
           final selectedGradient = isAvoid
               ? const LinearGradient(
                   colors: [Color(0xFFEC4899), Color(0xFFFB7185)],
                 )
-              : isPackage && pkg != null
-                  ? LinearGradient(
+              : isAi
+                  ? const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        pkg.accent,
-                        AppColors.pink,
+                        Color(0xFFA855F7),
+                        Color(0xFFEC4899),
+                        Color(0xFF818CF8),
                       ],
                     )
-                  : AppColors.buttonGradient;
+                  : isPackage && pkg != null
+                      ? LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            pkg.accent,
+                            AppColors.pink,
+                          ],
+                        )
+                      : AppColors.buttonGradient;
           final selectedShadow = isAvoid
               ? AppColors.pinkLight.withValues(alpha: 0.40)
-              : isPackage && pkg != null
-                  ? pkg.accent.withValues(alpha: 0.50)
-                  : AppColors.pink.withValues(alpha: 0.35);
+              : isAi
+                  ? AppColors.purple.withValues(alpha: 0.55)
+                  : isPackage && pkg != null
+                      ? pkg.accent.withValues(alpha: 0.50)
+                      : AppColors.pink.withValues(alpha: 0.35);
           return GestureDetector(
             onTap: () {
               HapticService().selection();
@@ -1068,16 +1102,22 @@ class _IdentityFilter extends StatelessWidget {
                     ? null
                     : isPackage && pkg != null
                         ? pkg.accent.withValues(alpha: 0.12)
-                        : BrandColors.bgCard(context).withValues(alpha: 0.7),
+                        : isAi
+                            ? AppColors.purple.withValues(alpha: 0.16)
+                            : BrandColors.bgCard(context).withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(
                   color: selected
                       ? Colors.transparent
                       : (isAvoid
                           ? AppColors.pinkLight.withValues(alpha: 0.30)
-                          : isPackage && pkg != null
-                              ? pkg.accent.withValues(alpha: 0.42)
-                              : AppColors.purple.withValues(alpha: 0.20)),
+                          : isAi
+                              ? AppColors.purpleLight
+                                  .withValues(alpha: 0.50)
+                              : isPackage && pkg != null
+                                  ? pkg.accent.withValues(alpha: 0.42)
+                                  : AppColors.purple
+                                      .withValues(alpha: 0.20)),
                 ),
                 boxShadow: selected
                     ? [
@@ -1098,6 +1138,15 @@ class _IdentityFilter extends StatelessWidget {
                       color: selected
                           ? Colors.white
                           : AppColors.pinkLight,
+                    ),
+                    const SizedBox(width: 5),
+                  ] else if (isAi) ...[
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 13,
+                      color: selected
+                          ? Colors.white
+                          : AppColors.purpleLight,
                     ),
                     const SizedBox(width: 5),
                   ] else if (isPackage && pkg != null) ...[

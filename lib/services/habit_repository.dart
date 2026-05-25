@@ -177,6 +177,9 @@ class HabitRepository {
     AvoidMode? avoidMode,
     int? avoidDurationDays,
     String? packageId,
+    bool aiManaged = false,
+    String? goalDescription,
+    int? programDurationDays,
   }) async {
     final habit = Habit(
       id: _uuid.v4(),
@@ -198,6 +201,9 @@ class HabitRepository {
       avoidMode: avoidMode,
       avoidDurationDays: avoidDurationDays,
       packageId: packageId,
+      aiManaged: aiManaged,
+      goalDescription: goalDescription,
+      programDurationDays: programDurationDays,
     );
     try {
       await _habitBox.put(habit.id, habit);
@@ -252,6 +258,15 @@ class HabitRepository {
       if (!h.isArchived && h.packageId != null) ids.add(h.packageId!);
     }
     return ids.toList();
+  }
+
+  /// True when the user has at least one AI-managed habit — drives
+  /// the "Mood8 AI Habits" filter chip on the Habits screen.
+  bool hasAnyAiManagedHabit() {
+    for (final h in _habitBox.values) {
+      if (!h.isArchived && h.aiManaged) return true;
+    }
+    return false;
   }
 
   Future<void> updateHabit(Habit habit) async {

@@ -1,18 +1,24 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/chat_message.dart';
 import '../models/daily_data.dart';
+import '../models/frequency.dart';
+import '../models/habit_type.dart';
 import '../models/reflection.dart';
+import '../models/routine_category.dart';
 import '../models/sfx_type.dart';
 import '../services/ai_service.dart';
 import '../services/badge_service.dart';
 import '../services/chat_repository.dart';
+import '../services/habit_repository.dart';
 import '../services/haptic_service.dart';
 import '../services/reflection_repository.dart';
 import '../services/sfx_service.dart';
+import '../services/subscription_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/badge_unlock_modal.dart';
 import '../widgets/chat_bubble.dart';
@@ -565,6 +571,12 @@ class _ChatTabState extends State<_ChatTab> {
 
   bool _sending = false;
   String? _sendError;
+  /// Latest proposed-habits block from the coach. Rendered as a
+  /// gradient "Add these to my habits?" card pinned beneath the
+  /// most recent assistant message. Cleared when the user accepts,
+  /// declines, or sends another message.
+  ProposedHabits? _pendingProposal;
+  bool _addingProposal = false;
   List<ChatMessage> _messages = const [];
 
   @override
@@ -606,14 +618,25 @@ class _ChatTabState extends State<_ChatTab> {
     setState(() {
       _sending = true;
       _sendError = null;
+      // Sending a new turn invalidates the previous proposal — the
+      // user either accepted, declined inline, or wants to keep
+      // talking. Either way the old card shouldn't linger above the
+      // new reply.
+      _pendingProposal = null;
     });
 
     try {
       await widget.repo.addMessage(role: 'user', content: trimmed);
       final history = await widget.repo.getCurrentConversation();
       final context = await DailyData.gather();
-      final reply = await widget.ai.chat(history, context: context);
-      await widget.repo.addMessage(role: 'assistant', content: reply);
+      // Coach chat — same payload as /api/chat but routes through the
+      // habit-design endpoint. May include a structured proposal.
+      final result = await widget.ai.coachChat(history, context: context);
+      await widget.repo.addMessage(
+          role: 'assistant', content: result.reply);
+      if (result.proposed != null && result.proposed!.habits.isNotEmpty) {
+        _pendingProposal = result.proposed;
+      }
       SfxService().fire(SfxType.aiMessage);
       HapticService().light();
     } on AiException catch (e) {
@@ -623,6 +646,7 @@ class _ChatTabState extends State<_ChatTab> {
           MaterialPageRoute(
             builder: (_) => const PaywallScreen(
               contextNote: "You've hit today's free chat limit",
+              highlightPlus: true,
             ),
           ),
         );
@@ -642,6 +666,105 @@ class _ChatTabState extends State<_ChatTab> {
           _scrollToBottom();
         }
       }
+    }
+  }
+
+  Future<void> _acceptProposal() async {
+    final proposal = _pendingProposal;
+    if (proposal == null || _addingProposal) return;
+
+    // Adding AI-managed habits is a Premium Plus feature. Free /
+    // Premium users land on the paywall pre-flipped to the Plus
+    // toggle; the chat itself stays available so they can keep
+    // exploring the idea.
+    if (!SubscriptionService().isPremiumPlus) {
+      HapticService().light();
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const PaywallScreen(
+            contextNote: 'Adding AI-designed habits is a Premium Plus feature.',
+            highlightPlus: true,
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _addingProposal = true);
+    try {
+      final habits = HabitRepository();
+      for (final p in proposal.habits) {
+        final type = _mapType(p.type);
+        final freq = _mapFrequency(p.frequency);
+        await habits.addHabit(
+          title: p.title,
+          icon: p.icon ?? '✨',
+          habitType: type,
+          identity: 'Mood8 AI',
+          category: RoutineCategory.mindful,
+          frequency: freq,
+          targetValue: type == HabitType.yesNo ? 1 : p.targetValue,
+          targetUnit:
+              type == HabitType.yesNo ? null : (p.targetUnit ?? ''),
+          aiManaged: true,
+          goalDescription: proposal.goal.isEmpty ? null : proposal.goal,
+          programDurationDays: proposal.durationDays,
+        );
+      }
+      HapticService().medium();
+      SfxService().fire(SfxType.checkInSuccess);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${proposal.habits.length} '
+            'habit${proposal.habits.length == 1 ? '' : 's'} added — '
+            "they're on your Habits screen under Mood8 AI Habits.",
+          ),
+          backgroundColor: BrandColors.bgCard(context),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      setState(() => _pendingProposal = null);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Couldn't add: $e")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _addingProposal = false);
+    }
+  }
+
+  void _declineProposal() {
+    HapticService().selection();
+    setState(() => _pendingProposal = null);
+  }
+
+  HabitType _mapType(String? raw) {
+    switch (raw) {
+      case 'counter':
+        return HabitType.counter;
+      case 'duration':
+        return HabitType.duration;
+      case 'yes_no':
+      default:
+        return HabitType.yesNo;
+    }
+  }
+
+  Frequency _mapFrequency(String? raw) {
+    switch (raw) {
+      case 'weekdays':
+        return Frequency.weekdays;
+      case 'weekends':
+        return Frequency.weekends;
+      case 'x_per_week':
+        return Frequency.xPerWeek;
+      case 'daily':
+      default:
+        return Frequency.daily;
     }
   }
 
@@ -709,6 +832,13 @@ class _ChatTabState extends State<_ChatTab> {
                         },
                       ),
               ),
+              if (_pendingProposal != null)
+                _ProposalCard(
+                  proposal: _pendingProposal!,
+                  adding: _addingProposal,
+                  onAccept: _acceptProposal,
+                  onDecline: _declineProposal,
+                ),
               if (_sendError != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 6, bottom: 2),
@@ -941,6 +1071,267 @@ class _SendButton extends StatelessWidget {
             size: 20,
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Gradient confirmation card the Coach renders below an assistant
+/// turn when the model returned a structured habit proposal. Sits
+/// between the chat list and the input. One tap to accept (creates
+/// the habits as aiManaged=true, pulls the paywall for non-Plus
+/// users), one tap to dismiss (drops the proposal — user can keep
+/// chatting).
+class _ProposalCard extends StatelessWidget {
+  const _ProposalCard({
+    required this.proposal,
+    required this.adding,
+    required this.onAccept,
+    required this.onDecline,
+  });
+
+  final ProposedHabits proposal;
+  final bool adding;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 6),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.purple.withValues(alpha: 0.32),
+              AppColors.pink.withValues(alpha: 0.22),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppColors.pinkLight.withValues(alpha: 0.45),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.pink.withValues(alpha: 0.24),
+              blurRadius: 20,
+              spreadRadius: -8,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: AppColors.buttonGradient,
+                  ),
+                  child: const Icon(Icons.auto_awesome_rounded,
+                      color: Colors.white, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Add these to your habits?',
+                        style: GoogleFonts.bricolageGrotesque(
+                          color: BrandColors.ink(context),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      if (proposal.goal.isNotEmpty)
+                        Text(
+                          'Goal · ${proposal.goal}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: BrandColors.inkSoft(context),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            height: 1.35,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: BrandColors.bgDeep(context)
+                        .withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.purple.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Text(
+                    '${proposal.durationDays}d',
+                    style: TextStyle(
+                      color: BrandColors.inkSoft(context),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            for (final h in proposal.habits) ...[
+              _ProposalRow(habit: h),
+              if (h != proposal.habits.last) const SizedBox(height: 6),
+            ],
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: adding ? null : onDecline,
+                    child: Container(
+                      height: 42,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: BrandColors.bgDeep(context)
+                            .withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: AppColors.purple.withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Text(
+                        'Not now',
+                        style: TextStyle(
+                          color: BrandColors.inkSoft(context),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: GestureDetector(
+                    onTap: adding ? null : onAccept,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      height: 42,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: AppColors.buttonGradient,
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                AppColors.pink.withValues(alpha: 0.42),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        adding
+                            ? 'Adding…'
+                            : 'Add ${proposal.habits.length} '
+                                'habit${proposal.habits.length == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProposalRow extends StatelessWidget {
+  const _ProposalRow({required this.habit});
+  final ProposedHabit habit;
+
+  String _label() {
+    final freq = switch (habit.frequency) {
+      'weekdays' => 'Weekdays',
+      'weekends' => 'Weekends',
+      'x_per_week' => '${habit.targetValue ?? 1}× / week',
+      _ => 'Daily',
+    };
+    if (habit.type == 'counter' && habit.targetValue != null) {
+      return '$freq · ${habit.targetValue} ${habit.targetUnit ?? ''}'.trim();
+    }
+    if (habit.type == 'duration' && habit.targetValue != null) {
+      return '$freq · ${habit.targetValue} '
+          '${habit.targetUnit ?? 'minutes'}';
+    }
+    return freq;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: BrandColors.bgDeep(context).withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.purple.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Row(
+        children: [
+          Text(habit.icon ?? '✨', style: const TextStyle(fontSize: 18)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  habit.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  _label(),
+                  style: TextStyle(
+                    color: BrandColors.inkDim(context),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

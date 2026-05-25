@@ -38,13 +38,16 @@ class HabitAdapter extends TypeAdapter<Habit> {
       avoidMode: fields[18] as AvoidMode?,
       avoidDurationDays: fields[19] as int?,
       packageId: fields[20] as String?,
+      aiManaged: (fields[21] as bool?) ?? false,
+      goalDescription: fields[22] as String?,
+      programDurationDays: fields[23] as int?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Habit obj) {
     writer
-      ..writeByte(21)
+      ..writeByte(24)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -86,7 +89,13 @@ class HabitAdapter extends TypeAdapter<Habit> {
       ..writeByte(19)
       ..write(obj.avoidDurationDays)
       ..writeByte(20)
-      ..write(obj.packageId);
+      ..write(obj.packageId)
+      ..writeByte(21)
+      ..write(obj.aiManaged)
+      ..writeByte(22)
+      ..write(obj.goalDescription)
+      ..writeByte(23)
+      ..write(obj.programDurationDays);
   }
 
   @override
