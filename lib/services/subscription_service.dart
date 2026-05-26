@@ -127,6 +127,25 @@ class SubscriptionService extends ChangeNotifier {
     await _persist();
   }
 
+  /// Drop in-memory + persisted subscription state. Called by the
+  /// logout flow so the next user (or the welcome screen itself)
+  /// doesn't inherit the previous user's premium UI. The next
+  /// refreshStatus call after sign-in repopulates from the server.
+  Future<void> clearForLogout() async {
+    debugPrint('[Subscription] clearForLogout');
+    _tier = SubscriptionTier.free;
+    _expiresAt = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kTierKey);
+      await prefs.remove(_kExpiresKey);
+      await prefs.remove(_kCheckoutInProgressKey);
+    } catch (e) {
+      debugPrint('[Subscription] clearForLogout prefs failed: $e');
+    }
+    notifyListeners();
+  }
+
   /// Premium-feature gates apply to BOTH Premium and Premium Plus —
   /// the latter is a strict superset that adds the Habit Packages.
   bool get hasHabitPackages => isPremiumPlus;
@@ -293,6 +312,44 @@ class SubscriptionService extends ChangeNotifier {
     }
   }
 
+  /// Asks the backend what Stripe will charge TODAY for [plan]. Returns
+  /// a populated [UpgradePreview] on success, or null on any failure —
+  /// callers fall back to displaying the sticker price. The numbers are
+  /// authoritative (Stripe-computed, see /api/stripe/preview-upgrade in
+  /// the backend) so the paywall can promise "you'll be charged $X
+  /// today" without us doing client-side proration math.
+  Future<UpgradePreview?> previewUpgrade(String plan) async {
+    if (_bearer == null) return null;
+    try {
+      final res = await _client
+          .post(
+            Uri.parse('$_baseUrl/stripe/preview-upgrade'),
+            headers: _authHeaders,
+            body: jsonEncode({'plan': plan}),
+          )
+          .timeout(_timeout);
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        debugPrint(
+            '[Subscription] preview ${res.statusCode}: ${res.body}');
+        return null;
+      }
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      return UpgradePreview(
+        currency: (body['currency'] as String? ?? 'USD').toUpperCase(),
+        amountDueCents: (body['amount_due_cents'] as num?)?.toInt() ?? 0,
+        prorationCreditCents:
+            (body['proration_credit_cents'] as num?)?.toInt() ?? 0,
+        newPriceCents:
+            (body['new_price_cents'] as num?)?.toInt() ?? 0,
+        isProration: body['is_proration'] as bool? ?? false,
+        interval: body['interval'] as String?,
+      );
+    } catch (e) {
+      debugPrint('[Subscription] previewUpgrade error: $e');
+      return null;
+    }
+  }
+
   /// Returns the Stripe Billing Portal URL so the user can manage or
   /// cancel their subscription themselves. Returns null on failure.
   Future<String?> openBillingPortal() async {
@@ -315,4 +372,36 @@ class SubscriptionService extends ChangeNotifier {
       return null;
     }
   }
+}
+
+/// Stripe-computed quote for what an in-place subscription upgrade
+/// (Premium → Premium Plus) will cost the user TODAY. Returned by
+/// SubscriptionService.previewUpgrade; consumed by the paywall to
+/// display "You'll be charged $X.XX today (prorated)".
+class UpgradePreview {
+  UpgradePreview({
+    required this.currency,
+    required this.amountDueCents,
+    required this.prorationCreditCents,
+    required this.newPriceCents,
+    required this.isProration,
+    this.interval,
+  });
+
+  final String currency;
+  final int amountDueCents;
+  final int prorationCreditCents;
+  final int newPriceCents;
+  final bool isProration;
+  final String? interval;
+
+  String format(int cents) {
+    final dollars = (cents / 100).toStringAsFixed(2);
+    final symbol = currency == 'USD' ? r'$' : '$currency ';
+    return '$symbol$dollars';
+  }
+
+  String get formattedAmountDue => format(amountDueCents);
+  String get formattedCredit => format(prorationCreditCents);
+  String get formattedSticker => format(newPriceCents);
 }

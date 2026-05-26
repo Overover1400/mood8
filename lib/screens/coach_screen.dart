@@ -31,6 +31,7 @@ import '../widgets/typing_indicator.dart';
 enum _CoachTab { reflection, chat }
 
 const List<String> _kChatStarters = [
+  'Give me personalized habit packages',
   'Why was I tired today?',
   'What habit should I focus on?',
   'How am I doing this week?',
@@ -579,6 +580,12 @@ class _ChatTabState extends State<_ChatTab> {
   bool _addingProposal = false;
   List<ChatMessage> _messages = const [];
 
+  /// Hive id of the single assistant message that should "type" out
+  /// word-by-word right now. Set when a /coach/chat reply lands;
+  /// cleared by the bubble itself via onRevealComplete so older
+  /// messages render instantly when scrolled back into view.
+  String? _revealingMessageId;
+
   @override
   void initState() {
     super.initState();
@@ -632,8 +639,13 @@ class _ChatTabState extends State<_ChatTab> {
       // Coach chat — same payload as /api/chat but routes through the
       // habit-design endpoint. May include a structured proposal.
       final result = await widget.ai.coachChat(history, context: context);
-      await widget.repo.addMessage(
+      final inserted = await widget.repo.addMessage(
           role: 'assistant', content: result.reply);
+      // Mark THIS specific assistant message as the one that should
+      // reveal word-by-word in its ChatBubble. Bubbles for older
+      // messages keep their static text — only the one whose id
+      // matches animates.
+      _revealingMessageId = inserted.id;
       if (result.proposed != null && result.proposed!.habits.isNotEmpty) {
         _pendingProposal = result.proposed;
       }
@@ -828,7 +840,28 @@ class _ChatTabState extends State<_ChatTab> {
                           if (i >= list.length) {
                             return const TypingIndicator();
                           }
-                          return ChatBubble(message: list[i]);
+                          final msg = list[i];
+                          final isLive =
+                              msg.id == _revealingMessageId;
+                          return ChatBubble(
+                            // Keyed on the message id so swapping into
+                            // a different position doesn't reuse the
+                            // wrong _ChatBubbleState (which would
+                            // either re-trigger the typing animation
+                            // on an old message or hide a live reply).
+                            key: ValueKey(msg.id),
+                            message: msg,
+                            reveal: isLive,
+                            onRevealComplete: isLive
+                                ? () {
+                                    if (!mounted) return;
+                                    if (_revealingMessageId == msg.id) {
+                                      setState(
+                                          () => _revealingMessageId = null);
+                                    }
+                                  }
+                                : null,
+                          );
                         },
                       ),
               ),
@@ -849,6 +882,19 @@ class _ChatTabState extends State<_ChatTab> {
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
+                  ),
+                ),
+              // One-tap shortcut into the habit-package design flow.
+              // Visible mid-conversation too — most users won't think
+              // to phrase the request themselves, and the empty-state
+              // chips disappear once you've sent your first message.
+              if (list.isNotEmpty && _pendingProposal == null && !_sending)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, bottom: 2),
+                  child: _QuickPromptChip(
+                    label: 'Give me personalized habit packages',
+                    onTap: () =>
+                        _send('Give me personalized habit packages'),
                   ),
                 ),
               const SizedBox(height: 8),
@@ -1032,6 +1078,61 @@ class _Composer extends StatelessWidget {
           onTap: () => onSend(controller.text),
         ),
       ],
+    );
+  }
+}
+
+/// Small pill button rendered above the composer for one-tap entry
+/// into a common Coach intent (currently: ask for personalized habit
+/// packages). Hidden while the user is typing or has a proposal
+/// already on screen.
+class _QuickPromptChip extends StatelessWidget {
+  const _QuickPromptChip({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: GestureDetector(
+        onTap: () {
+          HapticService().selection();
+          onTap();
+        },
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.purple.withValues(alpha: 0.22),
+                AppColors.pink.withValues(alpha: 0.18),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: AppColors.pinkLight.withValues(alpha: 0.45),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.auto_awesome_rounded,
+                  color: AppColors.pinkLight, size: 14),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: BrandColors.ink(context),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

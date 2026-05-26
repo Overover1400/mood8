@@ -207,14 +207,31 @@ class _Mood8AppState extends State<Mood8App> with WidgetsBindingObserver {
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
-  /// Clears auth + bypass so the gate returns to [WelcomeScreen]. Used from
-  /// Settings → Account.
+  /// Pulses each time [resetAuth] completes so any live `_AuthGateState`
+  /// instance reloads the persisted `skipAuth` pref. Without this, a
+  /// user who originally hit "Try without account" (which set
+  /// `_skipAuth = true` in state) and later logged in would still see
+  /// the main app after sign-out — because we'd flip the pref to false
+  /// but never re-read it into memory.
+  static final ValueNotifier<int> authResetTick = ValueNotifier<int>(0);
+
+  /// Clears auth + bypass so the gate returns to [WelcomeScreen]. Used
+  /// from Settings → Account. Also wipes any cached user-scoped state
+  /// (subscription tier, synced Hive entities, sync bookkeeping) so the
+  /// next session doesn't inherit the previous user's data or premium
+  /// UI. Refresh tokens, premium cards, and the "Manage premium" CTA
+  /// all vanish as a result — the app re-renders as a clean signed-out
+  /// shell driven by SubscriptionService.tier == free and a null
+  /// AuthService.currentUser.
   static Future<void> resetAuth() async {
+    await SyncService().clearLocalUserData();
+    await SubscriptionService().clearForLogout();
     await AuthService().logout();
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(kSkipAuthPrefKey, false);
     } catch (_) {}
+    authResetTick.value = authResetTick.value + 1;
   }
 
   @override
@@ -243,6 +260,7 @@ class _AuthGateState extends State<AuthGate> {
         .addListener(_onPremiumEffectHint);
     AuthService().prestigeUnlockedNotifier
         .addListener(_onPrestigeUnlocked);
+    AuthGate.authResetTick.addListener(_onAuthReset);
   }
 
   @override
@@ -253,7 +271,16 @@ class _AuthGateState extends State<AuthGate> {
         .removeListener(_onPremiumEffectHint);
     AuthService().prestigeUnlockedNotifier
         .removeListener(_onPrestigeUnlocked);
+    AuthGate.authResetTick.removeListener(_onAuthReset);
     super.dispose();
+  }
+
+  void _onAuthReset() {
+    // resetAuth flipped the persisted skipAuth pref to false. Re-read
+    // it into in-memory state so the very next rebuild lands the user
+    // on WelcomeScreen (was missed previously for users who'd come
+    // through "Try without account" earlier in the session).
+    _loadSkip();
   }
 
   void _onPrestigeUnlocked() {
@@ -277,12 +304,14 @@ class _AuthGateState extends State<AuthGate> {
 
   void _onPremiumJustUnlocked() {
     if (!SubscriptionService().premiumJustUnlockedNotifier.value) return;
-    // Show via the root ScaffoldMessenger so it works regardless of
-    // which screen is mounted when the resume hook fires.
+    // Match the celebration copy to whichever tier the user just landed
+    // on — Plus subscribers shouldn't be welcomed to "Premium".
+    final isPlus = SubscriptionService().isPremiumPlus;
+    final label = isPlus ? 'Premium Plus' : 'Premium';
     rootScaffoldMessengerKey.currentState?.showSnackBar(
-      const SnackBar(
-        content: Text('Welcome to Mood8 Premium ✨ Thanks for being here.'),
-        duration: Duration(seconds: 4),
+      SnackBar(
+        content: Text('Welcome to Mood8 $label ✨ Thanks for being here.'),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -333,11 +362,16 @@ class _AuthGateState extends State<AuthGate> {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           await SubscriptionService().refreshStatus();
           if (!mounted) return;
+          // refreshStatus has populated the canonical tier — read it
+          // back so the snackbar greets the correct family.
+          final label = SubscriptionService().isPremiumPlus
+              ? 'Premium Plus'
+              : 'Premium';
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                  'Welcome to Mood8 Premium ✨ Thanks for being here.'),
-              duration: Duration(seconds: 4),
+                  'Welcome to Mood8 $label ✨ Thanks for being here.'),
+              duration: const Duration(seconds: 4),
             ),
           );
         });
@@ -389,7 +423,12 @@ class _AuthGateState extends State<AuthGate> {
       builder: (context, user, _) {
         debugPrint(
             '[AuthGate] rebuild · user=${user?.email ?? 'null'} · skipAuth=$_skipAuth');
-        if (user != null && user.email != _lastSyncedUserEmail) {
+        if (user == null) {
+          // Logout drops user → null. Reset the per-email guard so
+          // signing back in (even as the same email) re-fires the
+          // fullRestore that repopulates the wiped Hive boxes.
+          _lastSyncedUserEmail = null;
+        } else if (user.email != _lastSyncedUserEmail) {
           // A user just signed in (or switched accounts). Kick off the
           // restore flow once per user-email.
           _lastSyncedUserEmail = user.email;

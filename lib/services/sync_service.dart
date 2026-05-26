@@ -284,6 +284,42 @@ class SyncService extends ChangeNotifier {
     return false;
   }
 
+  /// Wipe every locally-cached user entity (habits, moods, routines,
+  /// reflections, chat history, etc.) + the sync bookkeeping. Used by
+  /// the logout flow so the previous user's data doesn't leak into
+  /// the next session.
+  ///
+  /// Stops the periodic sync first, then clears every codec's Hive box
+  /// AND the tombstone box, AND the `lastSync` / `initialPushDone`
+  /// keys so the next sign-in is treated as a fresh device (and the
+  /// fullRestore path kicks in to repopulate from the server for the
+  /// newly-signed-in user).
+  Future<void> clearLocalUserData() async {
+    debugPrint('[Sync] clearLocalUserData');
+    stopPeriodicSync();
+    _pushDebounce?.cancel();
+    for (final codec in _codecs) {
+      try {
+        await codec.clearBox();
+      } catch (e) {
+        debugPrint('[Sync] clearLocalUserData ${codec.entityType} '
+            'failed: $e');
+      }
+    }
+    try {
+      await _tombstones.clear();
+    } catch (e) {
+      debugPrint('[Sync] clearLocalUserData tombstones failed: $e');
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kLastSyncKey);
+      await prefs.remove(_kInitialPushDoneKey);
+    } catch (e) {
+      debugPrint('[Sync] clearLocalUserData prefs failed: $e');
+    }
+  }
+
   /// One-time migration for existing beta testers who already had local
   /// data before sync shipped. Uploads everything to the server, then
   /// marks the flag so we never do it again.

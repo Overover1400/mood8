@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../models/subscription.dart';
 import '../services/deep_link_service.dart' show kDeepLinkReturnUrl;
 
 import '../services/haptic_service.dart';
@@ -41,17 +42,127 @@ class _PaywallScreenState extends State<PaywallScreen> {
   bool _loading = false;
   String? _error;
 
+  /// Stripe-computed quote for the currently selected plan when it
+  /// would be an in-place upgrade (Premium → Premium Plus, same
+  /// billing cadence family). Null when not applicable (free user,
+  /// fresh checkout, lifetime, downgrade, same tier).
+  UpgradePreview? _preview;
+  bool _previewLoading = false;
+  String? _previewedPlanKey;
+
   @override
   void initState() {
     super.initState();
     _shoppingPlus = widget.highlightPlus;
+    SubscriptionService().addListener(_onSubscriptionChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshPreview());
+  }
+
+  @override
+  void dispose() {
+    SubscriptionService().removeListener(_onSubscriptionChanged);
+    super.dispose();
+  }
+
+  void _onSubscriptionChanged() {
+    if (!mounted) return;
+    setState(() {});
+    _refreshPreview();
   }
 
   String get _selectedPlan =>
       _shoppingPlus ? 'plus_$_selectedCadence' : _selectedCadence;
 
+  // ─── Plan-relationship helpers ─────────────────────────────────────
+  // These collapse the user's current tier into the actions a paywall
+  // card should expose: is this row their current plan, an upgrade, a
+  // downgrade, or a fresh purchase? The CTA label + the prorated
+  // preview both branch off these. See _CTAAction enum below.
+
+  SubscriptionTier get _currentTier => SubscriptionService().tier;
+
+  bool get _currentIsPlus =>
+      _currentTier == SubscriptionTier.premiumPlus ||
+      _currentTier == SubscriptionTier.premiumPlusLifetime;
+  bool get _currentIsRecurring =>
+      _currentTier == SubscriptionTier.premium ||
+      _currentTier == SubscriptionTier.premiumPlus;
+
+  /// True when this exact selection matches what the user already pays
+  /// for. Renders the CTA as a disabled "Current plan" affordance.
+  bool get _isOnCurrentPlan {
+    if (_shoppingPlus) {
+      if (_selectedCadence == 'lifetime') {
+        return _currentTier == SubscriptionTier.premiumPlusLifetime;
+      }
+      return _currentTier == SubscriptionTier.premiumPlus;
+    }
+    if (_selectedCadence == 'lifetime') {
+      return _currentTier == SubscriptionTier.premiumLifetime;
+    }
+    return _currentTier == SubscriptionTier.premium;
+  }
+
+  /// True when the selection is a strict downgrade — Plus user
+  /// shopping a Premium-only plan. Surfaced as a "Downgrade" CTA so
+  /// the user understands what happens.
+  bool get _isDowngrade => _currentIsPlus && !_shoppingPlus;
+
+  /// True when the selection is an in-place subscription change that
+  /// Stripe will prorate (recurring → recurring, not a downgrade, not
+  /// the plan they already have). Lifetime targets short-circuit out
+  /// because Stripe Checkout creates a separate one-off invoice and
+  /// the webhook handler cancels the recurring sub afterwards. We
+  /// surface the prorated quote any time this is true so the user
+  /// sees the real number before tapping (covers Premium → Plus and
+  /// also same-tier cadence swaps like monthly → annual).
+  bool get _isInPlaceUpgrade =>
+      _currentIsRecurring &&
+      !_isOnCurrentPlan &&
+      !_isDowngrade &&
+      _selectedCadence != 'lifetime';
+
+  Future<void> _refreshPreview() async {
+    if (!_isInPlaceUpgrade) {
+      if (_preview != null || _previewLoading) {
+        setState(() {
+          _preview = null;
+          _previewLoading = false;
+          _previewedPlanKey = null;
+        });
+      }
+      return;
+    }
+    final planKey = _selectedPlan;
+    if (_previewedPlanKey == planKey && _preview != null) return;
+    setState(() {
+      _previewLoading = true;
+      _preview = null;
+      _previewedPlanKey = planKey;
+    });
+    final quote = await SubscriptionService().previewUpgrade(planKey);
+    if (!mounted || _previewedPlanKey != planKey) return;
+    setState(() {
+      _preview = quote;
+      _previewLoading = false;
+    });
+  }
+
+  void _onCadenceTapped(String cadence) {
+    if (_selectedCadence == cadence) return;
+    setState(() => _selectedCadence = cadence);
+    _refreshPreview();
+  }
+
+  void _onTierToggled(bool plus) {
+    if (_shoppingPlus == plus) return;
+    setState(() => _shoppingPlus = plus);
+    _refreshPreview();
+  }
+
   Future<void> _startCheckout() async {
     if (_loading) return;
+    if (_isOnCurrentPlan) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -81,6 +192,48 @@ class _PaywallScreenState extends State<PaywallScreen> {
     if (!launched) {
       setState(() => _error = "Couldn't open Stripe checkout.");
     }
+  }
+
+  List<Widget> _buildPlanCards() {
+    final spec = _shoppingPlus ? _kPlusPlans : _kPremiumPlans;
+    final out = <Widget>[];
+    for (var i = 0; i < spec.length; i++) {
+      final p = spec[i];
+      final isCurrent = _isCadenceCurrent(p.cadence);
+      out.add(_PlanCard(
+        title: p.title,
+        price: p.price,
+        cadence: p.cadenceLabel,
+        monthlyEquivalent: p.subtitle,
+        badge: isCurrent ? 'Current plan' : p.badge,
+        selected: _selectedCadence == p.cadence,
+        accent: p.accent,
+        onTap: () => _onCadenceTapped(p.cadence),
+      ));
+      if (i < spec.length - 1) out.add(const SizedBox(height: 10));
+    }
+    return out;
+  }
+
+  bool _isCadenceCurrent(String cadence) {
+    if (_shoppingPlus) {
+      if (cadence == 'lifetime') {
+        return _currentTier == SubscriptionTier.premiumPlusLifetime;
+      }
+      return _currentTier == SubscriptionTier.premiumPlus;
+    }
+    if (cadence == 'lifetime') {
+      return _currentTier == SubscriptionTier.premiumLifetime;
+    }
+    return _currentTier == SubscriptionTier.premium;
+  }
+
+  String _ctaLabel() {
+    if (_loading) return 'Opening…';
+    if (_isOnCurrentPlan) return 'Current plan';
+    if (_isDowngrade) return 'Switch to Premium';
+    if (_isInPlaceUpgrade) return 'Upgrade to Premium Plus';
+    return _shoppingPlus ? 'Start Premium Plus' : 'Start Premium';
   }
 
   Future<void> _restore() async {
@@ -182,89 +335,22 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     const SizedBox(height: 22),
                     _TierToggle(
                       plus: _shoppingPlus,
-                      onChanged: (v) =>
-                          setState(() => _shoppingPlus = v),
+                      onChanged: _onTierToggled,
                     ),
                     const SizedBox(height: 18),
-                    if (_shoppingPlus) ...[
-                      _PlanCard(
-                        title: 'Annual',
-                        price: r'$49',
-                        cadence: '/year',
-                        monthlyEquivalent: r'$4.08 / mo',
-                        badge: 'Best value — save 41%',
-                        selected: _selectedCadence == 'annual',
-                        accent: AppColors.pinkLight,
-                        onTap: () =>
-                            setState(() => _selectedCadence = 'annual'),
-                      ),
-                      const SizedBox(height: 10),
-                      _PlanCard(
-                        title: 'Monthly',
-                        price: r'$6.99',
-                        cadence: '/month',
-                        monthlyEquivalent: 'Try it. Cancel anytime.',
-                        selected: _selectedCadence == 'monthly',
-                        accent: AppColors.purpleLight,
-                        onTap: () =>
-                            setState(() => _selectedCadence = 'monthly'),
-                      ),
-                      const SizedBox(height: 10),
-                      _PlanCard(
-                        title: 'Lifetime',
-                        price: r'$199',
-                        cadence: 'one-time',
-                        monthlyEquivalent: 'Pay once. Forever.',
-                        badge: 'Pay once',
-                        selected: _selectedCadence == 'lifetime',
-                        accent: AppColors.blueAccent,
-                        onTap: () =>
-                            setState(() => _selectedCadence = 'lifetime'),
-                      ),
-                    ] else ...[
-                      _PlanCard(
-                        title: 'Annual',
-                        price: r'$29',
-                        cadence: '/year',
-                        monthlyEquivalent: r'$2.42 / mo',
-                        badge: 'Best value — save 39%',
-                        selected: _selectedCadence == 'annual',
-                        accent: AppColors.pinkLight,
-                        onTap: () =>
-                            setState(() => _selectedCadence = 'annual'),
-                      ),
-                      const SizedBox(height: 10),
-                      _PlanCard(
-                        title: 'Monthly',
-                        price: r'$3.99',
-                        cadence: '/month',
-                        monthlyEquivalent: 'Try it. Cancel anytime.',
-                        selected: _selectedCadence == 'monthly',
-                        accent: AppColors.purpleLight,
-                        onTap: () =>
-                            setState(() => _selectedCadence = 'monthly'),
-                      ),
-                      const SizedBox(height: 10),
-                      _PlanCard(
-                        title: 'Lifetime',
-                        price: r'$129',
-                        cadence: 'one-time',
-                        monthlyEquivalent: 'Pay once. Forever.',
-                        badge: 'Pay once',
-                        selected: _selectedCadence == 'lifetime',
-                        accent: AppColors.blueAccent,
-                        onTap: () =>
-                            setState(() => _selectedCadence = 'lifetime'),
-                      ),
-                    ],
-                    const SizedBox(height: 24),
+                    ..._buildPlanCards(),
+                    const SizedBox(height: 18),
+                    if (_isInPlaceUpgrade) _ProratedBanner(
+                      preview: _preview,
+                      loading: _previewLoading,
+                    ),
+                    if (_isDowngrade) const _DowngradeNotice(),
+                    const SizedBox(height: 18),
                     _CTAButton(
-                      label: _loading
-                          ? 'Opening…'
-                          : (_shoppingPlus
-                              ? 'Start Premium Plus'
-                              : 'Start Premium'),
-                      onTap: _loading ? null : _startCheckout,
+                      label: _ctaLabel(),
+                      onTap: (_loading || _isOnCurrentPlan)
+                          ? null
+                          : _startCheckout,
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 10),
@@ -292,7 +378,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       ),
                     ),
                     const SizedBox(height: 22),
-                    _FeatureList(),
+                    _FeatureList(plus: _shoppingPlus),
                     const SizedBox(height: 26),
                     _Testimonials(),
                     const SizedBox(height: 26),
@@ -582,7 +668,10 @@ class _CTAButton extends StatelessWidget {
 }
 
 class _FeatureList extends StatelessWidget {
-  static const _features = [
+  const _FeatureList({required this.plus});
+  final bool plus;
+
+  static const _premiumFeatures = [
     'Unlimited habits and routines',
     'Unlimited AI Coach messages',
     '3 streak freezes per week',
@@ -593,8 +682,17 @@ class _FeatureList extends StatelessWidget {
     'Priority support',
   ];
 
+  static const _plusExtras = [
+    'Everything in Premium',
+    '10 curated Habit Packages — science-backed routines',
+    'Personalized AI Habit Packages designed by Mood8 for your goals',
+    'AI Coach can add the habits it suggests, in one tap',
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final features = plus ? _plusExtras : _premiumFeatures;
+    final title = plus ? "What's in Premium Plus" : "What's included";
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
@@ -608,14 +706,14 @@ class _FeatureList extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "What's included",
+            title,
             style: GoogleFonts.bricolageGrotesque(
               color: BrandColors.ink(context),
               fontSize: 22,
             ),
           ),
           const SizedBox(height: 12),
-          for (final f in _features) ...[
+          for (final f in features) ...[
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -651,6 +749,204 @@ class _FeatureList extends StatelessWidget {
             ),
             const SizedBox(height: 10),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Wire-level plan spec for the paywall — separates copy from the
+/// build loop so the same widget renders both Premium and Premium Plus
+/// without an if/else cascade per row.
+class _PaywallPlanSpec {
+  const _PaywallPlanSpec({
+    required this.cadence,
+    required this.title,
+    required this.price,
+    required this.cadenceLabel,
+    required this.subtitle,
+    required this.accent,
+    this.badge,
+  });
+  final String cadence; // "annual" | "monthly" | "lifetime"
+  final String title;
+  final String price;
+  final String cadenceLabel;
+  final String subtitle;
+  final Color accent;
+  final String? badge;
+}
+
+final List<_PaywallPlanSpec> _kPremiumPlans = [
+  const _PaywallPlanSpec(
+    cadence: 'annual',
+    title: 'Annual',
+    price: r'$29',
+    cadenceLabel: '/year',
+    subtitle: r'$2.42 / mo',
+    accent: AppColors.pinkLight,
+    badge: 'Best value — save 39%',
+  ),
+  const _PaywallPlanSpec(
+    cadence: 'monthly',
+    title: 'Monthly',
+    price: r'$3.99',
+    cadenceLabel: '/month',
+    subtitle: 'Try it. Cancel anytime.',
+    accent: AppColors.purpleLight,
+  ),
+  const _PaywallPlanSpec(
+    cadence: 'lifetime',
+    title: 'Lifetime',
+    price: r'$129',
+    cadenceLabel: 'one-time',
+    subtitle: 'Pay once. Forever.',
+    accent: AppColors.blueAccent,
+    badge: 'Pay once',
+  ),
+];
+
+final List<_PaywallPlanSpec> _kPlusPlans = [
+  const _PaywallPlanSpec(
+    cadence: 'annual',
+    title: 'Annual',
+    price: r'$49',
+    cadenceLabel: '/year',
+    subtitle: r'$4.08 / mo',
+    accent: AppColors.pinkLight,
+    badge: 'Best value — save 41%',
+  ),
+  const _PaywallPlanSpec(
+    cadence: 'monthly',
+    title: 'Monthly',
+    price: r'$6.99',
+    cadenceLabel: '/month',
+    subtitle: 'Try it. Cancel anytime.',
+    accent: AppColors.purpleLight,
+  ),
+  const _PaywallPlanSpec(
+    cadence: 'lifetime',
+    title: 'Lifetime',
+    price: r'$199',
+    cadenceLabel: 'one-time',
+    subtitle: 'Pay once. Forever.',
+    accent: AppColors.blueAccent,
+    badge: 'Pay once',
+  ),
+];
+
+/// Banner shown above the CTA when the user is upgrading an existing
+/// Premium recurring sub to Premium Plus. The amount comes from
+/// Stripe via /api/stripe/preview-upgrade — we never compute proration
+/// client-side. While the preview is in-flight we show a quiet
+/// placeholder so the UI doesn't jump when the number arrives.
+class _ProratedBanner extends StatelessWidget {
+  const _ProratedBanner({required this.preview, required this.loading});
+  final UpgradePreview? preview;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: AppColors.purple.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.purpleLight.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: AppColors.buttonGradient,
+            ),
+            child: const Icon(Icons.bolt_rounded,
+                color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (loading || preview == null)
+                  Text(
+                    loading
+                        ? 'Calculating prorated price…'
+                        : "You'll be charged the prorated difference today.",
+                    style: TextStyle(
+                      color: BrandColors.ink(context),
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  )
+                else ...[
+                  Text(
+                    "You'll be charged ${preview!.formattedAmountDue} today",
+                    style: TextStyle(
+                      color: BrandColors.ink(context),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    preview!.prorationCreditCents > 0
+                        ? '(prorated · ${preview!.formattedCredit} credit from your current plan)'
+                        : '(prorated by Stripe — unused time on your current plan is credited)',
+                    style: TextStyle(
+                      color: BrandColors.inkSoft(context),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Small note shown when a Plus subscriber is shopping a Premium-only
+/// plan — sets expectations before they tap "Switch to Premium".
+class _DowngradeNotice extends StatelessWidget {
+  const _DowngradeNotice();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: AppColors.blueAccent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.blueAccent.withValues(alpha: 0.40),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded,
+              color: AppColors.blueAccent, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "You'll lose access to AI Habit Packages. Unused time on Premium Plus is credited.",
+              style: TextStyle(
+                color: BrandColors.inkSoft(context),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+          ),
         ],
       ),
     );
