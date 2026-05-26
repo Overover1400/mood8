@@ -338,6 +338,9 @@ class _HeaderBar extends StatelessWidget {
             children: [
               Text(
                 'Routine',
+                maxLines: 1,
+                overflow: TextOverflow.visible,
+                softWrap: false,
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
                       fontSize: 32,
                     ),

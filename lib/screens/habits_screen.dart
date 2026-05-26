@@ -563,41 +563,52 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    // Title gets its own row with the freeze badge (single small chip),
+    // controls (Packages + sort) sit on a row below. This guarantees the
+    // serif italic "Habits" always renders on one line regardless of
+    // device width or future font swaps.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Text(
                 'Habits',
+                maxLines: 1,
+                overflow: TextOverflow.visible,
+                softWrap: false,
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
                       fontSize: 32,
                     ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                "Who you're becoming",
-                style: TextStyle(
-                  color: BrandColors.inkDim(context),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.4,
-                ),
+            ),
+            if (profile != null)
+              FreezeBadge(
+                count: profile!.freezesAvailable,
+                profile: profile,
               ),
-            ],
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          "Who you're becoming",
+          style: TextStyle(
+            color: BrandColors.inkDim(context),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.4,
           ),
         ),
-        _PackagesButton(),
-        const SizedBox(width: 8),
-        _SortButton(current: sortMode, onSelect: onSortChanged),
-        const SizedBox(width: 8),
-        if (profile != null)
-          FreezeBadge(
-            count: profile!.freezesAvailable,
-            profile: profile,
-          ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            _PackagesButton(),
+            const SizedBox(width: 8),
+            _SortButton(current: sortMode, onSelect: onSortChanged),
+          ],
+        ),
       ],
     );
   }
