@@ -246,7 +246,17 @@ class _AuthGateState extends State<AuthGate> {
   //   null  = not yet decided
   //   true  = restore is currently running, show the loading veneer
   //   false = done, render normally
-  String? _lastSyncedUserEmail;
+  /// Last-seen server user id. Tracking by id (not email) so we can
+  /// distinguish the guest-upgrade flow (REGISTER from guest → backend
+  /// returns the SAME user id and we keep local data) from the
+  /// guest→login-to-existing flow (LOGIN returns a DIFFERENT user id
+  /// because the existing account already has its own server-side
+  /// row). The id changing while we have a previous id is the signal
+  /// to wipe local Hive + cached subscription state before pulling
+  /// the new account down — otherwise Home keeps reading the previous
+  /// user's UserProfile while Settings reads the fresh AuthUser, and
+  /// the two diverge.
+  String? _lastUserId;
   bool _restoreInFlight = false;
 
   @override
@@ -422,18 +432,33 @@ class _AuthGateState extends State<AuthGate> {
       valueListenable: AuthService().currentUserNotifier,
       builder: (context, user, _) {
         debugPrint(
-            '[AuthGate] rebuild · user=${user?.email ?? 'null'} · skipAuth=$_skipAuth');
+            '[AuthGate] rebuild · user=${user?.email ?? 'null'} · '
+            'id=${user?.id ?? '-'} · skipAuth=$_skipAuth');
         if (user == null) {
-          // Logout drops user → null. Reset the per-email guard so
-          // signing back in (even as the same email) re-fires the
-          // fullRestore that repopulates the wiped Hive boxes.
-          _lastSyncedUserEmail = null;
-        } else if (user.email != _lastSyncedUserEmail) {
-          // A user just signed in (or switched accounts). Kick off the
-          // restore flow once per user-email.
-          _lastSyncedUserEmail = user.email;
+          // Logout drops user → null. Reset the per-id guard so the
+          // next sign-in (even as the same account) re-fires the
+          // fullRestore path that repopulates wiped Hive boxes.
+          _lastUserId = null;
+        } else if (user.id != _lastUserId) {
+          // A user just signed in or switched accounts. We capture
+          // the previous id BEFORE updating it so _runPostLoginSync
+          // can detect "account switch" vs "first sync of a fresh
+          // session" — the former needs to wipe local data, the
+          // latter doesn't.
+          final previousId = _lastUserId;
+          _lastUserId = user.id;
+          // Set the loading flag synchronously DURING this build so
+          // the very next return below already renders the loading
+          // screen. Without this, the build returns _Root (main app)
+          // with stale Hive data for ~1 frame before the post-frame
+          // callback fires and flips the flag — long enough for the
+          // user to see the wrong identity flash. Mutating the field
+          // directly (no setState) is safe because we read it right
+          // away in the same build; _runPostLoginSync will call
+          // setState later to drop the flag on completion.
+          _restoreInFlight = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _runPostLoginSync();
+            _runPostLoginSync(previousUserId: previousId);
           });
         }
         if (_restoreInFlight) {
@@ -447,21 +472,56 @@ class _AuthGateState extends State<AuthGate> {
     );
   }
 
-  Future<void> _runPostLoginSync() async {
+  Future<void> _runPostLoginSync({String? previousUserId}) async {
     if (_restoreInFlight) return;
     setState(() => _restoreInFlight = true);
     try {
-      final hasLocal = SyncService().hasLocalUserData();
-      if (!hasLocal) {
-        // Fresh install (or device wipe) → pull everything down.
-        debugPrint('[AuthGate] fresh install → fullRestore');
+      // `previousUserId != null` AND it differs from the new one means
+      // the AuthUser id JUST changed under us — that's an account
+      // switch (the only path is guest → log-in-to-existing, since
+      // register-from-guest reuses the SAME id and login from a
+      // signed-out state has previousUserId == null). The local Hive
+      // boxes + cached subscription tier belong to the OLD account
+      // and must be wiped before we hydrate the new one, otherwise
+      // Home keeps reading the previous user's UserProfile while
+      // Settings reads the fresh AuthUser, and we contaminate the
+      // new account by pushing the old account's rows up.
+      final newUserId = AuthService().currentUser?.id;
+      final isAccountSwitch =
+          previousUserId != null && previousUserId != newUserId;
+      if (isAccountSwitch) {
+        debugPrint(
+            '[AuthGate] account switch $previousUserId → $newUserId · '
+            'wipe + fullRestore + refreshStatus');
+        // Cancel any in-flight push that's still trying to upload the
+        // old user's rows under the new bearer.
+        SyncService().stopPeriodicSync();
+        await SyncService().clearLocalUserData();
+        await SubscriptionService().clearForLogout();
         await SyncService().fullRestore();
+        // Await the premium refresh here (inside the loading gate) so
+        // Home never paints with a stale "free" tier and then flicker-
+        // upgrades to premium a beat later.
+        await SubscriptionService().refreshStatus();
       } else {
-        // Existing local data → one-time push for legacy beta users
-        // who had data pre-sync, then a normal merge pull.
-        debugPrint('[AuthGate] existing data → migrate + sync');
-        await SyncService().migrateInitialUploadIfNeeded();
-        await SyncService().syncNow();
+        final hasLocal = SyncService().hasLocalUserData();
+        if (!hasLocal) {
+          // Fresh install (or device wipe) → pull everything down.
+          debugPrint('[AuthGate] fresh install → fullRestore');
+          await SyncService().fullRestore();
+        } else {
+          // Existing local data, same user (cold-start with stored
+          // token OR register-from-guest in-place upgrade where the
+          // backend kept our id). One-time legacy push, then a normal
+          // merge pull — do NOT wipe.
+          debugPrint('[AuthGate] same-user resume → migrate + sync');
+          await SyncService().migrateInitialUploadIfNeeded();
+          await SyncService().syncNow();
+        }
+        // Same await rationale as the account-switch branch — fold
+        // the premium refresh into the loading gate so the first
+        // frame after the gate drops shows the right tier.
+        await SubscriptionService().refreshStatus();
       }
       SyncService().startPeriodicSync();
     } catch (e) {
