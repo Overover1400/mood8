@@ -1512,8 +1512,10 @@ class _MoodHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Compact layout: single-line header (small label + saved chip) +
+    // three single-line CompactGlowSliders. Down from ~245px to ~118px.
     return GlassCard(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1521,13 +1523,13 @@ class _MoodHeroCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'How are you, right now?',
+                  'How are you?',
                   style: brandFont(
                     color: BrandColors.ink(context),
-                    fontSize: 22,
+                    fontSize: 15,
                     weight: FontWeight.w800,
                     height: 1.1,
-                    letterSpacing: -0.3,
+                    letterSpacing: -0.1,
                   ),
                 ),
               ),
@@ -1536,7 +1538,7 @@ class _MoodHeroCard extends StatelessWidget {
                 opacity: savedFlash ? 1.0 : 0.0,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
+                      horizontal: 7, vertical: 2),
                   decoration: BoxDecoration(
                     color: AppColors.purple.withValues(alpha: 0.20),
                     borderRadius: BorderRadius.circular(20),
@@ -1548,15 +1550,15 @@ class _MoodHeroCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.check_rounded,
-                          color: AppColors.pinkLight, size: 12),
-                      const SizedBox(width: 4),
+                          color: AppColors.pinkLight, size: 10),
+                      const SizedBox(width: 3),
                       Text(
                         'Saved',
                         style: TextStyle(
                           color: AppColors.pinkLight,
-                          fontSize: 10,
+                          fontSize: 9,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: 0.6,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ],
@@ -1565,27 +1567,25 @@ class _MoodHeroCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 6),
           Column(
             key: TutorialTargets.moodSliders,
             children: [
-              GlowSlider(
+              CompactGlowSlider(
                 label: 'Mood',
                 icon: Icons.favorite_rounded,
                 value: mood,
                 onChanged: onMood,
                 onChangeEnd: onSliderEnd,
               ),
-              const SizedBox(height: 10),
-              GlowSlider(
+              CompactGlowSlider(
                 label: 'Energy',
                 icon: Icons.bolt_rounded,
                 value: energy,
                 onChanged: onEnergy,
                 onChangeEnd: onSliderEnd,
               ),
-              const SizedBox(height: 10),
-              GlowSlider(
+              CompactGlowSlider(
                 label: 'Focus',
                 icon: Icons.center_focus_strong_rounded,
                 value: focus,

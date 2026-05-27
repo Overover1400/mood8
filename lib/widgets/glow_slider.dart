@@ -167,6 +167,122 @@ class _GradientTrackShape extends SliderTrackShape {
   }
 }
 
+/// Compact variant — single horizontal row of `icon · label · slim
+/// slider · value`. Used on Home so the "How are you, right now?"
+/// section fits three controls into about a third of the vertical
+/// space the full [GlowSlider] needs. Same gradient track, same auto-
+/// save semantics (onChangeEnd), just thinner.
+class CompactGlowSlider extends StatelessWidget {
+  const CompactGlowSlider({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.onChanged,
+    this.onChangeEnd,
+  });
+
+  final String label;
+  final IconData icon;
+  final double value;
+  final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChangeEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = (value * 10).toStringAsFixed(1);
+    return SizedBox(
+      height: 28,
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: BrandColors.inkSoft(context)),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 46,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: BrandColors.inkSoft(context),
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Expanded(
+            child: SliderTheme(
+              data: SliderThemeData(
+                trackHeight: 5,
+                trackShape: const _GradientTrackShape(),
+                thumbShape: const _CompactThumbShape(),
+                overlayShape: SliderComponentShape.noOverlay,
+                activeTrackColor: AppColors.pink,
+                inactiveTrackColor: BrandColors.bgCard(context),
+                thumbColor: Colors.white,
+              ),
+              child: Slider(
+                value: value,
+                onChanged: onChanged,
+                onChangeEnd: onChangeEnd,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 32,
+            child: Text(
+              score,
+              textAlign: TextAlign.right,
+              style: GoogleFonts.bricolageGrotesque(
+                color: BrandColors.ink(context),
+                fontSize: 14,
+                height: 1.0,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactThumbShape extends SliderComponentShape {
+  const _CompactThumbShape();
+
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) =>
+      const Size(16, 16);
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    final canvas = context.canvas;
+    final glow = Paint()
+      ..color = AppColors.pinkLight.withValues(alpha: 0.5)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawCircle(center, 9, glow);
+    final ring = Paint()
+      ..shader = AppColors.buttonGradient.createShader(
+        Rect.fromCircle(center: center, radius: 8),
+      );
+    canvas.drawCircle(center, 8, ring);
+    final inner = Paint()..color = Colors.white;
+    canvas.drawCircle(center, 4.5, inner);
+  }
+}
+
 class _GlowThumbShape extends SliderComponentShape {
   const _GlowThumbShape();
 

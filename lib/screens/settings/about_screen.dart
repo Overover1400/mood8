@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../services/feedback_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/feedback_dialog.dart';
 import '../../widgets/responsive_container.dart';
 import '../../widgets/settings/settings_section.dart';
 import '../../widgets/settings/settings_tile.dart';
@@ -91,16 +93,6 @@ class AboutScreen extends StatelessWidget {
                       subtitle: 'mood8.app/terms.html',
                       onTap: () => _copy(context, 'https://mood8.app/terms.html'),
                     ),
-                    SettingsTile(
-                      icon: Icons.code_rounded,
-                      title: 'Open-source licenses',
-                      subtitle: 'Flutter, Hive, fl_chart, and more',
-                      onTap: () => showLicensePage(
-                        context: context,
-                        applicationName: 'Mood8',
-                        applicationVersion: kMood8Version,
-                      ),
-                    ),
                   ],
                 ),
                 SettingsSection(
@@ -108,15 +100,21 @@ class AboutScreen extends StatelessWidget {
                   children: [
                     SettingsTile(
                       icon: Icons.alternate_email_rounded,
-                      title: 'Developer contact',
-                      subtitle: 'hello@mood8.app',
-                      onTap: () => _copy(context, 'hello@mood8.app'),
+                      title: 'Contact developer',
+                      subtitle: 'Send a message — we read every one',
+                      onTap: () => showFeedbackDialog(
+                        context,
+                        initialKind: FeedbackKind.general,
+                      ),
                     ),
                     SettingsTile(
                       icon: Icons.bug_report_outlined,
                       title: 'Report an issue',
-                      subtitle: 'support@mood8.app',
-                      onTap: () => _copy(context, 'support@mood8.app'),
+                      subtitle: 'Describe what went wrong',
+                      onTap: () => showFeedbackDialog(
+                        context,
+                        initialKind: FeedbackKind.bug,
+                      ),
                     ),
                   ],
                 ),

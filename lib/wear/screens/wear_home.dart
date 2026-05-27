@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../models/mood_entry.dart';
+import '../../services/auth_service.dart';
+import '../../services/mood_repository.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/round_button.dart';
 import '../widgets/wear_orb.dart';
@@ -16,7 +20,7 @@ class WearHomeScreen extends StatefulWidget {
 }
 
 class _WearHomeScreenState extends State<WearHomeScreen> {
-  int _streak = 12;
+  final MoodRepository _moods = MoodRepository();
   int _waterCount = 0;
 
   @override
@@ -29,7 +33,6 @@ class _WearHomeScreenState extends State<WearHomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
-      _streak = prefs.getInt('streak') ?? 12;
       _waterCount = prefs.getInt('water_today') ?? 0;
     });
   }
@@ -56,80 +59,95 @@ class _WearHomeScreenState extends State<WearHomeScreen> {
     final aspect = size.aspectRatio;
     final isRound = aspect > 0.95 && aspect < 1.05;
     final hPad = isRound ? size.width * 0.12 : 14.0;
+    final user = AuthService().currentUser;
+    final firstName = (user?.name.isNotEmpty ?? false)
+        ? user!.name.split(' ').first
+        : 'there';
 
-    return Scaffold(
-      backgroundColor: BrandColors.bgDeep(context),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 10),
-          child: Column(
-            children: [
-              const SizedBox(height: 4),
-              Text(
-                'Hi, Hamed',
-                style: GoogleFonts.bricolageGrotesque(
-                  color: BrandColors.ink(context),
-                  fontSize: 16,
-                  height: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const WearOrb(size: 50),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: _openCheckin,
-                behavior: HitTestBehavior.opaque,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Text(
-                    'How are you?',
-                    style: TextStyle(
-                      color: BrandColors.inkSoft(context),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
+    // Reactive streak — the Hive box ticks whenever a check-in lands
+    // (locally OR from a sync pull from phone), and ValueListenableBuilder
+    // rebuilds. Same source of truth the phone reads, so the watch
+    // can't drift from the phone's streak number.
+    return ValueListenableBuilder<Box<MoodEntry>>(
+      valueListenable: _moods.watchEntries(),
+      builder: (context, _, _) {
+        final streak = _moods.calculateStreak();
+        return Scaffold(
+          backgroundColor: BrandColors.bgDeep(context),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding:
+                  EdgeInsets.symmetric(horizontal: hPad, vertical: 10),
+              child: Column(
+                children: [
+                  const SizedBox(height: 4),
+                  Text(
+                    'Hi, $firstName',
+                    style: GoogleFonts.bricolageGrotesque(
+                      color: BrandColors.ink(context),
+                      fontSize: 16,
+                      height: 1.1,
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  RoundButton(
-                    icon: Icons.water_drop_outlined,
-                    label: 'Water',
-                    onTap: () => _quickLog('water'),
+                  const SizedBox(height: 8),
+                  const WearOrb(size: 50),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: _openCheckin,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(
+                        'How are you?',
+                        style: TextStyle(
+                          color: BrandColors.inkSoft(context),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
                   ),
-                  RoundButton(
-                    icon: Icons.self_improvement,
-                    label: 'Calm',
-                    onTap: () => _quickLog('calm'),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      RoundButton(
+                        icon: Icons.water_drop_outlined,
+                        label: 'Water',
+                        onTap: () => _quickLog('water'),
+                      ),
+                      RoundButton(
+                        icon: Icons.self_improvement,
+                        label: 'Calm',
+                        onTap: () => _quickLog('calm'),
+                      ),
+                      RoundButton(
+                        icon: Icons.directions_run,
+                        label: 'Move',
+                        onTap: () => _quickLog('move'),
+                      ),
+                    ],
                   ),
-                  RoundButton(
-                    icon: Icons.directions_run,
-                    label: 'Move',
-                    onTap: () => _quickLog('move'),
-                  ),
+                  if (_waterCount > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '$_waterCount water today',
+                      style: TextStyle(
+                        color: BrandColors.inkDim(context),
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  _StreakCard(streak: streak),
+                  const SizedBox(height: 8),
                 ],
               ),
-              if (_waterCount > 0) ...[
-                const SizedBox(height: 4),
-                Text(
-                  '$_waterCount water today',
-                  style: TextStyle(
-                    color: BrandColors.inkDim(context),
-                    fontSize: 9,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 10),
-              _StreakCard(streak: _streak),
-              const SizedBox(height: 8),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

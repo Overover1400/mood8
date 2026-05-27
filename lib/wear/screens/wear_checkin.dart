@@ -2,8 +2,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../services/mood_repository.dart';
+import '../../services/sync_service.dart';
 import '../../theme/app_theme.dart';
 import '../widgets/round_button.dart';
 import '../widgets/wear_slider.dart';
@@ -30,12 +31,21 @@ class _WearCheckinScreenState extends State<WearCheckinScreen> {
   }
 
   Future<void> _save() async {
-    final prefs = await SharedPreferences.getInstance();
-    final now = DateTime.now().toIso8601String();
-    await prefs.setString('last_checkin', now);
-    await prefs.setDouble('last_mood', _values[0]);
-    await prefs.setDouble('last_energy', _values[1]);
-    await prefs.setDouble('last_focus', _values[2]);
+    // Persist as a real MoodEntry in the same Hive box the phone +
+    // web read. upsertTodayEntry mirrors home_screen behaviour — one
+    // entry per calendar day, in-place updates for the same day so
+    // the user can re-check-in without spawning duplicates.
+    await MoodRepository().upsertTodayEntry(
+      mood: _values[0],
+      energy: _values[1],
+      focus: _values[2],
+    );
+    // Belt-and-suspenders: kick a sync push now (debouncedPush already
+    // fires from inside upsertTodayEntry, but watches sleep
+    // aggressively and the 5-second debounce window may be cut short
+    // by the OS pausing the app after the user taps).
+    // ignore: discarded_futures
+    SyncService().pushChanges();
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }

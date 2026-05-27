@@ -52,6 +52,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../widgets/settings/settings_toggle.dart';
 import 'settings/about_screen.dart';
+import 'settings/ai_privacy_screen.dart';
 import 'settings/data_privacy_screen.dart';
 import '../services/badge_definitions.dart';
 
@@ -640,8 +641,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           icon: Icons.info_outline_rounded,
                           title: 'AI privacy',
                           subtitle:
-                              'Reflections, chat, and insights are sent to the Mood8 coach API.',
-                          onTap: () => _comingSoon('Privacy details'),
+                              'What the coach sees, where it goes, what you control',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const AiPrivacyScreen(),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -905,25 +910,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ],
                     ),
-                    // Membership is surfaced at the top via _PremiumHeroCard,
-                    // so the lower-down "Membership" section is no longer
-                    // needed (was a tile-style duplicate of the hero card).
-                    if (SubscriptionService().isPremium)
-                      SettingsSection(
-                        title: 'Membership',
-                        children: [
-                          SettingsTile(
-                            icon: Icons.workspace_premium_rounded,
-                            title: 'Premium benefits',
-                            subtitle: 'What you have access to',
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const PremiumScreen(),
+                    // Membership: always visible — the page shows the
+                    // user's tier, benefits of Premium + Premium Plus,
+                    // and the right CTA (upgrade for free users,
+                    // manage for paying users). The gradient
+                    // _PremiumHeroCard above is the marketing nudge;
+                    // this row is the canonical settings entry point.
+                    SettingsSection(
+                      title: 'Membership',
+                      children: [
+                        ListenableBuilder(
+                          listenable: SubscriptionService(),
+                          builder: (context, _) {
+                            final tier = SubscriptionService().tier;
+                            final subtitle = !tier.isPaid
+                                ? 'See plans · Premium · Premium Plus'
+                                : tier.isPlus
+                                    ? 'Premium Plus · manage or change plan'
+                                    : 'Premium · manage or upgrade to Plus';
+                            return SettingsTile(
+                              icon: Icons.workspace_premium_rounded,
+                              title: 'Membership',
+                              subtitle: subtitle,
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const PremiumScreen(),
+                                ),
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                     SettingsSection(
                       title: 'Beta tester',
                       subtitle: 'we read every word',
