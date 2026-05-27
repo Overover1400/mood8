@@ -257,7 +257,19 @@ class _AuthGateState extends State<AuthGate> {
   /// user's UserProfile while Settings reads the fresh AuthUser, and
   /// the two diverge.
   String? _lastUserId;
+  /// UI flag — true while the loading veneer should be shown. Set
+  /// SYNCHRONOUSLY inside build() the frame we detect a new user id,
+  /// so the very first paint after sign-in is already the loading
+  /// screen (no one-frame flash of the previous account's home).
   bool _restoreInFlight = false;
+  /// Separate re-entry guard for [_runPostLoginSync]. We can't reuse
+  /// `_restoreInFlight` for this — the build sets that flag BEFORE
+  /// the post-frame callback that actually starts the sync runs, so
+  /// a guard like `if (_restoreInFlight) return;` would trip on the
+  /// very first call and the sync would never run (loading screen
+  /// stuck forever — the bug fix here). `_syncRunning` flips inside
+  /// the sync function itself instead.
+  bool _syncRunning = false;
 
   @override
   void initState() {
@@ -472,63 +484,88 @@ class _AuthGateState extends State<AuthGate> {
     );
   }
 
+  /// Hard cap on the loading gate. Sync is best-effort — if the
+  /// network is slow, the server is down, or any one of the awaits
+  /// stalls, the user MUST still be able to enter the app and use
+  /// whatever's already in local Hive. The periodic sync started at
+  /// the end of [_runPostLoginSync] retries in the background.
+  ///
+  /// 15s is comfortably above a healthy full-restore (typically <1s
+  /// on a small account, ~3-5s on a heavy one over slow 3G) and well
+  /// below "user gives up and force-quits".
+  static const Duration _postLoginSyncTimeout = Duration(seconds: 15);
+
   Future<void> _runPostLoginSync({String? previousUserId}) async {
-    if (_restoreInFlight) return;
-    setState(() => _restoreInFlight = true);
+    // Re-entry guard — the build sets _restoreInFlight synchronously
+    // BEFORE this fires, so we can't gate on it (the old code did and
+    // hung the loading screen forever on every sign-in). _syncRunning
+    // tracks whether the actual work is already in flight.
+    if (_syncRunning) return;
+    _syncRunning = true;
     try {
-      // `previousUserId != null` AND it differs from the new one means
-      // the AuthUser id JUST changed under us — that's an account
-      // switch (the only path is guest → log-in-to-existing, since
-      // register-from-guest reuses the SAME id and login from a
-      // signed-out state has previousUserId == null). The local Hive
-      // boxes + cached subscription tier belong to the OLD account
-      // and must be wiped before we hydrate the new one, otherwise
-      // Home keeps reading the previous user's UserProfile while
-      // Settings reads the fresh AuthUser, and we contaminate the
-      // new account by pushing the old account's rows up.
-      final newUserId = AuthService().currentUser?.id;
-      final isAccountSwitch =
-          previousUserId != null && previousUserId != newUserId;
-      if (isAccountSwitch) {
+      await _doPostLoginSync(previousUserId: previousUserId)
+          .timeout(_postLoginSyncTimeout, onTimeout: () {
+        // A hung sync must NEVER block the user from reaching the app.
+        // Fall through to the finally block — the loading gate drops,
+        // the user lands on Home/onboarding with local data, and the
+        // periodic background sync started below keeps trying.
         debugPrint(
-            '[AuthGate] account switch $previousUserId → $newUserId · '
-            'wipe + fullRestore + refreshStatus');
-        // Cancel any in-flight push that's still trying to upload the
-        // old user's rows under the new bearer.
-        SyncService().stopPeriodicSync();
-        await SyncService().clearLocalUserData();
-        await SubscriptionService().clearForLogout();
-        await SyncService().fullRestore();
-        // Await the premium refresh here (inside the loading gate) so
-        // Home never paints with a stale "free" tier and then flicker-
-        // upgrades to premium a beat later.
-        await SubscriptionService().refreshStatus();
-      } else {
-        final hasLocal = SyncService().hasLocalUserData();
-        if (!hasLocal) {
-          // Fresh install (or device wipe) → pull everything down.
-          debugPrint('[AuthGate] fresh install → fullRestore');
-          await SyncService().fullRestore();
-        } else {
-          // Existing local data, same user (cold-start with stored
-          // token OR register-from-guest in-place upgrade where the
-          // backend kept our id). One-time legacy push, then a normal
-          // merge pull — do NOT wipe.
-          debugPrint('[AuthGate] same-user resume → migrate + sync');
-          await SyncService().migrateInitialUploadIfNeeded();
-          await SyncService().syncNow();
-        }
-        // Same await rationale as the account-switch branch — fold
-        // the premium refresh into the loading gate so the first
-        // frame after the gate drops shows the right tier.
-        await SubscriptionService().refreshStatus();
-      }
-      SyncService().startPeriodicSync();
-    } catch (e) {
-      debugPrint('[AuthGate] post-login sync failed: $e');
+            '[AuthGate] post-login sync timed out after '
+            '${_postLoginSyncTimeout.inSeconds}s — entering app with '
+            'local data; background sync will retry');
+        return null;
+      });
+    } catch (e, st) {
+      // Catch-all so no thrown exception can leave the loading gate
+      // stuck. Sync errors are not user-blocking.
+      debugPrint('[AuthGate] post-login sync failed: $e\n$st');
     } finally {
+      _syncRunning = false;
       if (mounted) setState(() => _restoreInFlight = false);
+      // Make absolutely sure the background sync is running even if
+      // the foreground call threw or timed out — that's how we'll
+      // recover once the network comes back.
+      try {
+        SyncService().startPeriodicSync();
+      } catch (_) {}
     }
+  }
+
+  Future<void> _doPostLoginSync({String? previousUserId}) async {
+    // `previousUserId != null` AND it differs from the new one means
+    // the AuthUser id JUST changed under us — that's an account
+    // switch (the only path is guest → log-in-to-existing, since
+    // register-from-guest reuses the SAME id and login from a
+    // signed-out state has previousUserId == null). The local Hive
+    // boxes + cached subscription tier belong to the OLD account
+    // and must be wiped before we hydrate the new one, otherwise
+    // Home keeps reading the previous user's UserProfile while
+    // Settings reads the fresh AuthUser, and we contaminate the
+    // new account by pushing the old account's rows up.
+    final newUserId = AuthService().currentUser?.id;
+    final isAccountSwitch =
+        previousUserId != null && previousUserId != newUserId;
+    if (isAccountSwitch) {
+      debugPrint(
+          '[AuthGate] account switch $previousUserId → $newUserId · '
+          'wipe + fullRestore + refreshStatus');
+      SyncService().stopPeriodicSync();
+      await SyncService().clearLocalUserData();
+      await SubscriptionService().clearForLogout();
+      await SyncService().fullRestore();
+      await SubscriptionService().refreshStatus();
+      return;
+    }
+    final hasLocal = SyncService().hasLocalUserData();
+    if (!hasLocal) {
+      debugPrint('[AuthGate] fresh install → fullRestore');
+      await SyncService().fullRestore();
+    } else {
+      debugPrint('[AuthGate] same-user resume → migrate + sync');
+      await SyncService().migrateInitialUploadIfNeeded();
+      await SyncService().syncNow();
+    }
+    await SubscriptionService().refreshStatus();
   }
 }
 
