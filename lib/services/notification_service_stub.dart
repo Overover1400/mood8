@@ -6,6 +6,7 @@
 
 import 'dart:async';
 import 'dart:io' show Platform;
+import 'dart:ui' show Color;
 
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -322,10 +323,12 @@ class NotificationServiceImpl {
         channel: _habitChannel,
       );
 
-  /// Schedules a one-shot zonedSchedule [delay] from now. Returns a
-  /// rich [TestResult] so the diagnostics UI can show the user
-  /// EXACTLY what happened — which mode ran, what the OS said, how
-  /// many entries ended up queued.
+  /// Schedules a one-shot zonedSchedule [delay] from now, INCLUDING
+  /// `matchDateTimeComponents: DateTimeComponents.time` so the
+  /// diagnostic uses the SAME path a real daily-repeating habit
+  /// reminder uses. If this fires, daily habit reminders will too. If
+  /// it doesn't fire (but `Fire NOW` does), the bug is in the
+  /// daily-repeat / exact-alarm / OEM-doze layer specifically.
   Future<TestResult> scheduleOneShotIn({
     required Duration delay,
     String title = 'Mood8 test reminder',
@@ -347,6 +350,9 @@ class NotificationServiceImpl {
     const id = 999001;
     final when = tz.TZDateTime.now(tz.local).add(delay);
     final mode = _scheduleMode();
+    NotifLog.log(
+        'test schedule REQUEST id=$id local=${_fmt(when)} '
+        'tz=$_timezoneName mode=${mode.name} matchDailyRepeat=true');
     try {
       await _plugin.cancel(id);
       await _plugin.zonedSchedule(
@@ -358,20 +364,28 @@ class NotificationServiceImpl {
         androidScheduleMode: mode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
+        // CRITICAL: include matchDateTimeComponents here too — this
+        // is the exact API surface a habit reminder uses. Without it,
+        // we'd be testing a different code path than the real bug.
+        matchDateTimeComponents: DateTimeComponents.time,
       );
       final pending = await pendingRequests();
+      final hit = pending.firstWhere(
+        (p) => p.id == id,
+        orElse: () => PendingNotificationRequest(id, null, null, null),
+      );
       NotifLog.log(
-          'test scheduled id=$id at $when mode=${mode.name} '
-          'queued=${pending.length}');
+          'test schedule LANDED id=$id title="${hit.title ?? "(none)"}" · '
+          'queue=${pending.length}');
       return TestResult(
         ok: true,
         mode: mode.name,
         reason: null,
-        firesAt: when.toIso8601String(),
+        firesAt: _fmt(when),
         pendingCount: pending.length,
       );
     } on PlatformException catch (e) {
-      NotifLog.log('test scheduled FAILED PlatformException: code=${e.code} '
+      NotifLog.log('test schedule FAILED PlatformException: code=${e.code} '
           'msg=${e.message}');
       return TestResult(
         ok: false,
@@ -381,7 +395,7 @@ class NotificationServiceImpl {
         pendingCount: (await pendingRequests()).length,
       );
     } catch (e, st) {
-      NotifLog.log('test scheduled FAILED: $e\n$st');
+      NotifLog.log('test schedule FAILED: $e\n$st');
       return TestResult(
         ok: false,
         mode: mode.name,
@@ -533,6 +547,12 @@ class NotificationServiceImpl {
     await ensureInitialized();
     if (!_supported) return;
     final when = _nextInstanceOf(hour, minute);
+    final mode = _scheduleMode();
+    final hh = hour.toString().padLeft(2, '0');
+    final mm = minute.toString().padLeft(2, '0');
+    NotifLog.log(
+        'schedule REQUEST id=$id slot=$hh:$mm local=${_fmt(when)} '
+        'tz=$_timezoneName mode=${mode.name} title="$title"');
     try {
       await _plugin.cancel(id);
       await _plugin.zonedSchedule(
@@ -541,24 +561,44 @@ class NotificationServiceImpl {
         body,
         when,
         _notifDetails(channel),
-        androidScheduleMode: _scheduleMode(),
+        androidScheduleMode: mode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
+        // Daily repeat: after each fire the plugin's BroadcastReceiver
+        // re-arms the next day's alarm at the same H:M. Requires exact
+        // mode for reliable repeat (per the plugin docs); on inexact
+        // the next-day re-arm can be delayed or skipped — which is
+        // why the bug-report case "set 9am, it's now 3pm, didn't fire
+        // tomorrow morning" can happen on devices without
+        // SCHEDULE_EXACT_ALARM granted.
         matchDateTimeComponents: DateTimeComponents.time,
       );
+      final pending = await _plugin.pendingNotificationRequests();
+      final hit = pending.firstWhere(
+        (p) => p.id == id,
+        orElse: () => PendingNotificationRequest(id, null, null, null),
+      );
       NotifLog.log(
-          'scheduled id=$id @ ${hour.toString().padLeft(2, '0')}:'
-          '${minute.toString().padLeft(2, '0')} '
-          '(next $when, mode=${_scheduleMode().name}) "$title"');
+          'schedule LANDED id=$id title="${hit.title ?? "(none)"}" · '
+          'queue size=${pending.length}');
     } on PlatformException catch (e) {
       NotifLog.log(
-          '_scheduleDaily id=$id PlatformException code=${e.code} '
+          'schedule FAILED id=$id PlatformException code=${e.code} '
           'msg=${e.message}');
     } catch (e, st) {
-      NotifLog.log('_scheduleDaily id=$id failed: $e\n$st');
+      NotifLog.log('schedule FAILED id=$id error=$e\n$st');
     }
   }
 
+  /// Computes the next firing instant for a daily reminder. If the
+  /// requested H:M already passed today, advances to tomorrow.
+  ///
+  /// Critical: returns a `tz.TZDateTime` in `tz.local`, NOT in UTC.
+  /// If tz.local is UTC (because FlutterTimezone init failed and we
+  /// fell back), the schedule fires at 09:00 UTC — which is 02:00
+  /// Eastern, 01:00 Central, etc. The diagnostics screen's Timezone
+  /// row shows "UTC (fallback)" when this has happened so a tester
+  /// can spot it.
   tz.TZDateTime _nextInstanceOf(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);
     var scheduled =
@@ -567,6 +607,12 @@ class NotificationServiceImpl {
       scheduled = scheduled.add(const Duration(days: 1));
     }
     return scheduled;
+  }
+
+  String _fmt(tz.TZDateTime t) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${t.year}-${two(t.month)}-${two(t.day)} '
+        '${two(t.hour)}:${two(t.minute)}';
   }
 
   NotificationDetails _notifDetails(AndroidNotificationChannel channel) {
@@ -580,6 +626,15 @@ class NotificationServiceImpl {
         category: AndroidNotificationCategory.reminder,
         playSound: true,
         enableVibration: true,
+        // Mood8-branded status-bar look: a white-silhouette small icon
+        // tinted by the brand accent. Without `icon:` Android falls
+        // back to the AndroidInitializationSettings launcher icon,
+        // which is full-colour and renders as a flat square on most
+        // OEMs. With `color:` the silhouette is tinted (rather than
+        // rendered as a generic bell glyph).
+        icon: 'ic_stat_mood8',
+        color: const Color(0xFFA855F7),
+        colorized: true,
       ),
       iOS: const DarwinNotificationDetails(
         presentAlert: true,

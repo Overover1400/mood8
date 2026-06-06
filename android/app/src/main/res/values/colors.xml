@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#0A0612</color>
+    <!-- Brand accent for status-bar notifications. Android tints the
+         small-icon (ic_stat_mood8, a white silhouette) with this color
+         when the notification is drawn — that's how we make habit
+         reminders look like Mood8 instead of generic Android. -->
+    <color name="mood8_brand_accent">#A855F7</color>
+</resources>

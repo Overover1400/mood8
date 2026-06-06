@@ -41,6 +41,24 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   hive_generator: ^2.0.1
   build_runner: ^2.4.0
+  flutter_launcher_icons: ^0.14.1
+
+# Launcher + notification icons, generated from a single 1024x1024 PNG.
+# `dart run flutter_launcher_icons` regenerates the mipmaps + adaptive
+# icon XML + web favicon. Run after the source asset changes; the
+# output is committed so a fresh checkout doesn't need to rerun.
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/mood8_logo.png"
+  adaptive_icon_background: "#0A0612"
+  adaptive_icon_foreground: "assets/icon/mood8_logo.png"
+  min_sdk_android: 24
+  web:
+    generate: true
+    image_path: "assets/icon/mood8_logo.png"
+    background_color: "#0A0612"
+    theme_color: "#A855F7"
 
 flutter:
   uses-material-design: true

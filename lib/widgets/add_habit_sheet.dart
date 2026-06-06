@@ -316,41 +316,78 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
 
   Future<void> _onRemindersToggle(bool enabled) async {
     if (enabled) {
-      // Asking for permission at the moment the user opts in is the
-      // most honest place — they just expressed intent to receive
-      // notifications. If they deny, we still let the toggle flip on
-      // so the choice survives across permission changes, but we show
-      // a hint that nothing will fire until they grant.
       final notif = NotificationService();
-      // Init eagerly so the post-permission state is correct on the
-      // next setState (the inline "permission not granted" banner
-      // gates on notif.isGranted).
       await notif.ensureInitialized();
       if (notif.isSupported && !notif.isGranted) {
         await notif.requestPermission();
       }
-      // Android 12+ "special permission" — opens system Settings.
-      // We DON'T await it because the plugin's request opens an
-      // Activity and the resulting Future doesn't reliably resolve
-      // when the user returns (it can hang the sheet). The
-      // app-resume hook in main.dart re-reads the new state when the
-      // user comes back, and scheduleAll runs again then. Until they
-      // grant it we fall back to inexact-mode scheduling so
-      // reminders still fire, just with up to ~15 min jitter.
+      // Android 12+: scheduled reminders need SCHEDULE_EXACT_ALARM
+      // for daily repeats to work reliably. Without it, the
+      // matchDateTimeComponents repeat path on the plugin can delay
+      // or skip the next-day re-arm — i.e. the reported bug "set 9am,
+      // didn't fire next morning". Show an EXPLICIT dialog so the
+      // user knows what they're granting (and the screen says what
+      // happens if they decline). Don't await the OS prompt itself —
+      // the resume hook re-reads state on return.
       if (notif.isGranted && !notif.canExactAlarm) {
-        // ignore: discarded_futures
-        notif.requestExactAlarmPermission();
+        await _explainExactAlarmAndOpenSettings();
       }
     }
     setState(() {
       _remindersEnabled = enabled;
       if (enabled && _reminderMinutes.isEmpty) {
-        // Seed with a sensible default so the user doesn't see an
-        // empty list and wonder what to do. 09:00 is a fine first
-        // nudge for almost any habit.
         _reminderMinutes = [540];
       }
     });
+  }
+
+  Future<void> _explainExactAlarmAndOpenSettings() async {
+    if (!mounted) return;
+    final granted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text(
+          'Reliable reminders need one more permission',
+          style: TextStyle(color: BrandColors.ink(context), fontSize: 17),
+        ),
+        content: Text(
+          "Android 12+ requires apps to ask for permission to schedule "
+          "exact-time alarms. Without it, Mood8 reminders can be delayed "
+          "by 15+ minutes — or skipped entirely on the second day.\n\n"
+          "Tap 'Open Settings' and toggle 'Allow setting alarms and "
+          "reminders' ON.\n\n"
+          "If you skip this, we'll fall back to approximate scheduling "
+          "(works for some phones, but not all).",
+          style: TextStyle(
+            color: BrandColors.inkSoft(context),
+            fontSize: 13,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Skip'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Open Settings',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (granted == true) {
+      // ignore: discarded_futures
+      NotificationService().requestExactAlarmPermission();
+      // App-resume hook (in main.dart) re-reads state when the user
+      // returns. We don't await — the future the plugin returns is
+      // unreliable for Settings-launching activities.
+    }
   }
 
   Future<void> _onTestReminder() async {

@@ -147,20 +147,24 @@ class HabitReminderService {
           'for "${habit.title}"');
       return;
     }
-    // Counter habits would ideally render "Drink water — 2/8 today"
-    // but the OS fires the notification while the app is dead, so
-    // the live count isn't available at notify time. Body stays
-    // identity-flavoured; tapping the notification opens the app
-    // where the live count is visible. This keeps v1 simple +
-    // reliable and unlocks the "+1 from notification" v2 work
-    // cleanly without painting ourselves into a corner.
+    // Body copy — tuned to feel like Mood8, not a generic alarm.
+    // Counter habits show the daily target as a soft anchor (live
+    // count would require re-scheduling on every log, deferred to
+    // v2). Yes/no habits get an identity-flavoured nudge.
+    //
+    // Reduce-mode (avoid) habits get a separate gentle copy so we
+    // don't say "vote for who you are becoming" for a quit-smoking
+    // habit, which would feel jarring.
     final hasNumericTarget =
         habit.targetValue != null && habit.habitType.name != 'yesNo';
-    final body = hasNumericTarget
-        ? 'Target: ${habit.targetValue}'
-            '${habit.targetUnit != null && habit.targetUnit!.isNotEmpty ? ' ${habit.targetUnit}' : ''}'
-            ' today.'
-        : 'A small vote for who you are becoming.';
+    final unitPart = habit.targetUnit != null && habit.targetUnit!.isNotEmpty
+        ? ' ${habit.targetUnit}'
+        : '';
+    final body = habit.isAvoid
+        ? 'Pause. Notice. You can ride this one out.'
+        : hasNumericTarget
+            ? "Time to chip away at today's ${habit.targetValue}$unitPart."
+            : 'A small vote for the version of you who shows up.';
     for (var i = 0; i < habit.reminderMinutes.length && i < 32; i++) {
       final m = habit.reminderMinutes[i];
       if (m < 0 || m >= 24 * 60) continue;
@@ -170,7 +174,7 @@ class HabitReminderService {
         id: _idFor(habit.id, i),
         hour: hour,
         minute: minute,
-        title: '${habit.icon}  ${habit.title}',
+        title: '${habit.icon} ${habit.title}',
         body: body,
       );
     }
