@@ -55,6 +55,7 @@ import '../widgets/settings/settings_toggle.dart';
 import 'settings/about_screen.dart';
 import 'settings/ai_privacy_screen.dart';
 import 'settings/data_privacy_screen.dart';
+import 'settings/notification_diagnostics_screen.dart';
 import '../services/badge_definitions.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -769,25 +770,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         _HabitRemindersTile(),
                         SettingsTile(
-                          icon: Icons.flash_on_rounded,
-                          title: 'Send a test reminder',
+                          icon: Icons.troubleshoot_rounded,
+                          title: 'Diagnose & test reminders',
                           subtitle:
-                              'Fires in 5 seconds · close the app to confirm',
-                          onTap: _onSendTestReminder,
-                        ),
-                        SettingsTile(
-                          icon: Icons.health_and_safety_outlined,
-                          title: 'Permission status',
-                          subtitle:
-                              'How Android decides if reminders fire',
-                          onTap: _showNotificationStatus,
-                        ),
-                        SettingsTile(
-                          icon: Icons.battery_charging_full_rounded,
-                          title: 'Improve reliability',
-                          subtitle:
-                              'Battery optimization + OEM tips',
-                          onTap: _onImproveReliability,
+                              "Permissions, queue dump, log, test 'fire NOW' + 'in 5s'",
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const NotificationDiagnosticsScreen(),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -1201,207 +1193,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _effects.celebrateAllRoutinesComplete(
       context: context,
       userName: user?.name,
-    );
-  }
-
-  Future<void> _onSendTestReminder() async {
-    HapticService().selection();
-    final notif = NotificationService();
-    await notif.ensureInitialized();
-    if (!notif.isGranted) {
-      final ok = await notif.requestPermission();
-      if (!ok) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Notification permission not granted — open Permission '
-              'status to fix.',
-            ),
-          ),
-        );
-        return;
-      }
-    }
-    if (!notif.canExactAlarm) {
-      // Best-effort: exact alarm gives tight 5s firing. If declined,
-      // the test still works (within ~15 min) so we don't block.
-      await notif.requestExactAlarmPermission();
-    }
-    final ok = await notif.scheduleOneShotIn(
-      delay: const Duration(seconds: 5),
-      title: 'Mood8 test reminder',
-      body: 'If you see this, reminders work on your device.',
-    );
-    final pending = await notif.pendingRequests();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Scheduled · fires in 5s · ${pending.length} reminder'
-                  '${pending.length == 1 ? '' : 's'} queued in the OS '
-                  '(${notif.canExactAlarm ? 'exact' : 'inexact ±15 min'} mode)'
-              : "Schedule failed. Open Permission status to diagnose.",
-        ),
-        backgroundColor: BrandColors.bgCard(context),
-        duration: const Duration(seconds: 6),
-      ),
-    );
-  }
-
-  Future<void> _onImproveReliability() async {
-    HapticService().selection();
-    final notif = NotificationService();
-    await notif.ensureInitialized();
-    final ignoringBattery =
-        await notif.isIgnoringBatteryOptimizations();
-    if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: BrandColors.bgCard(context),
-        title: Text(
-          'Improve reminder reliability',
-          style: TextStyle(color: BrandColors.ink(context)),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _StatusRow(
-                label: 'Notification permission',
-                ok: notif.isGranted,
-              ),
-              _StatusRow(
-                label: 'Exact alarm scheduling',
-                ok: notif.canExactAlarm,
-              ),
-              _StatusRow(
-                label: 'Battery optimization exempt',
-                ok: ignoringBattery,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                "Aggressive battery-saving on Xiaomi/MIUI, Samsung "
-                "One UI, Huawei, OnePlus/OxygenOS, Oppo and Vivo "
-                "delays or skips background scheduling — including "
-                "reminders. The single biggest fix is exempting "
-                "Mood8 from battery optimization. On Xiaomi: also "
-                "enable Autostart for Mood8.",
-                style: TextStyle(
-                  color: BrandColors.inkSoft(context),
-                  fontSize: 12.5,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          if (!ignoringBattery)
-            TextButton(
-              onPressed: () async {
-                final ok = await notif.requestIgnoreBatteryOptimizations();
-                if (!ctx.mounted) return;
-                Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  SnackBar(
-                    content: Text(ok
-                        ? "Battery optimization disabled for Mood8."
-                        : "Open Android Settings → Apps → Mood8 → "
-                            "Battery → Unrestricted."),
-                  ),
-                );
-              },
-              child: const Text('Exempt from battery'),
-            ),
-          if (!notif.canExactAlarm)
-            TextButton(
-              onPressed: () async {
-                await notif.requestExactAlarmPermission();
-                if (!ctx.mounted) return;
-                Navigator.of(ctx).pop();
-              },
-              child: const Text('Enable exact alarms'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Done'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showNotificationStatus() async {
-    HapticService().selection();
-    final notif = NotificationService();
-    await notif.ensureInitialized();
-    final supported = notif.isSupported;
-    final granted = notif.isGranted;
-    final exact = notif.canExactAlarm;
-    final pending = await notif.pendingRequests();
-    if (!mounted) return;
-    final body = StringBuffer()
-      ..writeln('Notifications: ${supported ? 'supported' : 'unsupported'}')
-      ..writeln('Permission: ${granted ? 'granted' : 'not granted'}')
-      ..writeln('Exact alarms: ${exact ? 'enabled' : 'inexact (±15 min)'}')
-      ..writeln('Queued reminders: ${pending.length}');
-    if (pending.isNotEmpty) {
-      body
-        ..writeln('')
-        ..writeln('Sample scheduled:');
-      for (final p in pending.take(6)) {
-        body.writeln('  · id=${p.id}  "${p.title ?? '(no title)'}"');
-      }
-      if (pending.length > 6) {
-        body.writeln('  · …and ${pending.length - 6} more');
-      }
-    }
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: BrandColors.bgCard(context),
-        title: Text(
-          'Reminder status',
-          style: TextStyle(color: BrandColors.ink(context)),
-        ),
-        content: SingleChildScrollView(
-          child: Text(
-            body.toString(),
-            style: TextStyle(
-              color: BrandColors.inkSoft(context),
-              height: 1.4,
-              fontSize: 13,
-              fontFamily: 'monospace',
-            ),
-          ),
-        ),
-        actions: [
-          if (supported && !granted)
-            TextButton(
-              onPressed: () async {
-                final ok = await NotificationService().requestPermission();
-                if (!ctx.mounted) return;
-                Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  SnackBar(
-                    content: Text(ok
-                        ? "Permission granted — reminders are armed."
-                        : "Still not granted. You can change this in Android Settings."),
-                  ),
-                );
-              },
-              child: const Text('Grant permission'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -2074,48 +1865,3 @@ class _HabitRemindersTileState extends State<_HabitRemindersTile> {
   }
 }
 
-/// Tiny three-line check/x row used by [_onImproveReliability]'s
-/// dialog to show "what's set up vs what isn't" at a glance.
-class _StatusRow extends StatelessWidget {
-  const _StatusRow({required this.label, required this.ok});
-  final String label;
-  final bool ok;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          Icon(
-            ok ? Icons.check_circle_rounded : Icons.cancel_rounded,
-            color: ok ? AppColors.pinkLight : const Color(0xFFFF6B81),
-            size: 16,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: BrandColors.inkSoft(context),
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          Text(
-            ok ? 'OK' : 'Not set',
-            style: TextStyle(
-              color: ok
-                  ? AppColors.pinkLight
-                  : const Color(0xFFFF6B81),
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

@@ -329,12 +329,17 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
       if (notif.isSupported && !notif.isGranted) {
         await notif.requestPermission();
       }
-      // Android 12+ "special permission" needed for the daily-
-      // repeating exact alarm. Asks via system Settings. If the user
-      // declines we fall back to inexact-mode scheduling so reminders
-      // still fire, just with up to ~15 min jitter.
+      // Android 12+ "special permission" — opens system Settings.
+      // We DON'T await it because the plugin's request opens an
+      // Activity and the resulting Future doesn't reliably resolve
+      // when the user returns (it can hang the sheet). The
+      // app-resume hook in main.dart re-reads the new state when the
+      // user comes back, and scheduleAll runs again then. Until they
+      // grant it we fall back to inexact-mode scheduling so
+      // reminders still fire, just with up to ~15 min jitter.
       if (notif.isGranted && !notif.canExactAlarm) {
-        await notif.requestExactAlarmPermission();
+        // ignore: discarded_futures
+        notif.requestExactAlarmPermission();
       }
     }
     setState(() {
@@ -351,22 +356,28 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
   Future<void> _onTestReminder() async {
     HapticFeedback.selectionClick();
     final notif = NotificationService();
-    final ok = await notif.scheduleOneShotIn(
-      delay: const Duration(seconds: 5),
+    await notif.ensureInitialized();
+    // Fire NOW via _plugin.show() — bypasses the alarm scheduler and
+    // proves the permission/channel/icon path. If this fails, the
+    // problem is permission, not scheduling. If this works but the
+    // user's scheduled reminders don't fire, the problem is the
+    // scheduler / exact-alarm permission / OEM doze (the Settings →
+    // Notifications → "Diagnose & test reminders" screen has the
+    // 5-second scheduled test for that).
+    final r = await notif.showNowDiagnostic(
       title: '$_emoji ${_titleCtrl.text.trim().isEmpty ? "Mood8 test" : _titleCtrl.text.trim()}',
-      body: 'Test reminder · close the app to verify it still fires.',
+      body: "If you see this, reminders work on this device.",
     );
-    if (!mounted) return;
-    final pending = await notif.pendingRequests();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          ok
-              ? 'Test scheduled for 5 seconds from now. '
-                  '${pending.length} reminder${pending.length == 1 ? '' : 's'} queued in the OS.'
-              : "Could not schedule — permission denied. "
-                  "Tap 'Enable reminders' first.",
+          r.ok
+              ? 'Test notification posted. '
+                  'For the scheduled-firing test, open Settings → '
+                  'Notifications → Diagnose & test.'
+              : "Test failed — ${r.reason ?? 'see logs'}. Open "
+                  "Settings → Notifications → Diagnose & test for details.",
         ),
         backgroundColor: BrandColors.bgCard(context),
         duration: const Duration(seconds: 6),

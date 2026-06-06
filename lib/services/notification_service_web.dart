@@ -5,6 +5,25 @@ import 'dart:html' as html;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import 'notif_log.dart';
+
+/// Web mirror of the mobile TestResult — same fields so the diagnostics
+/// UI doesn't need to branch per platform.
+class TestResult {
+  TestResult({
+    required this.ok,
+    required this.mode,
+    required this.reason,
+    required this.firesAt,
+    required this.pendingCount,
+  });
+  final bool ok;
+  final String mode;
+  final String? reason;
+  final String? firesAt;
+  final int pendingCount;
+}
+
 /// Web implementation backed by the browser's `Notification` API. Uses
 /// `Timer` to schedule the *next* occurrence of each daily slot, then
 /// reschedules itself after each fire (rolling daily cron).
@@ -138,18 +157,61 @@ class NotificationServiceImpl {
     t?.cancel();
   }
 
-  Future<bool> scheduleOneShotIn({
+  Future<TestResult> scheduleOneShotIn({
     required Duration delay,
     String title = 'Mood8 test reminder',
     String body = "If you see this, reminders work.",
   }) async {
     if (!isGranted) {
       final ok = await requestPermission();
-      if (!ok) return false;
+      if (!ok) {
+        return TestResult(
+          ok: false,
+          mode: 'web-timer',
+          reason: 'Notification permission denied.',
+          firesAt: null,
+          pendingCount: 0,
+        );
+      }
     }
     _timers['oneshot']?.cancel();
     _timers['oneshot'] = Timer(delay, () => _show(title, body));
-    return true;
+    final fires = DateTime.now().add(delay);
+    NotifLog.log('web test scheduled at $fires');
+    return TestResult(
+      ok: true,
+      mode: 'web-timer',
+      reason: null,
+      firesAt: fires.toIso8601String(),
+      pendingCount: _timers.length,
+    );
+  }
+
+  Future<TestResult> showNowDiagnostic({
+    String title = 'Mood8 immediate test',
+    String body = "If you see this, the notification path works.",
+  }) async {
+    if (!isGranted) {
+      final ok = await requestPermission();
+      if (!ok) {
+        return TestResult(
+          ok: false,
+          mode: 'show()',
+          reason: 'Notification permission denied.',
+          firesAt: null,
+          pendingCount: 0,
+        );
+      }
+    }
+    _show(title, body);
+    NotifLog.log('web show() fired');
+    return TestResult(
+      ok: true,
+      mode: 'show()',
+      reason: 'Notification posted',
+      firesAt: DateTime.now().toIso8601String(),
+      pendingCount: _timers.length,
+    );
   }
 
   Future<List<PendingNotificationRequest>> pendingRequests() async {
@@ -158,6 +220,8 @@ class NotificationServiceImpl {
     // shows the count as zero on web.
     return const [];
   }
+
+  String get timezoneName => 'web (browser-local)';
 
   Future<void> cancelAll() async {
     for (final t in _timers.values) {

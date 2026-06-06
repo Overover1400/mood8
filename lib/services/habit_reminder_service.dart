@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit.dart';
 import 'database_service.dart';
+import 'notif_log.dart';
 import 'notification_service.dart';
 
 /// Per-habit reminder scheduling. Owns the conversion from the
@@ -45,7 +45,7 @@ class HabitReminderService {
       final prefs = await SharedPreferences.getInstance();
       _globalCache = prefs.getBool(_kGlobalEnabledKey) ?? true;
     } catch (e) {
-      debugPrint('[HabitReminders] loadGlobalSetting failed: $e');
+      NotifLog.log('habitReminders: loadGlobalSetting failed: $e');
     }
     _globalLoaded = true;
     return _globalCache;
@@ -58,7 +58,7 @@ class HabitReminderService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_kGlobalEnabledKey, enabled);
     } catch (e) {
-      debugPrint('[HabitReminders] setGloballyEnabled persist failed: $e');
+      NotifLog.log('habitReminders: setGloballyEnabled persist failed: $e');
     }
     if (enabled) {
       await scheduleAll();
@@ -75,7 +75,7 @@ class HabitReminderService {
   Future<void> scheduleAll() async {
     if (!_globalLoaded) await loadGlobalSetting();
     if (!_globalCache) {
-      debugPrint('[HabitReminders] master switch off — skipping schedule');
+      NotifLog.log('habitReminders: master switch off — skipping schedule');
       return;
     }
     final notif = NotificationService();
@@ -85,14 +85,14 @@ class HabitReminderService {
     // permission wasn't granted, even when it was.
     await notif.ensureInitialized();
     if (!notif.isSupported) {
-      debugPrint('[HabitReminders] notifications unsupported on platform');
+      NotifLog.log('habitReminders: notifications unsupported on platform');
       return;
     }
     for (final h in _habitBox.values) {
       await _scheduleHabit(h);
     }
-    debugPrint(
-        '[HabitReminders] re-scheduled all habits (${_habitBox.length}) · '
+    NotifLog.log(
+        'habitReminders: re-scheduled all habits (${_habitBox.length}) · '
         'granted=${notif.isGranted} exact=${notif.canExactAlarm}');
   }
 
@@ -142,8 +142,8 @@ class HabitReminderService {
       await notif.ensureInitialized();
     }
     if (!notif.isGranted) {
-      debugPrint(
-          '[HabitReminders] permission not granted — skipping schedule '
+      NotifLog.log(
+          'habitReminders: permission not granted — skipping schedule '
           'for "${habit.title}"');
       return;
     }
