@@ -30,6 +30,7 @@ import '../models/user_profile.dart';
 import '../models/weekly_recap.dart';
 import 'auth_service.dart';
 import 'database_service.dart';
+import 'habit_reminder_service.dart';
 
 /// Two-way cloud sync over a generic JSONB store on the server. Every
 /// supported entity has a [_EntityCodec] that knows how to:
@@ -853,6 +854,8 @@ class _HabitCodec implements _EntityCodec {
           'aiManaged': h.aiManaged,
           'goalDescription': h.goalDescription,
           'programDurationDays': h.programDurationDays,
+          'remindersEnabled': h.remindersEnabled,
+          'reminderMinutes': h.reminderMinutes,
         });
       }
     }
@@ -915,8 +918,17 @@ class _HabitCodec implements _EntityCodec {
       goalDescription: json['goalDescription'] as String?,
       programDurationDays:
           (json['programDurationDays'] as num?)?.toInt(),
+      remindersEnabled: json['remindersEnabled'] as bool? ?? false,
+      reminderMinutes:
+          (json['reminderMinutes'] as List?)?.cast<int>(),
     );
     await _box.put(id, h);
+    // After a pull writes a habit (e.g. user enabled a reminder on
+    // another device), reschedule its OS-level notification slots so
+    // they fire on this device too. Safe to call for any habit — the
+    // service no-ops when remindersEnabled is false.
+    // ignore: discarded_futures
+    HabitReminderService().rescheduleFor(h);
   }
 
   @override

@@ -41,13 +41,15 @@ class HabitAdapter extends TypeAdapter<Habit> {
       aiManaged: (fields[21] as bool?) ?? false,
       goalDescription: fields[22] as String?,
       programDurationDays: fields[23] as int?,
+      remindersEnabled: (fields[24] as bool?) ?? false,
+      reminderMinutes: (fields[25] as List?)?.cast<int>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, Habit obj) {
     writer
-      ..writeByte(24)
+      ..writeByte(26)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -95,7 +97,11 @@ class HabitAdapter extends TypeAdapter<Habit> {
       ..writeByte(22)
       ..write(obj.goalDescription)
       ..writeByte(23)
-      ..write(obj.programDurationDays);
+      ..write(obj.programDurationDays)
+      ..writeByte(24)
+      ..write(obj.remindersEnabled)
+      ..writeByte(25)
+      ..write(obj.reminderMinutes);
   }
 
   @override

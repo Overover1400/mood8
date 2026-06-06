@@ -42,6 +42,28 @@ class NotificationService {
       _impl.scheduleHabitReminder(
           habitTitle: habitTitle, hour: hour, minute: minute);
 
+  /// Schedules a daily-repeating per-habit reminder under a caller-
+  /// supplied id (so cancelling the same id removes the slot — used
+  /// by HabitReminderService when the user disables a habit reminder
+  /// or edits its time).
+  Future<void> scheduleHabitReminderAt({
+    required int id,
+    required int hour,
+    required int minute,
+    required String title,
+    required String body,
+  }) =>
+      _impl.scheduleHabitReminderAt(
+        id: id,
+        hour: hour,
+        minute: minute,
+        title: title,
+        body: body,
+      );
+
+  /// Cancels a single notification by id.
+  Future<void> cancelById(int id) => _impl.cancelById(id);
+
   Future<void> testNotification() => _impl.testNotification();
 
   Future<void> cancelAll() => _impl.cancelAll();

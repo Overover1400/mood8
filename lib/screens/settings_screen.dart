@@ -17,6 +17,7 @@ import '../services/badge_service.dart';
 import '../services/effects_service.dart';
 import '../services/feedback_service.dart';
 import '../services/haptic_service.dart';
+import '../services/habit_reminder_service.dart';
 import '../services/notification_service.dart';
 import '../services/onboarding_service.dart';
 import '../services/preferences_service.dart';
@@ -762,6 +763,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                     SettingsSection(
+                      title: 'Notifications',
+                      subtitle:
+                          'Per-habit reminders, scheduled locally',
+                      children: [
+                        _HabitRemindersTile(),
+                        SettingsTile(
+                          icon: Icons.health_and_safety_outlined,
+                          title: 'Permission status',
+                          subtitle:
+                              'How Android decides if reminders fire',
+                          onTap: _showNotificationStatus,
+                        ),
+                        SettingsTile(
+                          icon: Icons.battery_alert_outlined,
+                          title: 'Why reminders might be late',
+                          subtitle:
+                              "Battery-saving on Xiaomi/Samsung/Huawei",
+                          onTap: _showOemReminderNote,
+                        ),
+                      ],
+                    ),
+                    SettingsSection(
                       title: 'Challenges',
                       children: [
                         SettingsTile(
@@ -1171,6 +1194,92 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _effects.celebrateAllRoutinesComplete(
       context: context,
       userName: user?.name,
+    );
+  }
+
+  Future<void> _showNotificationStatus() async {
+    HapticService().selection();
+    final notif = NotificationService();
+    final supported = notif.isSupported;
+    final granted = notif.isGranted;
+    final body = !supported
+        ? 'Notifications are not available on this platform.'
+        : granted
+            ? "Granted. Reminders fire at their scheduled times."
+            : "Not granted. Enabling a habit reminder will ask for permission.";
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text(
+          'Notification permission',
+          style: TextStyle(color: BrandColors.ink(context)),
+        ),
+        content: Text(
+          body,
+          style: TextStyle(color: BrandColors.inkSoft(context), height: 1.4),
+        ),
+        actions: [
+          if (supported && !granted)
+            TextButton(
+              onPressed: () async {
+                final ok = await NotificationService().requestPermission();
+                if (!ctx.mounted) return;
+                Navigator.of(ctx).pop();
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(
+                    content: Text(ok
+                        ? "Permission granted — reminders are armed."
+                        : "Still not granted. You can change this in Android Settings."),
+                  ),
+                );
+              },
+              child: const Text('Grant permission'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showOemReminderNote() async {
+    HapticService().selection();
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text(
+          'Reminder reliability',
+          style: TextStyle(color: BrandColors.ink(context)),
+        ),
+        content: Text(
+          "Mood8 schedules habit reminders with Android's built-in alarm system, "
+          "and they survive app close and device reboot.\n\n"
+          "On some phones — Xiaomi, Samsung, Huawei, OnePlus, Oppo, Vivo — "
+          "aggressive battery-saving may delay or skip background work, "
+          "including notifications. If you notice reminders firing late or not at all:\n\n"
+          "• Open Android Settings → Apps → Mood8\n"
+          "• Find 'Battery' or 'App battery usage'\n"
+          "• Set Mood8 to Unrestricted / No restrictions\n"
+          "• On Xiaomi: also enable 'Autostart' for Mood8\n\n"
+          "This is an Android-wide quirk, not a Mood8 bug — but it's the single "
+          "biggest thing you can do to make sure reminders are on time.",
+          style: TextStyle(
+            color: BrandColors.inkSoft(context),
+            height: 1.45,
+            fontSize: 13,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1783,6 +1892,62 @@ class _PremiumActiveCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Master switch for habit reminders. Lives in Settings →
+/// Notifications. Toggling off cancels every per-habit slot at the
+/// OS level (via [HabitReminderService.cancelAll]) without touching
+/// each habit's `remindersEnabled` field, so flipping back on
+/// restores the user's choices instead of starting from scratch.
+class _HabitRemindersTile extends StatefulWidget {
+  @override
+  State<_HabitRemindersTile> createState() => _HabitRemindersTileState();
+}
+
+class _HabitRemindersTileState extends State<_HabitRemindersTile> {
+  bool _value = HabitReminderService().globallyEnabled;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Confirm the cached value matches disk — covers the case where
+    // the user flipped it on another device while the app was alive.
+    HabitReminderService().loadGlobalSetting().then((v) {
+      if (!mounted) return;
+      setState(() => _value = v);
+    });
+  }
+
+  Future<void> _onChanged(bool v) async {
+    setState(() {
+      _value = v;
+      _busy = true;
+    });
+    try {
+      if (v && !NotificationService().isGranted) {
+        await NotificationService().requestPermission();
+      }
+      await HabitReminderService().setGloballyEnabled(v);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsToggle(
+      icon: Icons.notifications_active_rounded,
+      title: 'Habit reminders',
+      subtitle: _busy
+          ? 'Updating…'
+          : _value
+              ? "Per-habit reminders are armed on this device"
+              : "Master switch off — no habit reminders fire",
+      value: _value,
+      onChanged: _busy ? null : _onChanged,
     );
   }
 }

@@ -34,7 +34,10 @@ class Habit extends HiveObject {
     this.aiManaged = false,
     this.goalDescription,
     this.programDurationDays,
-  }) : frozenDates = frozenDates ?? <DateTime>[];
+    this.remindersEnabled = false,
+    List<int>? reminderMinutes,
+  })  : frozenDates = frozenDates ?? <DateTime>[],
+        reminderMinutes = reminderMinutes ?? <int>[];
 
   @HiveField(0)
   String id;
@@ -130,6 +133,22 @@ class Habit extends HiveObject {
   /// when [aiManaged] is false.
   @HiveField(23)
   int? programDurationDays;
+
+  /// True when the user enabled per-habit reminders. Pairs with
+  /// [reminderMinutes] — the list of minute-of-day slots (0–1439)
+  /// the OS should fire a local notification at.
+  ///
+  /// We store the toggle separately from the list so a user can
+  /// silence reminders temporarily without losing their carefully
+  /// picked times.
+  @HiveField(24)
+  bool remindersEnabled;
+
+  /// Minute-of-day slots for reminders (e.g. 540 = 09:00). Empty when
+  /// no reminders are set. Counter habits (drink water 8x/day, etc.)
+  /// can have many entries; yes/no habits typically have one.
+  @HiveField(25)
+  List<int> reminderMinutes;
 
   bool get isAvoid => polarity == HabitPolarity.avoid;
   bool get isFromPackage => packageId != null;

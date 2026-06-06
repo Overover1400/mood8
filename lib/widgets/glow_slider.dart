@@ -192,26 +192,26 @@ class CompactGlowSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     final score = (value * 10).toStringAsFixed(1);
     return SizedBox(
-      height: 28,
+      height: 38,
       child: Row(
         children: [
-          Icon(icon, size: 14, color: BrandColors.inkSoft(context)),
-          const SizedBox(width: 6),
+          Icon(icon, size: 17, color: BrandColors.inkSoft(context)),
+          const SizedBox(width: 8),
           SizedBox(
-            width: 46,
+            width: 58,
             child: Text(
               label,
               style: TextStyle(
                 color: BrandColors.inkSoft(context),
                 fontWeight: FontWeight.w700,
-                fontSize: 12,
+                fontSize: 13.5,
               ),
             ),
           ),
           Expanded(
             child: SliderTheme(
               data: SliderThemeData(
-                trackHeight: 5,
+                trackHeight: 7,
                 trackShape: const _GradientTrackShape(),
                 thumbShape: const _CompactThumbShape(),
                 overlayShape: SliderComponentShape.noOverlay,
@@ -226,18 +226,32 @@ class CompactGlowSlider extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           SizedBox(
-            width: 32,
-            child: Text(
-              score,
-              textAlign: TextAlign.right,
-              style: GoogleFonts.bricolageGrotesque(
-                color: BrandColors.ink(context),
-                fontSize: 14,
-                height: 1.0,
-                fontWeight: FontWeight.w800,
+            width: 42,
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: score,
+                    style: GoogleFonts.bricolageGrotesque(
+                      color: BrandColors.ink(context),
+                      fontSize: 17,
+                      height: 1.0,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  TextSpan(
+                    text: ' /10',
+                    style: TextStyle(
+                      color: BrandColors.inkDim(context),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
+              textAlign: TextAlign.right,
             ),
           ),
         ],
@@ -251,7 +265,7 @@ class _CompactThumbShape extends SliderComponentShape {
 
   @override
   Size getPreferredSize(bool isEnabled, bool isDiscrete) =>
-      const Size(16, 16);
+      const Size(20, 20);
 
   @override
   void paint(
@@ -270,16 +284,16 @@ class _CompactThumbShape extends SliderComponentShape {
   }) {
     final canvas = context.canvas;
     final glow = Paint()
-      ..color = AppColors.pinkLight.withValues(alpha: 0.5)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-    canvas.drawCircle(center, 9, glow);
+      ..color = AppColors.pinkLight.withValues(alpha: 0.55)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+    canvas.drawCircle(center, 11, glow);
     final ring = Paint()
       ..shader = AppColors.buttonGradient.createShader(
-        Rect.fromCircle(center: center, radius: 8),
+        Rect.fromCircle(center: center, radius: 10),
       );
-    canvas.drawCircle(center, 8, ring);
+    canvas.drawCircle(center, 10, ring);
     final inner = Paint()..color = Colors.white;
-    canvas.drawCircle(center, 4.5, inner);
+    canvas.drawCircle(center, 5.5, inner);
   }
 }
 

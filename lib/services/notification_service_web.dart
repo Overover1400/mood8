@@ -102,6 +102,30 @@ class NotificationServiceImpl {
     _show(title, body);
   }
 
+  /// Web-equivalent of the mobile per-habit reminder. Stored under
+  /// the id-derived key so HabitReminderService can cancel an
+  /// individual slot.
+  Future<void> scheduleHabitReminderAt({
+    required int id,
+    required int hour,
+    required int minute,
+    required String title,
+    required String body,
+  }) async {
+    _scheduleDaily(
+      key: 'habit_$id',
+      hour: hour,
+      minute: minute,
+      title: title,
+      body: body,
+    );
+  }
+
+  Future<void> cancelById(int id) async {
+    final t = _timers.remove('habit_$id');
+    t?.cancel();
+  }
+
   Future<void> cancelAll() async {
     for (final t in _timers.values) {
       t.cancel();

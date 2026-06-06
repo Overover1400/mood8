@@ -17,6 +17,7 @@ import 'services/effects_service.dart';
 import 'services/freeze_service.dart';
 import 'services/gratitude_repository.dart';
 import 'services/habit_repository.dart';
+import 'services/habit_reminder_service.dart';
 import 'services/haptic_service.dart';
 import 'services/intention_repository.dart';
 import 'services/notification_feed_service.dart';
@@ -71,6 +72,16 @@ Future<void> main() async {
   // permission from the settings screen at any time.
   await ReminderService().getSettings();
   await ReminderService().scheduleAllReminders();
+  // Per-habit reminders (NEW): load the global master switch + push
+  // schedules for every habit that has reminders enabled. On Android
+  // these survive app-close + reboot because flutter_local_notifications
+  // hands them off to AlarmManager; the BootBroadcastReceiver shipped
+  // with the plugin reschedules them after a reboot. Web falls through
+  // to the Timer-based scheduler (tab-lifetime only — same caveat as
+  // the existing ReminderService).
+  await HabitReminderService().loadGlobalSetting();
+  // ignore: discarded_futures
+  HabitReminderService().scheduleAll();
   // Fire-and-forget so a slow audio load doesn't block first paint.
   // Both services degrade silently when assets or capabilities are missing.
   HapticService().initialize();
@@ -566,6 +577,14 @@ class _AuthGateState extends State<AuthGate> {
       await SyncService().syncNow();
     }
     await SubscriptionService().refreshStatus();
+    // Per-habit reminders need a re-schedule after a server pull —
+    // the pull may have brought down newly-enabled reminders that
+    // didn't exist locally before sign-in. The sync codec already
+    // calls rescheduleFor on every habit upsert, but a coalesced
+    // reschedule here is the belt to that suspenders for fresh
+    // installs.
+    // ignore: discarded_futures
+    HabitReminderService().scheduleAll();
   }
 }
 

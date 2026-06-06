@@ -1512,10 +1512,12 @@ class _MoodHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Compact layout: single-line header (small label + saved chip) +
-    // three single-line CompactGlowSliders. Down from ~245px to ~118px.
+    // Middle-ground layout: readable single-line header + three
+    // 38-px CompactGlowSliders with thicker 7-px tracks and a 20-px
+    // thumb so the controls feel tappable without bringing back the
+    // ~245-px orb-and-Save-button hero card. Lands at ~170px.
     return GlassCard(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1526,10 +1528,10 @@ class _MoodHeroCard extends StatelessWidget {
                   'How are you?',
                   style: brandFont(
                     color: BrandColors.ink(context),
-                    fontSize: 15,
+                    fontSize: 17,
                     weight: FontWeight.w800,
                     height: 1.1,
-                    letterSpacing: -0.1,
+                    letterSpacing: -0.15,
                   ),
                 ),
               ),
@@ -1538,7 +1540,7 @@ class _MoodHeroCard extends StatelessWidget {
                 opacity: savedFlash ? 1.0 : 0.0,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 7, vertical: 2),
+                      horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: AppColors.purple.withValues(alpha: 0.20),
                     borderRadius: BorderRadius.circular(20),
@@ -1550,13 +1552,13 @@ class _MoodHeroCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.check_rounded,
-                          color: AppColors.pinkLight, size: 10),
-                      const SizedBox(width: 3),
+                          color: AppColors.pinkLight, size: 11),
+                      const SizedBox(width: 4),
                       Text(
                         'Saved',
                         style: TextStyle(
                           color: AppColors.pinkLight,
-                          fontSize: 9,
+                          fontSize: 10,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.5,
                         ),
@@ -1567,7 +1569,7 @@ class _MoodHeroCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Column(
             key: TutorialTargets.moodSliders,
             children: [
