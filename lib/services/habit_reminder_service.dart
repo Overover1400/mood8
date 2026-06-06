@@ -79,6 +79,11 @@ class HabitReminderService {
       return;
     }
     final notif = NotificationService();
+    // CRITICAL: await init so isSupported/isGranted reflect the real
+    // OS state. Without this the boot-time scheduleAll call used to
+    // bail before doing anything because the cached defaults claimed
+    // permission wasn't granted, even when it was.
+    await notif.ensureInitialized();
     if (!notif.isSupported) {
       debugPrint('[HabitReminders] notifications unsupported on platform');
       return;
@@ -87,7 +92,8 @@ class HabitReminderService {
       await _scheduleHabit(h);
     }
     debugPrint(
-        '[HabitReminders] re-scheduled all habits (${_habitBox.length})');
+        '[HabitReminders] re-scheduled all habits (${_habitBox.length}) · '
+        'granted=${notif.isGranted} exact=${notif.canExactAlarm}');
   }
 
   /// Re-schedule a single habit. Used by repos after an in-place
@@ -101,6 +107,7 @@ class HabitReminderService {
       await _cancelHabit(habit);
       return;
     }
+    await NotificationService().ensureInitialized();
     await _scheduleHabit(habit);
   }
 
@@ -127,6 +134,13 @@ class HabitReminderService {
     if (!habit.remindersEnabled) return;
     if (habit.reminderMinutes.isEmpty) return;
     final notif = NotificationService();
+    // Permission state was refreshed by scheduleAll / rescheduleFor
+    // via ensureInitialized — but defense-in-depth: if we're called
+    // from a code path that didn't go through those, init now. Safe
+    // and cheap (idempotent + single in-flight future).
+    if (!notif.isInitialized) {
+      await notif.ensureInitialized();
+    }
     if (!notif.isGranted) {
       debugPrint(
           '[HabitReminders] permission not granted — skipping schedule '

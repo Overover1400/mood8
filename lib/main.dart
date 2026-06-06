@@ -21,6 +21,7 @@ import 'services/habit_reminder_service.dart';
 import 'services/haptic_service.dart';
 import 'services/intention_repository.dart';
 import 'services/notification_feed_service.dart';
+import 'services/notification_service.dart';
 import 'services/reminder_service.dart';
 import 'services/sync_service.dart';
 import 'widgets/tutorial_overlay.dart';
@@ -70,6 +71,12 @@ Future<void> main() async {
   // on first launch) and schedules timers if enabled + permission granted.
   // No-op silently if either condition is missing — the user can grant
   // permission from the settings screen at any time.
+  // CRITICAL: init NotificationService BEFORE any code that calls
+  // scheduleX or checks isGranted. Both are sync getters that return
+  // their cached default (false) until init runs — without this await,
+  // every boot-time scheduleAll call bails before doing anything,
+  // even for users who already granted permission in a prior session.
+  await NotificationService().ensureInitialized();
   await ReminderService().getSettings();
   await ReminderService().scheduleAllReminders();
   // Per-habit reminders (NEW): load the global master switch + push
@@ -165,6 +172,23 @@ class _Mood8AppState extends State<Mood8App> with WidgetsBindingObserver {
       // user was in the Stripe browser tab. Refresh + announce.
       // ignore: discarded_futures
       _refreshPremiumOnResume();
+      // Notification permissions may have been toggled from system
+      // Settings while we were backgrounded (the most common path:
+      // user grants SCHEDULE_EXACT_ALARM after we deep-linked them
+      // there). Refresh + re-schedule so the exact-alarm path kicks
+      // in without forcing them back into the habit editor.
+      // ignore: discarded_futures
+      _refreshRemindersOnResume();
+    }
+  }
+
+  Future<void> _refreshRemindersOnResume() async {
+    try {
+      await NotificationService().refreshPermissionState();
+      await HabitReminderService().scheduleAll();
+    } catch (e) {
+      // Non-fatal — next scheduleAll trigger will retry.
+      debugPrint('[Notif] resume refresh failed: $e');
     }
   }
 

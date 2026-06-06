@@ -17,16 +17,20 @@
          scheduled habit reminders survive a device reboot. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- Inexact alarms are enough for v1 reminders (we use
-         AndroidScheduleMode.inexactAllowWhileIdle), and this permission
-         is granted automatically on install. We deliberately do NOT
-         request SCHEDULE_EXACT_ALARM — that would trigger a Settings-
-         level user prompt on Android 12+ for a small reliability win,
-         which is not worth it for the v1 ship. -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"
-        tools:node="remove" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM"
-        tools:node="remove" />
+    <!-- Exact alarms — required for daily-repeating habit reminders
+         to fire reliably. flutter_local_notifications' repeating
+         (matchDateTimeComponents) only respects the next-day cycle
+         when scheduled with exactAllowWhileIdle, and inexact mode
+         lets the OS coalesce alarms by 15+ minutes on aggressive
+         OEMs (Xiaomi/Samsung/etc.). Android 12+ requires the user to
+         grant SCHEDULE_EXACT_ALARM explicitly via system Settings —
+         declared here gives the user the OPTION; the app prompts
+         them at first-reminder-set time and falls back to inexact
+         mode if they decline. USE_EXACT_ALARM is for Android 13+
+         apps in the "alarm clock"/calendar category and grants the
+         same capability without a user prompt; we declare both. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
     <application
         android:label="Mood8"

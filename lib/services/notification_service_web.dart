@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:html' as html;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// Web implementation backed by the browser's `Notification` API. Uses
 /// `Timer` to schedule the *next* occurrence of each daily slot, then
@@ -24,6 +25,12 @@ class NotificationServiceImpl {
     }
   }
 
+  bool get canExactAlarm => isGranted; // not meaningful on web
+  bool get isInitialized => true;
+
+  Future<void> ensureInitialized() async {}
+  Future<void> refreshPermissionState() async {}
+
   final Map<String, Timer> _timers = {};
 
   Future<bool> requestPermission() async {
@@ -37,6 +44,11 @@ class NotificationServiceImpl {
       return false;
     }
   }
+
+  Future<bool> requestExactAlarmPermission() async => isGranted;
+
+  Future<bool> requestIgnoreBatteryOptimizations() async => true;
+  Future<bool> isIgnoringBatteryOptimizations() async => true;
 
   Future<void> scheduleMorningCheckIn({
     required String name,
@@ -124,6 +136,27 @@ class NotificationServiceImpl {
   Future<void> cancelById(int id) async {
     final t = _timers.remove('habit_$id');
     t?.cancel();
+  }
+
+  Future<bool> scheduleOneShotIn({
+    required Duration delay,
+    String title = 'Mood8 test reminder',
+    String body = "If you see this, reminders work.",
+  }) async {
+    if (!isGranted) {
+      final ok = await requestPermission();
+      if (!ok) return false;
+    }
+    _timers['oneshot']?.cancel();
+    _timers['oneshot'] = Timer(delay, () => _show(title, body));
+    return true;
+  }
+
+  Future<List<PendingNotificationRequest>> pendingRequests() async {
+    // Web's Timer-based scheduler doesn't surface a usable
+    // "pending requests" list — return empty so the debug UI just
+    // shows the count as zero on web.
+    return const [];
   }
 
   Future<void> cancelAll() async {

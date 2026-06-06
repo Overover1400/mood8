@@ -172,7 +172,19 @@ class _GradientTrackShape extends SliderTrackShape {
 /// section fits three controls into about a third of the vertical
 /// space the full [GlowSlider] needs. Same gradient track, same auto-
 /// save semantics (onChangeEnd), just thinner.
-class CompactGlowSlider extends StatelessWidget {
+///
+/// **Why this is stateful.** Earlier versions painted `value` straight
+/// off the parent prop. During a fast drag, the home screen's other
+/// rebuilders (three ValueListenableBuilders watching mood/routines/
+/// habits boxes, plus the flutter_animate wrappers) competed with the
+/// slider's setState and the displayed number sometimes lagged the
+/// thumb position by a frame or two — the user saw the number "jump
+/// to a wrong value during drag and snap back on release". Tracking
+/// the live drag value internally and only syncing to the parent for
+/// persistence decouples the displayed number from any external
+/// rebuild cadence: it tracks the slider's onChanged callback at
+/// frame rate, period.
+class CompactGlowSlider extends StatefulWidget {
   const CompactGlowSlider({
     super.key,
     required this.label,
@@ -189,18 +201,54 @@ class CompactGlowSlider extends StatelessWidget {
   final ValueChanged<double>? onChangeEnd;
 
   @override
+  State<CompactGlowSlider> createState() => _CompactGlowSliderState();
+}
+
+class _CompactGlowSliderState extends State<CompactGlowSlider> {
+  /// Live drag value. Null when not dragging — then the displayed
+  /// value falls back to the parent-controlled [widget.value].
+  double? _liveValue;
+
+  @override
+  void didUpdateWidget(covariant CompactGlowSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The parent pushed a new value (e.g. hydration from today's
+    // entry, or a reset). If we're not currently dragging, accept it.
+    // If we are dragging, ignore — the user's finger is the source
+    // of truth until they lift it.
+    if (_liveValue != null && widget.value != oldWidget.value) {
+      // Parent value changed while we were dragging — could happen
+      // from an external sync. Don't snap mid-drag; let the drag
+      // finish, then the next rebuild will pick up the new prop.
+    }
+  }
+
+  double get _displayValue => _liveValue ?? widget.value;
+
+  void _handleChanged(double v) {
+    setState(() => _liveValue = v);
+    widget.onChanged(v);
+  }
+
+  void _handleChangeEnd(double v) {
+    setState(() => _liveValue = null);
+    widget.onChangeEnd?.call(v);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final score = (value * 10).toStringAsFixed(1);
+    final v = _displayValue;
+    final score = (v * 10).toStringAsFixed(1);
     return SizedBox(
       height: 38,
       child: Row(
         children: [
-          Icon(icon, size: 17, color: BrandColors.inkSoft(context)),
+          Icon(widget.icon, size: 17, color: BrandColors.inkSoft(context)),
           const SizedBox(width: 8),
           SizedBox(
             width: 58,
             child: Text(
-              label,
+              widget.label,
               style: TextStyle(
                 color: BrandColors.inkSoft(context),
                 fontWeight: FontWeight.w700,
@@ -220,15 +268,23 @@ class CompactGlowSlider extends StatelessWidget {
                 thumbColor: Colors.white,
               ),
               child: Slider(
-                value: value,
-                onChanged: onChanged,
-                onChangeEnd: onChangeEnd,
+                // IMPORTANT: paint the thumb from the live drag value
+                // too, not the parent prop. Otherwise the thumb lags
+                // the displayed score during fast drags on slower
+                // devices — same root cause as the value-text bug.
+                value: v,
+                onChanged: _handleChanged,
+                onChangeEnd: _handleChangeEnd,
               ),
             ),
           ),
           const SizedBox(width: 10),
+          // Bumped from 42 → 54 px. "10.0 /10" needs ~52 px at this
+          // font size; the old 42 was just under the threshold and
+          // clipped the " /10" suffix at high values, which
+          // contributed to the "wrong value" misread.
           SizedBox(
-            width: 42,
+            width: 54,
             child: Text.rich(
               TextSpan(
                 children: [
@@ -252,6 +308,7 @@ class CompactGlowSlider extends StatelessWidget {
                 ],
               ),
               textAlign: TextAlign.right,
+              maxLines: 1,
             ),
           ),
         ],

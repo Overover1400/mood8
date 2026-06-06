@@ -1,11 +1,16 @@
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'
+    show PendingNotificationRequest;
+
 import 'notification_service_stub.dart'
     if (dart.library.html) 'notification_service_web.dart';
 
-/// Cross-platform notification facade. On web it backs onto the browser's
-/// `Notification` API (see `notification_service_web.dart`). On all other
-/// platforms it's a no-op stub today — wire `flutter_local_notifications`
-/// in `notification_service_stub.dart` when you're ready to ship mobile
-/// reminders.
+export 'package:flutter_local_notifications/flutter_local_notifications.dart'
+    show PendingNotificationRequest;
+
+/// Cross-platform notification facade. On web it backs onto the
+/// browser's `Notification` API (see `notification_service_web.dart`).
+/// On Android/iOS it wraps `flutter_local_notifications` — see
+/// `notification_service_stub.dart`.
 class NotificationService {
   NotificationService._() : _impl = createNotificationServiceImpl();
   static final NotificationService _instance = NotificationService._();
@@ -13,10 +18,41 @@ class NotificationService {
 
   final NotificationServiceImpl _impl;
 
+  /// Eagerly run the platform init. Call once from `main()` BEFORE any
+  /// schedule code so the sync getters below ([isGranted], [isSupported],
+  /// [canExactAlarm]) reflect the real OS state on the first frame.
+  /// Skipping this used to cause every boot-time HabitReminderService
+  /// schedule call to bail with `isGranted == false` (its cached default)
+  /// even when the user had already granted permission in a prior
+  /// session.
+  Future<void> ensureInitialized() => _impl.ensureInitialized();
+
+  /// Re-read the permission cache (call after returning from Settings).
+  Future<void> refreshPermissionState() => _impl.refreshPermissionState();
+
   bool get isSupported => _impl.isSupported;
   bool get isGranted => _impl.isGranted;
+  bool get canExactAlarm => _impl.canExactAlarm;
+  bool get isInitialized => _impl.isInitialized;
 
   Future<bool> requestPermission() => _impl.requestPermission();
+
+  /// Android 12+ special permission for exact alarms. Returns true if
+  /// already granted (or not required); otherwise opens the system
+  /// Settings page and returns the eventual state.
+  Future<bool> requestExactAlarmPermission() =>
+      _impl.requestExactAlarmPermission();
+
+  /// Opens the Android "ignore battery optimizations" prompt for
+  /// Mood8 — the single biggest reliability lever on aggressive
+  /// OEMs.
+  Future<bool> requestIgnoreBatteryOptimizations() =>
+      _impl.requestIgnoreBatteryOptimizations();
+
+  /// True when Mood8 is currently exempt from Android battery
+  /// optimization.
+  Future<bool> isIgnoringBatteryOptimizations() =>
+      _impl.isIgnoringBatteryOptimizations();
 
   Future<void> scheduleMorningCheckIn({
     required String name,
@@ -63,6 +99,22 @@ class NotificationService {
 
   /// Cancels a single notification by id.
   Future<void> cancelById(int id) => _impl.cancelById(id);
+
+  /// Schedules a one-shot notification [delay] from now. Used by the
+  /// "Test reminder" buttons in the habit sheet + settings so the user
+  /// can verify reminders work on their specific device before relying
+  /// on real 9 AM schedules.
+  Future<bool> scheduleOneShotIn({
+    required Duration delay,
+    String title = 'Mood8 test reminder',
+    String body = "If you see this, reminders work.",
+  }) =>
+      _impl.scheduleOneShotIn(delay: delay, title: title, body: body);
+
+  /// Returns every notification currently queued in the OS — used by
+  /// the test screen so a tester can confirm the schedule landed.
+  Future<List<PendingNotificationRequest>> pendingRequests() =>
+      _impl.pendingRequests();
 
   Future<void> testNotification() => _impl.testNotification();
 

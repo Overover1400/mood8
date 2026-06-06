@@ -322,8 +322,19 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
       // so the choice survives across permission changes, but we show
       // a hint that nothing will fire until they grant.
       final notif = NotificationService();
+      // Init eagerly so the post-permission state is correct on the
+      // next setState (the inline "permission not granted" banner
+      // gates on notif.isGranted).
+      await notif.ensureInitialized();
       if (notif.isSupported && !notif.isGranted) {
         await notif.requestPermission();
+      }
+      // Android 12+ "special permission" needed for the daily-
+      // repeating exact alarm. Asks via system Settings. If the user
+      // declines we fall back to inexact-mode scheduling so reminders
+      // still fire, just with up to ~15 min jitter.
+      if (notif.isGranted && !notif.canExactAlarm) {
+        await notif.requestExactAlarmPermission();
       }
     }
     setState(() {
@@ -335,6 +346,32 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
         _reminderMinutes = [540];
       }
     });
+  }
+
+  Future<void> _onTestReminder() async {
+    HapticFeedback.selectionClick();
+    final notif = NotificationService();
+    final ok = await notif.scheduleOneShotIn(
+      delay: const Duration(seconds: 5),
+      title: '$_emoji ${_titleCtrl.text.trim().isEmpty ? "Mood8 test" : _titleCtrl.text.trim()}',
+      body: 'Test reminder · close the app to verify it still fires.',
+    );
+    if (!mounted) return;
+    final pending = await notif.pendingRequests();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Test scheduled for 5 seconds from now. '
+                  '${pending.length} reminder${pending.length == 1 ? '' : 's'} queued in the OS.'
+              : "Could not schedule — permission denied. "
+                  "Tap 'Enable reminders' first.",
+        ),
+        backgroundColor: BrandColors.bgCard(context),
+        duration: const Duration(seconds: 6),
+      ),
+    );
   }
 
   Future<void> _onAddReminder() async {
@@ -590,6 +627,7 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
                     onEdit: _onEditReminder,
                     onRemove: _onRemoveReminder,
                     onPreset: _onApplyReminderPreset,
+                    onTest: _onTestReminder,
                     isCounter: !_isAvoid && _type == HabitType.counter,
                   ),
                   const SizedBox(height: 28),
@@ -1318,6 +1356,7 @@ class _ReminderSection extends StatelessWidget {
     required this.onEdit,
     required this.onRemove,
     required this.onPreset,
+    required this.onTest,
     required this.isCounter,
   });
 
@@ -1328,6 +1367,7 @@ class _ReminderSection extends StatelessWidget {
   final ValueChanged<int> onEdit;
   final ValueChanged<int> onRemove;
   final ValueChanged<_ReminderPreset> onPreset;
+  final VoidCallback onTest;
   final bool isCounter;
 
   @override
@@ -1447,6 +1487,25 @@ class _ReminderSection extends StatelessWidget {
                 ],
               ),
             ],
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _TestReminderButton(onTap: onTest),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    "Fires in 5 seconds — close the app to confirm "
+                    "it still arrives.",
+                    style: TextStyle(
+                      color: BrandColors.inkDim(context),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 6),
             Text(
               'A tap opens Mood8 so you can mark the habit done.',
@@ -1458,6 +1517,48 @@ class _ReminderSection extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _TestReminderButton extends StatelessWidget {
+  const _TestReminderButton({required this.onTap});
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          gradient: AppColors.buttonGradient,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.pink.withValues(alpha: 0.32),
+              blurRadius: 14,
+              spreadRadius: -3,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.flash_on_rounded, color: Colors.white, size: 14),
+            SizedBox(width: 6),
+            Text(
+              'Test reminder',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
