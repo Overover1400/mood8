@@ -17,7 +17,6 @@ import '../services/badge_service.dart';
 import '../services/effects_service.dart';
 import '../services/feedback_service.dart';
 import '../services/haptic_service.dart';
-import '../services/habit_reminder_service.dart';
 import '../services/notification_service.dart';
 import '../services/onboarding_service.dart';
 import '../services/preferences_service.dart';
@@ -55,7 +54,6 @@ import '../widgets/settings/settings_toggle.dart';
 import 'settings/about_screen.dart';
 import 'settings/ai_privacy_screen.dart';
 import 'settings/data_privacy_screen.dart';
-import 'settings/notification_diagnostics_screen.dart';
 import '../services/badge_definitions.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -763,26 +761,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ],
                     ),
-                    SettingsSection(
-                      title: 'Notifications',
-                      subtitle:
-                          'Per-habit reminders, scheduled locally',
-                      children: [
-                        _HabitRemindersTile(),
-                        SettingsTile(
-                          icon: Icons.troubleshoot_rounded,
-                          title: 'Diagnose & test reminders',
-                          subtitle:
-                              "Permissions, queue dump, log, test 'fire NOW' + 'in 5s'",
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  const NotificationDiagnosticsScreen(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                    // TODO(v2): re-enable habit reminders — see Mood8 v2
+                    // reminders work. Notifications section + the
+                    // diagnostic screen live in git history at the
+                    // previous commit.
                     SettingsSection(
                       title: 'Challenges',
                       children: [
@@ -1805,62 +1787,6 @@ class _PremiumActiveCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Master switch for habit reminders. Lives in Settings →
-/// Notifications. Toggling off cancels every per-habit slot at the
-/// OS level (via [HabitReminderService.cancelAll]) without touching
-/// each habit's `remindersEnabled` field, so flipping back on
-/// restores the user's choices instead of starting from scratch.
-class _HabitRemindersTile extends StatefulWidget {
-  @override
-  State<_HabitRemindersTile> createState() => _HabitRemindersTileState();
-}
-
-class _HabitRemindersTileState extends State<_HabitRemindersTile> {
-  bool _value = HabitReminderService().globallyEnabled;
-  bool _busy = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Confirm the cached value matches disk — covers the case where
-    // the user flipped it on another device while the app was alive.
-    HabitReminderService().loadGlobalSetting().then((v) {
-      if (!mounted) return;
-      setState(() => _value = v);
-    });
-  }
-
-  Future<void> _onChanged(bool v) async {
-    setState(() {
-      _value = v;
-      _busy = true;
-    });
-    try {
-      if (v && !NotificationService().isGranted) {
-        await NotificationService().requestPermission();
-      }
-      await HabitReminderService().setGloballyEnabled(v);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SettingsToggle(
-      icon: Icons.notifications_active_rounded,
-      title: 'Habit reminders',
-      subtitle: _busy
-          ? 'Updating…'
-          : _value
-              ? "Per-habit reminders are armed on this device"
-              : "Master switch off — no habit reminders fire",
-      value: _value,
-      onChanged: _busy ? null : _onChanged,
     );
   }
 }

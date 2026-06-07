@@ -9,7 +9,6 @@ import '../models/habit_type.dart';
 import '../models/routine_category.dart';
 import '../screens/paywall_screen.dart';
 import '../services/habit_repository.dart';
-import '../services/notification_service.dart';
 import '../services/subscription_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
@@ -68,8 +67,6 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
   late HabitPolarity _polarity;
   late AvoidMode _avoidMode;
   late int _avoidDurationDays;
-  late bool _remindersEnabled;
-  late List<int> _reminderMinutes; // minute-of-day, sorted.
   String? _titleError;
   bool _saving = false;
 
@@ -92,8 +89,6 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
     _titleCtrl.text = e?.title ?? '';
     _targetCtrl.text = (e?.targetValue ?? _defaultTarget()).toString();
     _unitCtrl.text = e?.targetUnit ?? _type.defaultUnit;
-    _remindersEnabled = e?.remindersEnabled ?? false;
-    _reminderMinutes = [...?e?.reminderMinutes]..sort();
     if (!_isEditing) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _titleFocus.requestFocus();
@@ -206,17 +201,11 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
       final effectiveAvoidDuration = _isAvoid && _avoidMode == AvoidMode.reduce
           ? _avoidDurationDays
           : null;
-      // Normalize reminder selection — drop duplicates, drop out-of-range
-      // values, sort. We don't allow reminders on a habit that has them
-      // enabled but no times picked (the UI prevents this anyway).
-      final cleanedReminders = _reminderMinutes
-          .where((m) => m >= 0 && m < 24 * 60)
-          .toSet()
-          .toList()
-        ..sort();
-      final effectiveRemindersEnabled =
-          _remindersEnabled && cleanedReminders.isNotEmpty;
-
+      // TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
+      // The Hive remindersEnabled / reminderMinutes fields are kept on
+      // the model so v1 data persists; we just don't write to them
+      // from the UI any more (and the service that schedules them is
+      // a no-op).
       if (_isEditing) {
         final h = widget.editing!;
         h.title = title;
@@ -233,11 +222,9 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
         h.polarity = effectivePolarity;
         h.avoidMode = effectiveAvoidMode;
         h.avoidDurationDays = effectiveAvoidDuration;
-        h.remindersEnabled = effectiveRemindersEnabled;
-        h.reminderMinutes = cleanedReminders;
         await _repo.updateHabit(h);
       } else {
-        final h = await _repo.addHabit(
+        await _repo.addHabit(
           title: title,
           icon: _emoji,
           habitType: _type,
@@ -252,15 +239,6 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
           avoidMode: effectiveAvoidMode,
           avoidDurationDays: effectiveAvoidDuration,
         );
-        // addHabit doesn't take reminder args today (signature is wide
-        // already); patch the fresh row, then update so the
-        // HabitReminderService.rescheduleFor call inside updateHabit
-        // picks them up.
-        if (effectiveRemindersEnabled) {
-          h.remindersEnabled = true;
-          h.reminderMinutes = cleanedReminders;
-          await _repo.updateHabit(h);
-        }
       }
       HapticFeedback.lightImpact();
       if (mounted) Navigator.of(context).pop();
@@ -312,164 +290,6 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
     );
   }
 
-  // ─── Reminder handlers ─────────────────────────────────────────────────
-
-  Future<void> _onRemindersToggle(bool enabled) async {
-    if (enabled) {
-      final notif = NotificationService();
-      await notif.ensureInitialized();
-      if (notif.isSupported && !notif.isGranted) {
-        await notif.requestPermission();
-      }
-      // Android 12+: scheduled reminders need SCHEDULE_EXACT_ALARM
-      // for daily repeats to work reliably. Without it, the
-      // matchDateTimeComponents repeat path on the plugin can delay
-      // or skip the next-day re-arm — i.e. the reported bug "set 9am,
-      // didn't fire next morning". Show an EXPLICIT dialog so the
-      // user knows what they're granting (and the screen says what
-      // happens if they decline). Don't await the OS prompt itself —
-      // the resume hook re-reads state on return.
-      if (notif.isGranted && !notif.canExactAlarm) {
-        await _explainExactAlarmAndOpenSettings();
-      }
-    }
-    setState(() {
-      _remindersEnabled = enabled;
-      if (enabled && _reminderMinutes.isEmpty) {
-        _reminderMinutes = [540];
-      }
-    });
-  }
-
-  Future<void> _explainExactAlarmAndOpenSettings() async {
-    if (!mounted) return;
-    final granted = await showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: BrandColors.bgCard(context),
-        title: Text(
-          'Reliable reminders need one more permission',
-          style: TextStyle(color: BrandColors.ink(context), fontSize: 17),
-        ),
-        content: Text(
-          "Android 12+ requires apps to ask for permission to schedule "
-          "exact-time alarms. Without it, Mood8 reminders can be delayed "
-          "by 15+ minutes — or skipped entirely on the second day.\n\n"
-          "Tap 'Open Settings' and toggle 'Allow setting alarms and "
-          "reminders' ON.\n\n"
-          "If you skip this, we'll fall back to approximate scheduling "
-          "(works for some phones, but not all).",
-          style: TextStyle(
-            color: BrandColors.inkSoft(context),
-            fontSize: 13,
-            height: 1.5,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Skip'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(
-              'Open Settings',
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (granted == true) {
-      // ignore: discarded_futures
-      NotificationService().requestExactAlarmPermission();
-      // App-resume hook (in main.dart) re-reads state when the user
-      // returns. We don't await — the future the plugin returns is
-      // unreliable for Settings-launching activities.
-    }
-  }
-
-  Future<void> _onTestReminder() async {
-    HapticFeedback.selectionClick();
-    final notif = NotificationService();
-    await notif.ensureInitialized();
-    // Fire NOW via _plugin.show() — bypasses the alarm scheduler and
-    // proves the permission/channel/icon path. If this fails, the
-    // problem is permission, not scheduling. If this works but the
-    // user's scheduled reminders don't fire, the problem is the
-    // scheduler / exact-alarm permission / OEM doze (the Settings →
-    // Notifications → "Diagnose & test reminders" screen has the
-    // 5-second scheduled test for that).
-    final r = await notif.showNowDiagnostic(
-      title: '$_emoji ${_titleCtrl.text.trim().isEmpty ? "Mood8 test" : _titleCtrl.text.trim()}',
-      body: "If you see this, reminders work on this device.",
-    );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          r.ok
-              ? 'Test notification posted. '
-                  'For the scheduled-firing test, open Settings → '
-                  'Notifications → Diagnose & test.'
-              : "Test failed — ${r.reason ?? 'see logs'}. Open "
-                  "Settings → Notifications → Diagnose & test for details.",
-        ),
-        backgroundColor: BrandColors.bgCard(context),
-        duration: const Duration(seconds: 6),
-      ),
-    );
-  }
-
-  Future<void> _onAddReminder() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: const TimeOfDay(hour: 9, minute: 0),
-    );
-    if (picked == null) return;
-    final m = picked.hour * 60 + picked.minute;
-    if (_reminderMinutes.contains(m)) return;
-    setState(() {
-      _reminderMinutes = [..._reminderMinutes, m]..sort();
-      if (!_remindersEnabled) _remindersEnabled = true;
-    });
-  }
-
-  Future<void> _onEditReminder(int index) async {
-    final current = _reminderMinutes[index];
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60),
-    );
-    if (picked == null) return;
-    final m = picked.hour * 60 + picked.minute;
-    setState(() {
-      _reminderMinutes = <int>{
-        for (var i = 0; i < _reminderMinutes.length; i++)
-          if (i == index) m else _reminderMinutes[i],
-      }.toList()
-        ..sort();
-    });
-  }
-
-  void _onRemoveReminder(int index) {
-    setState(() {
-      _reminderMinutes = [..._reminderMinutes]..removeAt(index);
-      if (_reminderMinutes.isEmpty) _remindersEnabled = false;
-    });
-  }
-
-  /// Quick-set buttons for counter habits — "every 2h between 9am and
-  /// 9pm" is the canonical "drink water 8x/day" pattern. The user can
-  /// edit / remove individual times after applying.
-  void _onApplyReminderPreset(_ReminderPreset preset) {
-    final times = preset.minutes();
-    setState(() {
-      _reminderMinutes = times;
-      _remindersEnabled = times.isNotEmpty;
-    });
-  }
 
   Future<void> _onDelete() async {
     final h = widget.editing;
@@ -664,20 +484,9 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
                       onChanged: (s) => setState(() => _customDays = s),
                     ),
                   ],
-                  const SizedBox(height: 18),
-                  _Label('Reminders'),
-                  const SizedBox(height: 8),
-                  _ReminderSection(
-                    enabled: _remindersEnabled,
-                    times: _reminderMinutes,
-                    onToggle: _onRemindersToggle,
-                    onAdd: _onAddReminder,
-                    onEdit: _onEditReminder,
-                    onRemove: _onRemoveReminder,
-                    onPreset: _onApplyReminderPreset,
-                    onTest: _onTestReminder,
-                    isCounter: !_isAvoid && _type == HabitType.counter,
-                  ),
+                  // TODO(v2): re-enable habit reminders — see Mood8 v2
+                  // reminders work. The "Reminders" section + time
+                  // picker live in git history at the previous commit.
                   const SizedBox(height: 28),
                   Row(
                     children: [
@@ -1348,406 +1157,6 @@ class _SaveButton extends StatelessWidget {
               fontSize: 13,
               letterSpacing: 0.3,
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Counter-habit reminder presets — pre-built rhythms that match the
-/// most common "8x/day" patterns. Picking one sets [_reminderMinutes]
-/// in one tap; the user can then tweak individual times if they want.
-enum _ReminderPreset {
-  every2h,
-  every3h,
-  morningMiddayEvening,
-}
-
-extension _ReminderPresetX on _ReminderPreset {
-  String get label {
-    switch (this) {
-      case _ReminderPreset.every2h:
-        return 'Every 2h (9–21)';
-      case _ReminderPreset.every3h:
-        return 'Every 3h (9–21)';
-      case _ReminderPreset.morningMiddayEvening:
-        return '3 a day';
-    }
-  }
-
-  List<int> minutes() {
-    switch (this) {
-      case _ReminderPreset.every2h:
-        return [for (var h = 9; h <= 21; h += 2) h * 60];
-      case _ReminderPreset.every3h:
-        return [for (var h = 9; h <= 21; h += 3) h * 60];
-      case _ReminderPreset.morningMiddayEvening:
-        return [9 * 60, 13 * 60, 19 * 60];
-    }
-  }
-}
-
-/// Reminder picker rendered inside the Add/Edit Habit sheet. Three
-/// states:
-///
-///   1. master toggle off → just the switch with a one-line copy
-///   2. master toggle on, no times yet → "Add a reminder" pill
-///   3. master toggle on, times set → list of time chips with edit/
-///      delete, + add-reminder pill + (counter only) preset row
-class _ReminderSection extends StatelessWidget {
-  const _ReminderSection({
-    required this.enabled,
-    required this.times,
-    required this.onToggle,
-    required this.onAdd,
-    required this.onEdit,
-    required this.onRemove,
-    required this.onPreset,
-    required this.onTest,
-    required this.isCounter,
-  });
-
-  final bool enabled;
-  final List<int> times;
-  final ValueChanged<bool> onToggle;
-  final VoidCallback onAdd;
-  final ValueChanged<int> onEdit;
-  final ValueChanged<int> onRemove;
-  final ValueChanged<_ReminderPreset> onPreset;
-  final VoidCallback onTest;
-  final bool isCounter;
-
-  @override
-  Widget build(BuildContext context) {
-    final notif = NotificationService();
-    final permissionWarning = enabled && !notif.isGranted && notif.isSupported;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      decoration: BoxDecoration(
-        color: BrandColors.bgCard(context).withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppColors.purple.withValues(alpha: 0.22),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                enabled
-                    ? Icons.notifications_active_rounded
-                    : Icons.notifications_off_outlined,
-                color: enabled
-                    ? AppColors.pinkLight
-                    : BrandColors.inkDim(context),
-                size: 18,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  enabled
-                      ? 'Notify me at:'
-                      : 'No reminders for this habit',
-                  style: TextStyle(
-                    color: BrandColors.ink(context),
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Switch.adaptive(
-                value: enabled,
-                onChanged: onToggle,
-                activeTrackColor: AppColors.pinkLight,
-              ),
-            ],
-          ),
-          if (permissionWarning) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF6B81).withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFFFF6B81).withValues(alpha: 0.30),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline_rounded,
-                      size: 14, color: Color(0xFFFF6B81)),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      "Notifications permission not granted — reminders won't fire.",
-                      style: TextStyle(
-                        color: BrandColors.inkSoft(context),
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        height: 1.3,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          if (enabled) ...[
-            const SizedBox(height: 10),
-            if (times.isEmpty)
-              _AddTimePill(onTap: onAdd, label: 'Add a time')
-            else
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (var i = 0; i < times.length; i++)
-                    _TimeChip(
-                      minutes: times[i],
-                      onEdit: () => onEdit(i),
-                      onRemove: () => onRemove(i),
-                    ),
-                  _AddTimePill(onTap: onAdd, label: '+ Add'),
-                ],
-              ),
-            if (isCounter) ...[
-              const SizedBox(height: 12),
-              Text(
-                'PRESETS',
-                style: TextStyle(
-                  color: BrandColors.inkDim(context),
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.4,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final p in _ReminderPreset.values)
-                    _PresetPill(label: p.label, onTap: () => onPreset(p)),
-                ],
-              ),
-            ],
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _TestReminderButton(onTap: onTest),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    "Fires in 5 seconds — close the app to confirm "
-                    "it still arrives.",
-                    style: TextStyle(
-                      color: BrandColors.inkDim(context),
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                      height: 1.35,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'A tap opens Mood8 so you can mark the habit done.',
-              style: TextStyle(
-                color: BrandColors.inkDim(context),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _TestReminderButton extends StatelessWidget {
-  const _TestReminderButton({required this.onTap});
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          gradient: AppColors.buttonGradient,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.pink.withValues(alpha: 0.32),
-              blurRadius: 14,
-              spreadRadius: -3,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.flash_on_rounded, color: Colors.white, size: 14),
-            SizedBox(width: 6),
-            Text(
-              'Test reminder',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TimeChip extends StatelessWidget {
-  const _TimeChip({
-    required this.minutes,
-    required this.onEdit,
-    required this.onRemove,
-  });
-  final int minutes;
-  final VoidCallback onEdit;
-  final VoidCallback onRemove;
-
-  String _label() {
-    final h = minutes ~/ 60;
-    final m = minutes % 60;
-    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onEdit,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 7, 8, 7),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.purple.withValues(alpha: 0.30),
-              AppColors.pink.withValues(alpha: 0.22),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: AppColors.pinkLight.withValues(alpha: 0.45),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.schedule_rounded,
-                size: 14, color: BrandColors.ink(context)),
-            const SizedBox(width: 6),
-            Text(
-              _label(),
-              style: TextStyle(
-                color: BrandColors.ink(context),
-                fontWeight: FontWeight.w800,
-                fontSize: 12.5,
-                letterSpacing: 0.3,
-              ),
-            ),
-            const SizedBox(width: 4),
-            GestureDetector(
-              onTap: onRemove,
-              child: Padding(
-                padding: const EdgeInsets.all(2),
-                child: Icon(
-                  Icons.close_rounded,
-                  size: 14,
-                  color: BrandColors.inkSoft(context),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AddTimePill extends StatelessWidget {
-  const _AddTimePill({required this.onTap, required this.label});
-  final VoidCallback onTap;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: BrandColors.bgCard(context).withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: AppColors.purple.withValues(alpha: 0.35),
-            style: BorderStyle.solid,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.add_rounded,
-                size: 14, color: BrandColors.inkSoft(context)),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: BrandColors.inkSoft(context),
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PresetPill extends StatelessWidget {
-  const _PresetPill({required this.label, required this.onTap});
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppColors.blueAccent.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppColors.blueAccent.withValues(alpha: 0.45),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: AppColors.blueAccent,
-            fontWeight: FontWeight.w800,
-            fontSize: 11,
-            letterSpacing: 0.2,
           ),
         ),
       ),

@@ -10,7 +10,6 @@ import '../models/habit_polarity.dart';
 import '../models/habit_type.dart';
 import '../models/routine_category.dart';
 import 'database_service.dart';
-import 'habit_reminder_service.dart';
 import 'sync_service.dart';
 
 class HabitRepository {
@@ -209,12 +208,7 @@ class HabitRepository {
     try {
       await _habitBox.put(habit.id, habit);
       SyncService().debouncedPush();
-      // Honour any reminder fields the caller set when constructing
-      // the habit. addHabit doesn't take reminder args today, so this
-      // is a no-op for fresh rows; updateHabit picks up the slack
-      // when the user edits reminders later.
-      // ignore: discarded_futures
-      HabitReminderService().rescheduleFor(habit);
+      // TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
     } catch (e, st) {
       debugPrint('HabitRepository.addHabit failed: $e\n$st');
       rethrow;
@@ -281,11 +275,7 @@ class HabitRepository {
       habit.updatedAt = DateTime.now();
       await _habitBox.put(habit.id, habit);
       SyncService().debouncedPush();
-      // Re-sync this habit's reminder slots whenever the model changes
-      // so a freshly-edited time/toggle takes effect without forcing
-      // the user to relaunch the app.
-      // ignore: discarded_futures
-      HabitReminderService().rescheduleFor(habit);
+      // TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
     } catch (e, st) {
       debugPrint('HabitRepository.updateHabit failed: $e\n$st');
       rethrow;
@@ -294,11 +284,7 @@ class HabitRepository {
 
   Future<void> deleteHabit(String id) async {
     try {
-      final existing = _habitBox.get(id);
-      if (existing != null) {
-        // ignore: discarded_futures
-        HabitReminderService().cancelFor(existing);
-      }
+      // TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
       // Tombstone the habit and every log that belongs to it BEFORE the
       // Hive delete so sync can propagate the soft-delete to other devices.
       await SyncService().recordTombstone('habit', id);
@@ -326,11 +312,7 @@ class HabitRepository {
     h.updatedAt = DateTime.now();
     await h.save();
     SyncService().debouncedPush();
-    // Archived habits don't fire reminders any more — drop their
-    // OS-level slots so the user isn't pinged about a habit they've
-    // already filed away.
-    // ignore: discarded_futures
-    HabitReminderService().cancelFor(h);
+    // TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
   }
 
   List<Habit> getAllHabits() {

@@ -79,16 +79,12 @@ Future<void> main() async {
   await NotificationService().ensureInitialized();
   await ReminderService().getSettings();
   await ReminderService().scheduleAllReminders();
-  // Per-habit reminders (NEW): load the global master switch + push
-  // schedules for every habit that has reminders enabled. On Android
-  // these survive app-close + reboot because flutter_local_notifications
-  // hands them off to AlarmManager; the BootBroadcastReceiver shipped
-  // with the plugin reschedules them after a reboot. Web falls through
-  // to the Timer-based scheduler (tab-lifetime only — same caveat as
-  // the existing ReminderService).
-  await HabitReminderService().loadGlobalSetting();
+  // v1: per-habit reminders are cut (see HabitReminderService docstring).
+  // Wipe any OS-queued schedules from previous v1 attempts so they
+  // don't fire late. Prefs-gated to run once per device.
+  // TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
   // ignore: discarded_futures
-  HabitReminderService().scheduleAll();
+  HabitReminderService().cancelV1Schedules();
   // Fire-and-forget so a slow audio load doesn't block first paint.
   // Both services degrade silently when assets or capabilities are missing.
   HapticService().initialize();
@@ -172,23 +168,11 @@ class _Mood8AppState extends State<Mood8App> with WidgetsBindingObserver {
       // user was in the Stripe browser tab. Refresh + announce.
       // ignore: discarded_futures
       _refreshPremiumOnResume();
-      // Notification permissions may have been toggled from system
-      // Settings while we were backgrounded (the most common path:
-      // user grants SCHEDULE_EXACT_ALARM after we deep-linked them
-      // there). Refresh + re-schedule so the exact-alarm path kicks
-      // in without forcing them back into the habit editor.
-      // ignore: discarded_futures
-      _refreshRemindersOnResume();
-    }
-  }
-
-  Future<void> _refreshRemindersOnResume() async {
-    try {
-      await NotificationService().refreshPermissionState();
-      await HabitReminderService().scheduleAll();
-    } catch (e) {
-      // Non-fatal — next scheduleAll trigger will retry.
-      debugPrint('[Notif] resume refresh failed: $e');
+      // TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
+      // v1: resume hook no longer reschedules per-habit alarms because
+      // the feature is cut. The legacy ReminderService (mood
+      // check-ins) still rides on its own Timer-based scheduler and
+      // doesn't need a resume refresh.
     }
   }
 
@@ -601,14 +585,7 @@ class _AuthGateState extends State<AuthGate> {
       await SyncService().syncNow();
     }
     await SubscriptionService().refreshStatus();
-    // Per-habit reminders need a re-schedule after a server pull —
-    // the pull may have brought down newly-enabled reminders that
-    // didn't exist locally before sign-in. The sync codec already
-    // calls rescheduleFor on every habit upsert, but a coalesced
-    // reschedule here is the belt to that suspenders for fresh
-    // installs.
-    // ignore: discarded_futures
-    HabitReminderService().scheduleAll();
+    // TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
   }
 }
 
