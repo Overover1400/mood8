@@ -77,13 +77,20 @@ Future<void> main() async {
   // every boot-time scheduleAll call bails before doing anything,
   // even for users who already granted permission in a prior session.
   await NotificationService().ensureInitialized();
+  // One-time post-fix flush. Previous release builds threw
+  // "Missing type parameter" on every plugin call because R8 stripped
+  // the Gson TypeToken signatures. That failure mode corrupts the
+  // plugin's shared-prefs cache of scheduled notifications — the next
+  // load attempt throws too, even after the R8 keep rules are in
+  // place. Force a clean cancelAll() once, gated by a prefs flag, so
+  // an installed app upgraded over a broken release starts from a
+  // clean queue. Wrapped in try/catch because if the cache really IS
+  // corrupted, this exact call is what throws — and we don't want it
+  // to block app start.
+  await _flushCorruptedNotificationCacheOnce();
   await ReminderService().getSettings();
   await ReminderService().scheduleAllReminders();
   // Per-habit reminders (final attempt — debug-screen instrumented).
-  // Loads the master switch, then re-arms every habit's slots with
-  // exact-mode scheduling if SCHEDULE_EXACT_ALARM is granted (else
-  // inexact fallback). The boot-time bail-on-cached-false bug
-  // (turn 3) is fixed in NotificationService.ensureInitialized.
   await HabitReminderService().loadGlobalSetting();
   // ignore: discarded_futures
   HabitReminderService().scheduleAll();
@@ -118,6 +125,40 @@ Future<void> main() async {
     NotificationFeedService().refresh();
   }
   runApp(const Mood8App());
+}
+
+/// One-shot cleanup for users upgrading over a broken release build.
+///
+/// Releases before the proguard-rules.pro fix threw
+/// `PlatformException("error", "Missing type parameter.")` on every
+/// `flutter_local_notifications` call because R8 stripped the Gson
+/// TypeToken `Signature` attribute. That failure mode leaves the
+/// plugin's shared-prefs cache of scheduled notifications in a state
+/// where the NEXT load also throws — even after the new R8 keep rules
+/// are in place. The fix is to force one `cancelAll()` which the
+/// plugin handles by writing an empty queue. After that the cache is
+/// clean and subsequent calls work normally.
+///
+/// Gated by `mood8.notifications.r8FixFlushDone` so this only runs
+/// once per device. Wrapped in try/catch because if the cache really
+/// is corrupted, this exact call is what throws — and we want to
+/// (a) flip the flag anyway so we don't loop on it, and (b) not
+/// block app start.
+Future<void> _flushCorruptedNotificationCacheOnce() async {
+  const flagKey = 'mood8.notifications.r8FixFlushDone';
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(flagKey) == true) return;
+    try {
+      await NotificationService().cancelAll();
+      debugPrint('[Notif] post-R8-fix cancelAll() flushed cleanly');
+    } catch (e) {
+      debugPrint('[Notif] post-R8-fix cancelAll() threw — flag set anyway: $e');
+    }
+    await prefs.setBool(flagKey, true);
+  } catch (e) {
+    debugPrint('[Notif] cache-flush wrapper failed: $e');
+  }
 }
 
 /// Global key so the resume-time premium refresh can surface a snackbar

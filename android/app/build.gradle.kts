@@ -112,6 +112,27 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
+
+            // R8 minification + resource shrinking. Flutter's gradle
+            // plugin used to enable these by default for release
+            // builds, but AGP 8 made that less consistent — declare
+            // explicitly so the keep rules in proguard-rules.pro are
+            // actually applied AND so the same release builds well
+            // locally and in CI.
+            //
+            // Why the keep rules matter: without them, R8 strips the
+            // generic type signatures (`Signature` attribute) that
+            // flutter_local_notifications' Gson TypeToken cache
+            // deserializer needs, and every plugin call throws
+            // `PlatformException("error", "Missing type parameter.")`
+            // in the release build. The debug build works because R8
+            // doesn't run. See proguard-rules.pro for the rule set.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
