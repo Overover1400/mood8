@@ -352,7 +352,7 @@ class NotificationServiceImpl {
     final mode = _scheduleMode();
     NotifLog.log(
         'test schedule REQUEST id=$id local=${_fmt(when)} '
-        'tz=$_timezoneName mode=${mode.name} matchDailyRepeat=true');
+        'tz=$_timezoneName mode=${mode.name} matchDailyRepeat=false');
     try {
       await _plugin.cancel(id);
       await _plugin.zonedSchedule(
@@ -364,10 +364,12 @@ class NotificationServiceImpl {
         androidScheduleMode: mode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
-        // CRITICAL: include matchDateTimeComponents here too — this
-        // is the exact API surface a habit reminder uses. Without it,
-        // we'd be testing a different code path than the real bug.
-        matchDateTimeComponents: DateTimeComponents.time,
+        // No matchDateTimeComponents — this is a true one-shot test
+        // ("did the alarm fire at the requested moment"). The
+        // daily-repeat path is tested separately by real habit
+        // reminders via _scheduleDaily, which sets the component
+        // match. Coupling them in the test made it ambiguous which
+        // layer was failing.
       );
       final pending = await pendingRequests();
       final hit = pending.firstWhere(

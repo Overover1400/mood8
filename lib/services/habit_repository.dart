@@ -10,6 +10,7 @@ import '../models/habit_polarity.dart';
 import '../models/habit_type.dart';
 import '../models/routine_category.dart';
 import 'database_service.dart';
+import 'habit_reminder_service.dart';
 import 'sync_service.dart';
 
 class HabitRepository {
@@ -208,7 +209,8 @@ class HabitRepository {
     try {
       await _habitBox.put(habit.id, habit);
       SyncService().debouncedPush();
-      // TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
+      // ignore: discarded_futures
+      HabitReminderService().rescheduleFor(habit);
     } catch (e, st) {
       debugPrint('HabitRepository.addHabit failed: $e\n$st');
       rethrow;
@@ -275,7 +277,8 @@ class HabitRepository {
       habit.updatedAt = DateTime.now();
       await _habitBox.put(habit.id, habit);
       SyncService().debouncedPush();
-      // TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
+      // ignore: discarded_futures
+      HabitReminderService().rescheduleFor(habit);
     } catch (e, st) {
       debugPrint('HabitRepository.updateHabit failed: $e\n$st');
       rethrow;
@@ -284,7 +287,11 @@ class HabitRepository {
 
   Future<void> deleteHabit(String id) async {
     try {
-      // TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
+      final existing = _habitBox.get(id);
+      if (existing != null) {
+        // ignore: discarded_futures
+        HabitReminderService().cancelFor(existing);
+      }
       // Tombstone the habit and every log that belongs to it BEFORE the
       // Hive delete so sync can propagate the soft-delete to other devices.
       await SyncService().recordTombstone('habit', id);
@@ -312,7 +319,8 @@ class HabitRepository {
     h.updatedAt = DateTime.now();
     await h.save();
     SyncService().debouncedPush();
-    // TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
+    // ignore: discarded_futures
+    HabitReminderService().cancelFor(h);
   }
 
   List<Habit> getAllHabits() {

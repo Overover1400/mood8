@@ -54,7 +54,9 @@ import '../widgets/settings/settings_toggle.dart';
 import 'settings/about_screen.dart';
 import 'settings/ai_privacy_screen.dart';
 import 'settings/data_privacy_screen.dart';
+import 'settings/notification_debug_screen.dart';
 import '../services/badge_definitions.dart';
+import '../services/habit_reminder_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -761,10 +763,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ],
                     ),
-                    // TODO(v2): re-enable habit reminders — see Mood8 v2
-                    // reminders work. Notifications section + the
-                    // diagnostic screen live in git history at the
-                    // previous commit.
+                    SettingsSection(
+                      title: 'Notifications',
+                      subtitle: 'Per-habit reminders + diagnostic tools',
+                      children: [
+                        _HabitRemindersMasterTile(),
+                        SettingsTile(
+                          icon: Icons.troubleshoot_rounded,
+                          title: 'Notification debug',
+                          subtitle:
+                              'Live state · permissions · pending queue · 2-min test',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const NotificationDebugScreen(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     SettingsSection(
                       title: 'Challenges',
                       children: [
@@ -1791,3 +1808,57 @@ class _PremiumActiveCard extends StatelessWidget {
   }
 }
 
+
+/// Master switch for habit reminders. Off → cancels every per-habit
+/// slot at the OS level via [HabitReminderService.cancelAll] without
+/// touching per-habit `remindersEnabled` fields, so flipping back on
+/// restores the user's choices.
+class _HabitRemindersMasterTile extends StatefulWidget {
+  @override
+  State<_HabitRemindersMasterTile> createState() =>
+      _HabitRemindersMasterTileState();
+}
+
+class _HabitRemindersMasterTileState extends State<_HabitRemindersMasterTile> {
+  bool _value = HabitReminderService().globallyEnabled;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    HabitReminderService().loadGlobalSetting().then((v) {
+      if (!mounted) return;
+      setState(() => _value = v);
+    });
+  }
+
+  Future<void> _onChanged(bool v) async {
+    setState(() {
+      _value = v;
+      _busy = true;
+    });
+    try {
+      if (v && !NotificationService().isGranted) {
+        await NotificationService().requestPermission();
+      }
+      await HabitReminderService().setGloballyEnabled(v);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsToggle(
+      icon: Icons.notifications_active_rounded,
+      title: 'Habit reminders',
+      subtitle: _busy
+          ? 'Updating…'
+          : _value
+              ? 'Per-habit reminders are armed'
+              : 'Master switch off — no habit reminders fire',
+      value: _value,
+      onChanged: _busy ? null : _onChanged,
+    );
+  }
+}

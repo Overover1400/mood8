@@ -30,6 +30,7 @@ import '../models/user_profile.dart';
 import '../models/weekly_recap.dart';
 import 'auth_service.dart';
 import 'database_service.dart';
+import 'habit_reminder_service.dart';
 
 /// Two-way cloud sync over a generic JSONB store on the server. Every
 /// supported entity has a [_EntityCodec] that knows how to:
@@ -922,10 +923,11 @@ class _HabitCodec implements _EntityCodec {
           (json['reminderMinutes'] as List?)?.cast<int>(),
     );
     await _box.put(id, h);
-    // TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
-    // remindersEnabled + reminderMinutes fields keep syncing so v2
-    // doesn't have to migrate; we just don't materialize them as OS
-    // notifications yet.
+    // After a pull writes a habit, reschedule its OS-level slots so
+    // a reminder enabled on phone propagates to web/watch within the
+    // periodic sync window.
+    // ignore: discarded_futures
+    HabitReminderService().rescheduleFor(h);
   }
 
   @override

@@ -9,6 +9,7 @@ import '../models/habit_type.dart';
 import '../models/routine_category.dart';
 import '../screens/paywall_screen.dart';
 import '../services/habit_repository.dart';
+import '../services/notification_service.dart';
 import '../services/subscription_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
@@ -67,6 +68,8 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
   late HabitPolarity _polarity;
   late AvoidMode _avoidMode;
   late int _avoidDurationDays;
+  late bool _remindersEnabled;
+  late List<int> _reminderMinutes; // minute-of-day, sorted, deduped.
   String? _titleError;
   bool _saving = false;
 
@@ -89,6 +92,8 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
     _titleCtrl.text = e?.title ?? '';
     _targetCtrl.text = (e?.targetValue ?? _defaultTarget()).toString();
     _unitCtrl.text = e?.targetUnit ?? _type.defaultUnit;
+    _remindersEnabled = e?.remindersEnabled ?? false;
+    _reminderMinutes = [...?e?.reminderMinutes]..sort();
     if (!_isEditing) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _titleFocus.requestFocus();
@@ -201,11 +206,14 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
       final effectiveAvoidDuration = _isAvoid && _avoidMode == AvoidMode.reduce
           ? _avoidDurationDays
           : null;
-      // TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
-      // The Hive remindersEnabled / reminderMinutes fields are kept on
-      // the model so v1 data persists; we just don't write to them
-      // from the UI any more (and the service that schedules them is
-      // a no-op).
+      final cleanedReminders = _reminderMinutes
+          .where((m) => m >= 0 && m < 24 * 60)
+          .toSet()
+          .toList()
+        ..sort();
+      final effectiveRemindersEnabled =
+          _remindersEnabled && cleanedReminders.isNotEmpty;
+
       if (_isEditing) {
         final h = widget.editing!;
         h.title = title;
@@ -222,9 +230,11 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
         h.polarity = effectivePolarity;
         h.avoidMode = effectiveAvoidMode;
         h.avoidDurationDays = effectiveAvoidDuration;
+        h.remindersEnabled = effectiveRemindersEnabled;
+        h.reminderMinutes = cleanedReminders;
         await _repo.updateHabit(h);
       } else {
-        await _repo.addHabit(
+        final h = await _repo.addHabit(
           title: title,
           icon: _emoji,
           habitType: _type,
@@ -239,6 +249,11 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
           avoidMode: effectiveAvoidMode,
           avoidDurationDays: effectiveAvoidDuration,
         );
+        if (effectiveRemindersEnabled) {
+          h.remindersEnabled = true;
+          h.reminderMinutes = cleanedReminders;
+          await _repo.updateHabit(h);
+        }
       }
       HapticFeedback.lightImpact();
       if (mounted) Navigator.of(context).pop();
@@ -290,6 +305,70 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
     );
   }
 
+  // ─── Reminder handlers ─────────────────────────────────────────────────
+
+  Future<void> _onRemindersToggle(bool enabled) async {
+    if (enabled) {
+      final notif = NotificationService();
+      await notif.ensureInitialized();
+      if (notif.isSupported && !notif.isGranted) {
+        await notif.requestPermission();
+      }
+      // Android 12+: exact alarms need a separate "special permission"
+      // toggle. The plugin opens system Settings; the resume hook in
+      // main.dart re-reads canExactAlarm + reschedules when the user
+      // returns. We DON'T await it — the returned future is unreliable
+      // for Settings-launching activities.
+      if (notif.isGranted && !notif.canExactAlarm) {
+        // ignore: discarded_futures
+        notif.requestExactAlarmPermission();
+      }
+    }
+    setState(() {
+      _remindersEnabled = enabled;
+      if (enabled && _reminderMinutes.isEmpty) {
+        _reminderMinutes = [9 * 60]; // 09:00 default seed
+      }
+    });
+  }
+
+  Future<void> _onAddReminder() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 9, minute: 0),
+    );
+    if (picked == null) return;
+    final m = picked.hour * 60 + picked.minute;
+    if (_reminderMinutes.contains(m)) return;
+    setState(() {
+      _reminderMinutes = [..._reminderMinutes, m]..sort();
+      if (!_remindersEnabled) _remindersEnabled = true;
+    });
+  }
+
+  Future<void> _onEditReminder(int index) async {
+    final current = _reminderMinutes[index];
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60),
+    );
+    if (picked == null) return;
+    final m = picked.hour * 60 + picked.minute;
+    setState(() {
+      _reminderMinutes = <int>{
+        for (var i = 0; i < _reminderMinutes.length; i++)
+          if (i == index) m else _reminderMinutes[i],
+      }.toList()
+        ..sort();
+    });
+  }
+
+  void _onRemoveReminder(int index) {
+    setState(() {
+      _reminderMinutes = [..._reminderMinutes]..removeAt(index);
+      if (_reminderMinutes.isEmpty) _remindersEnabled = false;
+    });
+  }
 
   Future<void> _onDelete() async {
     final h = widget.editing;
@@ -484,9 +563,17 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
                       onChanged: (s) => setState(() => _customDays = s),
                     ),
                   ],
-                  // TODO(v2): re-enable habit reminders — see Mood8 v2
-                  // reminders work. The "Reminders" section + time
-                  // picker live in git history at the previous commit.
+                  const SizedBox(height: 18),
+                  _Label('Reminders'),
+                  const SizedBox(height: 8),
+                  _ReminderSection(
+                    enabled: _remindersEnabled,
+                    times: _reminderMinutes,
+                    onToggle: _onRemindersToggle,
+                    onAdd: _onAddReminder,
+                    onEdit: _onEditReminder,
+                    onRemove: _onRemoveReminder,
+                  ),
                   const SizedBox(height: 28),
                   Row(
                     children: [
@@ -1164,3 +1251,262 @@ class _SaveButton extends StatelessWidget {
   }
 }
 
+
+/// Minimal reminder picker for the Add/Edit sheet — switch + time
+/// chips + add button. The "Test reminder" and "Diagnose" affordances
+/// live in Settings → Notification debug so this stays clean.
+class _ReminderSection extends StatelessWidget {
+  const _ReminderSection({
+    required this.enabled,
+    required this.times,
+    required this.onToggle,
+    required this.onAdd,
+    required this.onEdit,
+    required this.onRemove,
+  });
+
+  final bool enabled;
+  final List<int> times;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onAdd;
+  final ValueChanged<int> onEdit;
+  final ValueChanged<int> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final notif = NotificationService();
+    final permissionWarning =
+        enabled && !notif.isGranted && notif.isSupported;
+    final exactWarning =
+        enabled && notif.isGranted && !notif.canExactAlarm;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: BrandColors.bgCard(context).withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.purple.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                enabled
+                    ? Icons.notifications_active_rounded
+                    : Icons.notifications_off_outlined,
+                color: enabled
+                    ? AppColors.pinkLight
+                    : BrandColors.inkDim(context),
+                size: 18,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  enabled ? 'Notify me at:' : 'No reminders',
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Switch.adaptive(
+                value: enabled,
+                onChanged: onToggle,
+                activeTrackColor: AppColors.pinkLight,
+              ),
+            ],
+          ),
+          if (permissionWarning) ...[
+            const SizedBox(height: 8),
+            _WarnLine(
+              text:
+                  "Notification permission not granted — reminders won't fire.",
+            ),
+          ] else if (exactWarning) ...[
+            const SizedBox(height: 8),
+            _WarnLine(
+              text:
+                  'Exact-alarm permission denied. Reminders may be delayed '
+                  '15+ minutes. Open Settings → Notification debug to grant.',
+            ),
+          ],
+          if (enabled) ...[
+            const SizedBox(height: 10),
+            if (times.isEmpty)
+              _AddTimePill(onTap: onAdd, label: 'Add a time')
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (var i = 0; i < times.length; i++)
+                    _TimeChip(
+                      minutes: times[i],
+                      onEdit: () => onEdit(i),
+                      onRemove: () => onRemove(i),
+                    ),
+                  _AddTimePill(onTap: onAdd, label: '+ Add'),
+                ],
+              ),
+            const SizedBox(height: 6),
+            Text(
+              'Tap a time to edit · × to remove · open the app to check off.',
+              style: TextStyle(
+                color: BrandColors.inkDim(context),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _WarnLine extends StatelessWidget {
+  const _WarnLine({required this.text});
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF6B81).withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFFF6B81).withValues(alpha: 0.30),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded,
+              size: 14, color: Color(0xFFFF6B81)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: BrandColors.inkSoft(context),
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimeChip extends StatelessWidget {
+  const _TimeChip({
+    required this.minutes,
+    required this.onEdit,
+    required this.onRemove,
+  });
+  final int minutes;
+  final VoidCallback onEdit;
+  final VoidCallback onRemove;
+
+  String _label() {
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onEdit,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 7, 8, 7),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.purple.withValues(alpha: 0.30),
+              AppColors.pink.withValues(alpha: 0.22),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: AppColors.pinkLight.withValues(alpha: 0.45),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.schedule_rounded,
+                size: 14, color: BrandColors.ink(context)),
+            const SizedBox(width: 6),
+            Text(
+              _label(),
+              style: TextStyle(
+                color: BrandColors.ink(context),
+                fontWeight: FontWeight.w800,
+                fontSize: 12.5,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(width: 4),
+            GestureDetector(
+              onTap: onRemove,
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 14,
+                  color: BrandColors.inkSoft(context),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddTimePill extends StatelessWidget {
+  const _AddTimePill({required this.onTap, required this.label});
+  final VoidCallback onTap;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: AppColors.purple.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.add_rounded,
+                size: 14, color: BrandColors.inkSoft(context)),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: BrandColors.inkSoft(context),
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

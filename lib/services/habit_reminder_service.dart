@@ -1,76 +1,168 @@
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit.dart';
+import 'database_service.dart';
 import 'notif_log.dart';
 import 'notification_service.dart';
 
-/// **v1 cut.** Per-habit reminders are disabled — three attempts could
-/// not make scheduled notifications fire reliably across Android OEMs
-/// (Xiaomi/Samsung/Huawei aggressively kill background scheduling, and
-/// `matchDateTimeComponents` + inexact alarms doesn't survive on the
-/// devices we tested). The feature is deferred to v2, where it needs
-/// dedicated time and a real device matrix.
+/// Per-habit reminder scheduling, restored after the v1 cut for the
+/// "final attempt" instrumentation pass.
 ///
-/// What this file does in v1:
-///   • Every method is a no-op (keeps the call sites compiling and
-///     gives v2 a single place to revive the feature without grepping
-///     the codebase).
-///   • [cancelV1Schedules] does a ONE-TIME, prefs-gated wipe of any
-///     OS-side notifications that were queued by previous v1 attempts,
-///     so users with stale schedules don't get late-arriving fires
-///     after the feature was removed.
+/// Design (re-confirmed for this attempt):
 ///
-/// What's intentionally LEFT IN PLACE for v2 (and not touched here):
-///   • flutter_local_notifications dependency (pubspec)
-///   • Android manifest permissions + boot receivers
-///   • Timezone init + notification channels (still registered)
-///   • Habit model's `remindersEnabled` + `reminderMinutes` Hive
-///     fields — keep persisting any v1 data so v2 doesn't have to
-///     migrate
-///
-/// TODO(v2): re-enable habit reminders — see Mood8 v2 reminders work.
+/// 1. **Deterministic ids per slot.** The notification id for habit
+///    `h` at slot index `i` is `(h.id.hashCode & 0x00ffffff) << 5 | i`.
+///    Same habit + same slot = same id every time, so a re-schedule
+///    or cancel is idempotent. Up to 32 slots per habit (counter
+///    habits with hourly reminders).
+/// 2. **Master switch persisted in SharedPreferences.** Flipping off
+///    cancels every per-habit slot without touching each habit's
+///    `remindersEnabled` field — flipping back on restores choices.
+/// 3. **Daily repeat via `matchDateTimeComponents: time`.** The
+///    plugin re-arms next-day after each fire. Exact mode required
+///    for that re-arm to fire reliably; inexact is a fallback.
+/// 4. **Permission state read AT schedule time** (via the
+///    notification service's lazy ensureInitialized). Boot-time
+///    scheduleAll would previously bail with cached `_granted=false`
+///    on cold starts — fixed in NotificationService.
 class HabitReminderService {
   HabitReminderService._();
   static final HabitReminderService _instance = HabitReminderService._();
   factory HabitReminderService() => _instance;
 
-  static const String _kV1WipeDoneKey = 'mood8.reminders.v1Wiped';
+  static const String _kGlobalEnabledKey =
+      'mood8.habitReminders.globalEnabled';
 
-  /// Always returns false — the master switch reads as off in v1 so
-  /// no UI surfaces a "reminders are on" claim.
-  bool get globallyEnabled => false;
+  Box<Habit> get _habitBox => DatabaseService.instance.habitBox;
 
-  Future<bool> loadGlobalSetting() async => false;
-  Future<void> setGloballyEnabled(bool enabled) async {}
+  // ─── Global master switch ──────────────────────────────────────────────
 
-  /// v1: no-op.
-  Future<void> scheduleAll() async {}
+  bool _globalCache = true;
+  bool _globalLoaded = false;
 
-  /// v1: no-op.
-  Future<void> rescheduleFor(Habit habit) async {}
+  bool get globallyEnabled => _globalCache;
 
-  /// v1: cancel any leftover slots. The bulk wipe in
-  /// [cancelV1Schedules] covers this, but call sites that explicitly
-  /// cancel a habit's slots (delete/archive flows) still work.
-  Future<void> cancelAll() async {}
-
-  Future<void> cancelFor(Habit habit) async {}
-
-  /// One-time wipe of every notification flutter_local_notifications
-  /// has queued — clears stale v1 schedules that would otherwise fire
-  /// "Time to drink water!" days after the user uninstalled the
-  /// reminder UI. Prefs-gated so it runs once per device, not on
-  /// every boot (which would also wipe v2 schedules later).
-  Future<void> cancelV1Schedules() async {
+  Future<bool> loadGlobalSetting() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (prefs.getBool(_kV1WipeDoneKey) == true) return;
-      await NotificationService().ensureInitialized();
-      await NotificationService().cancelAll();
-      await prefs.setBool(_kV1WipeDoneKey, true);
-      NotifLog.log('v1 cut: cancelled all queued reminders (one-time)');
+      _globalCache = prefs.getBool(_kGlobalEnabledKey) ?? true;
     } catch (e) {
-      NotifLog.log('v1 cut: cancelV1Schedules failed: $e');
+      NotifLog.log('habitReminders: loadGlobalSetting failed: $e');
     }
+    _globalLoaded = true;
+    return _globalCache;
+  }
+
+  Future<void> setGloballyEnabled(bool enabled) async {
+    _globalCache = enabled;
+    _globalLoaded = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kGlobalEnabledKey, enabled);
+    } catch (e) {
+      NotifLog.log('habitReminders: setGloballyEnabled persist failed: $e');
+    }
+    if (enabled) {
+      await scheduleAll();
+    } else {
+      await cancelAll();
+    }
+  }
+
+  // ─── Scheduling ────────────────────────────────────────────────────────
+
+  Future<void> scheduleAll() async {
+    if (!_globalLoaded) await loadGlobalSetting();
+    if (!_globalCache) {
+      NotifLog.log('habitReminders: master switch off — skipping schedule');
+      return;
+    }
+    final notif = NotificationService();
+    await notif.ensureInitialized();
+    if (!notif.isSupported) {
+      NotifLog.log('habitReminders: notifications unsupported on platform');
+      return;
+    }
+    for (final h in _habitBox.values) {
+      await _scheduleHabit(h);
+    }
+    NotifLog.log(
+        'habitReminders: re-scheduled all habits (${_habitBox.length}) · '
+        'granted=${notif.isGranted} exact=${notif.canExactAlarm}');
+  }
+
+  Future<void> rescheduleFor(Habit habit) async {
+    if (!_globalLoaded) await loadGlobalSetting();
+    if (!_globalCache) {
+      await _cancelHabit(habit);
+      return;
+    }
+    await NotificationService().ensureInitialized();
+    await _scheduleHabit(habit);
+  }
+
+  Future<void> cancelAll() async {
+    for (final h in _habitBox.values) {
+      await _cancelHabit(h);
+    }
+  }
+
+  Future<void> cancelFor(Habit habit) => _cancelHabit(habit);
+
+  // ─── Internals ─────────────────────────────────────────────────────────
+
+  Future<void> _scheduleHabit(Habit habit) async {
+    await _cancelHabit(habit);
+    if (habit.isArchived) return;
+    if (!habit.remindersEnabled) return;
+    if (habit.reminderMinutes.isEmpty) return;
+    final notif = NotificationService();
+    if (!notif.isInitialized) {
+      await notif.ensureInitialized();
+    }
+    if (!notif.isGranted) {
+      NotifLog.log(
+          'habitReminders: permission not granted — skipping schedule '
+          'for "${habit.title}"');
+      return;
+    }
+    final hasNumericTarget =
+        habit.targetValue != null && habit.habitType.name != 'yesNo';
+    final unitPart = habit.targetUnit != null && habit.targetUnit!.isNotEmpty
+        ? ' ${habit.targetUnit}'
+        : '';
+    final body = habit.isAvoid
+        ? 'Pause. Notice. You can ride this one out.'
+        : hasNumericTarget
+            ? "Time to chip away at today's ${habit.targetValue}$unitPart."
+            : 'A small vote for the version of you who shows up.';
+    for (var i = 0; i < habit.reminderMinutes.length && i < 32; i++) {
+      final m = habit.reminderMinutes[i];
+      if (m < 0 || m >= 24 * 60) continue;
+      final hour = m ~/ 60;
+      final minute = m % 60;
+      await notif.scheduleHabitReminderAt(
+        id: _idFor(habit.id, i),
+        hour: hour,
+        minute: minute,
+        title: '${habit.icon} ${habit.title}',
+        body: body,
+      );
+    }
+  }
+
+  Future<void> _cancelHabit(Habit habit) async {
+    final notif = NotificationService();
+    for (var i = 0; i < 32; i++) {
+      await notif.cancelById(_idFor(habit.id, i));
+    }
+  }
+
+  /// Deterministic notification id from `(habitId, slotIndex)`.
+  /// 24-bit habit-hash + 5-bit slot index → fits in Android int32.
+  int _idFor(String habitId, int slotIndex) {
+    final base = (habitId.hashCode & 0x00ffffff) << 5;
+    return base | (slotIndex & 0x1f);
   }
 }
