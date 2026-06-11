@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  R8 resource-shrinker keep list.
+
+  When isShrinkResources=true (set in app/build.gradle.kts so APKs ship
+  without unused drawables/colors), the shrinker walks the code looking
+  for R.drawable.X / R.color.Y references and strips anything it can't
+  find. Resources we reference by STRING at runtime — the
+  flutter_local_notifications small-icon name "ic_stat_mood8" and the
+  Mood8 brand accent color "mood8_brand_accent" — are invisible to that
+  walk. Without this file, every release-mode zonedSchedule call throws
+
+      PlatformException(invalid_icon,
+        The resource ic_stat_mood8 could not be found. …)
+
+  because the icon was shrunk out of the APK even though the PNGs are
+  on disk.
+
+  tools:keep is additive; tools:discard would be the inverse.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_mood8,@color/mood8_brand_accent" />

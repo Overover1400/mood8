@@ -277,16 +277,16 @@ class NotificationServiceImpl {
     try {
       final when =
           tz.TZDateTime.now(tz.local).add(Duration(hours: hoursLeft.clamp(1, 23)));
-      await _plugin.zonedSchedule(
-        100003,
-        '🔥 Your streak ends soon',
-        'Log a quick check-in to keep it alive.',
-        when,
-        _notifDetails(_generalChannel),
-        androidScheduleMode: _scheduleMode(),
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
+      await _withIconFallback(() => _plugin.zonedSchedule(
+            100003,
+            '🔥 Your streak ends soon',
+            'Log a quick check-in to keep it alive.',
+            when,
+            _notifDetails(_generalChannel),
+            androidScheduleMode: _scheduleMode(),
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+          ));
       NotifLog.log('streakWarning scheduled @ $when');
     } catch (e) {
       NotifLog.log('streakWarning failed: $e');
@@ -355,22 +355,20 @@ class NotificationServiceImpl {
         'tz=$_timezoneName mode=${mode.name} matchDailyRepeat=false');
     try {
       await _plugin.cancel(id);
-      await _plugin.zonedSchedule(
-        id,
-        title,
-        body,
-        when,
-        _notifDetails(_habitChannel),
-        androidScheduleMode: mode,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        // No matchDateTimeComponents — this is a true one-shot test
-        // ("did the alarm fire at the requested moment"). The
-        // daily-repeat path is tested separately by real habit
-        // reminders via _scheduleDaily, which sets the component
-        // match. Coupling them in the test made it ambiguous which
-        // layer was failing.
-      );
+      await _withIconFallback(() => _plugin.zonedSchedule(
+            id,
+            title,
+            body,
+            when,
+            _notifDetails(_habitChannel),
+            androidScheduleMode: mode,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+          ));
+      // No matchDateTimeComponents — this is a true one-shot test
+      // ("did the alarm fire at the requested moment"). The
+      // daily-repeat path is tested separately by real habit
+      // reminders via _scheduleDaily, which sets the component match.
       final pending = await pendingRequests();
       final hit = pending.firstWhere(
         (p) => p.id == id,
@@ -431,12 +429,12 @@ class NotificationServiceImpl {
       }
     }
     try {
-      await _plugin.show(
-        999002,
-        title,
-        body,
-        _notifDetails(_habitChannel),
-      );
+      await _withIconFallback(() => _plugin.show(
+            999002,
+            title,
+            body,
+            _notifDetails(_habitChannel),
+          ));
       NotifLog.log('show() fired id=999002 title="$title"');
       return TestResult(
         ok: true,
@@ -505,12 +503,12 @@ class NotificationServiceImpl {
       return;
     }
     try {
-      await _plugin.show(
-        DateTime.now().millisecondsSinceEpoch ~/ 1000 & 0x7fffffff,
-        title,
-        body,
-        _notifDetails(_generalChannel),
-      );
+      await _withIconFallback(() => _plugin.show(
+            DateTime.now().millisecondsSinceEpoch ~/ 1000 & 0x7fffffff,
+            title,
+            body,
+            _notifDetails(_generalChannel),
+          ));
     } catch (e) {
       NotifLog.log('showNow failed: $e');
     }
@@ -557,7 +555,13 @@ class NotificationServiceImpl {
         'tz=$_timezoneName mode=${mode.name} title="$title"');
     try {
       await _plugin.cancel(id);
-      await _plugin.zonedSchedule(
+      // Daily repeat: after each fire the plugin's BroadcastReceiver
+      // re-arms the next day's alarm at the same H:M. Requires exact
+      // mode for reliable repeat (per the plugin docs); on inexact the
+      // next-day re-arm can be delayed or skipped — which is why the
+      // bug-report case "set 9am, it's now 3pm, didn't fire tomorrow
+      // morning" can happen on devices without SCHEDULE_EXACT_ALARM.
+      await _withIconFallback(() => _plugin.zonedSchedule(
         id,
         title,
         body,
@@ -566,15 +570,8 @@ class NotificationServiceImpl {
         androidScheduleMode: mode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
-        // Daily repeat: after each fire the plugin's BroadcastReceiver
-        // re-arms the next day's alarm at the same H:M. Requires exact
-        // mode for reliable repeat (per the plugin docs); on inexact
-        // the next-day re-arm can be delayed or skipped — which is
-        // why the bug-report case "set 9am, it's now 3pm, didn't fire
-        // tomorrow morning" can happen on devices without
-        // SCHEDULE_EXACT_ALARM granted.
         matchDateTimeComponents: DateTimeComponents.time,
-      );
+      ));
       final pending = await _plugin.pendingNotificationRequests();
       final hit = pending.firstWhere(
         (p) => p.id == id,
@@ -617,6 +614,35 @@ class NotificationServiceImpl {
         '${two(t.hour)}:${two(t.minute)}';
   }
 
+  /// True once we know `@drawable/ic_stat_mood8` resolves at runtime.
+  /// Flips to false on the first `invalid_icon` PlatformException so
+  /// every subsequent build of NotificationDetails uses the launcher
+  /// icon fallback — schedules go through cleanly even if R8 ever
+  /// strips the resource again. Resets across app restarts so a fixed
+  /// build doesn't permanently downgrade.
+  bool _customSmallIconAvailable = true;
+
+  /// Wrap any plugin call that uses _notifDetails so an
+  /// `invalid_icon` failure flips the fallback flag and retries the
+  /// SAME schedule call without the custom icon. Surface-level
+  /// behaviour: the user still gets the notification, just with the
+  /// launcher icon in the status bar instead of the branded
+  /// silhouette.
+  Future<T> _withIconFallback<T>(Future<T> Function() op) async {
+    try {
+      return await op();
+    } on PlatformException catch (e) {
+      if (e.code == 'invalid_icon' && _customSmallIconAvailable) {
+        NotifLog.log(
+            'invalid_icon — falling back to @mipmap/ic_launcher for the '
+            'rest of this session');
+        _customSmallIconAvailable = false;
+        return await op();
+      }
+      rethrow;
+    }
+  }
+
   NotificationDetails _notifDetails(AndroidNotificationChannel channel) {
     return NotificationDetails(
       android: AndroidNotificationDetails(
@@ -629,12 +655,14 @@ class NotificationServiceImpl {
         playSound: true,
         enableVibration: true,
         // Mood8-branded status-bar look: a white-silhouette small icon
-        // tinted by the brand accent. Without `icon:` Android falls
-        // back to the AndroidInitializationSettings launcher icon,
-        // which is full-colour and renders as a flat square on most
-        // OEMs. With `color:` the silhouette is tinted (rather than
-        // rendered as a generic bell glyph).
-        icon: 'ic_stat_mood8',
+        // tinted by the brand accent. R8's resource shrinker can strip
+        // string-referenced drawables from release builds — that's
+        // what threw `invalid_icon` on the first attempt, fixed by
+        // res/raw/keep.xml. Defensive: if it ever happens again,
+        // _withIconFallback flips _customSmallIconAvailable false and
+        // we use the launcher mipmap instead so schedules still go
+        // through.
+        icon: _customSmallIconAvailable ? 'ic_stat_mood8' : '@mipmap/ic_launcher',
         color: const Color(0xFFA855F7),
         colorized: true,
       ),

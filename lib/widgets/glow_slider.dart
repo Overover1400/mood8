@@ -192,6 +192,7 @@ class CompactGlowSlider extends StatefulWidget {
     required this.value,
     required this.onChanged,
     this.onChangeEnd,
+    this.fillTone,
   });
 
   final String label;
@@ -199,6 +200,12 @@ class CompactGlowSlider extends StatefulWidget {
   final double value;
   final ValueChanged<double> onChanged;
   final ValueChanged<double>? onChangeEnd;
+  /// When provided, the leading icon renders as a fill-by-value
+  /// glyph (empty silhouette + bottom-up coloured fill), like the
+  /// _MoodFillIcon that used to live in the Home header. Driven by
+  /// the live drag value so the fill tracks the thumb at 60 fps.
+  /// Null = plain monochrome icon (the original behaviour).
+  final Color? fillTone;
 
   @override
   State<CompactGlowSlider> createState() => _CompactGlowSliderState();
@@ -243,7 +250,14 @@ class _CompactGlowSliderState extends State<CompactGlowSlider> {
       height: 38,
       child: Row(
         children: [
-          Icon(widget.icon, size: 17, color: BrandColors.inkSoft(context)),
+          if (widget.fillTone != null)
+            _FillIcon(
+              icon: widget.icon,
+              value: v,
+              tone: widget.fillTone!,
+            )
+          else
+            Icon(widget.icon, size: 17, color: BrandColors.inkSoft(context)),
           const SizedBox(width: 8),
           SizedBox(
             width: 58,
@@ -392,4 +406,77 @@ class _GlowThumbShape extends SliderComponentShape {
     final inner = Paint()..color = Colors.white;
     canvas.drawCircle(center, 7, inner);
   }
+}
+
+/// Fill-by-value leading glyph for [CompactGlowSlider]. Empty grey
+/// silhouette on the bottom, coloured fill on top, clipped to the
+/// [value] portion. Same visual language as the (now removed) Home
+/// header pip — just driven by the slider's live drag value so the
+/// fill tracks the thumb in real time.
+class _FillIcon extends StatelessWidget {
+  const _FillIcon({
+    required this.icon,
+    required this.value,
+    required this.tone,
+  });
+
+  final IconData icon;
+  final double value;
+  final Color tone;
+  static const double _size = 18;
+
+  @override
+  Widget build(BuildContext context) {
+    final v = value.clamp(0.0, 1.0);
+    return SizedBox(
+      width: _size + 2,
+      height: _size + 2,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Icon(
+            icon,
+            size: _size,
+            color: BrandColors.inkFaint(context).withValues(alpha: 0.65),
+          ),
+          ClipRect(
+            clipper: _BottomUpFillClipper(value: v, iconSize: _size),
+            child: Icon(
+              icon,
+              size: _size,
+              color: tone,
+              shadows: [
+                Shadow(
+                  color: tone.withValues(alpha: 0.55),
+                  blurRadius: 6,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BottomUpFillClipper extends CustomClipper<Rect> {
+  const _BottomUpFillClipper({required this.value, required this.iconSize});
+  final double value;
+  final double iconSize;
+
+  @override
+  Rect getClip(Size size) {
+    final centerOffset = (size.height - iconSize) / 2;
+    final filledHeight = iconSize * value;
+    return Rect.fromLTWH(
+      0,
+      centerOffset + (iconSize - filledHeight),
+      size.width,
+      filledHeight,
+    );
+  }
+
+  @override
+  bool shouldReclip(covariant _BottomUpFillClipper old) =>
+      old.value != value || old.iconSize != iconSize;
 }

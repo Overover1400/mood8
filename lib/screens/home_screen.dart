@@ -994,24 +994,9 @@ class _Header extends StatelessWidget {
               ),
             ],
             const Spacer(),
-            _MoodFillIcon(
-              icon: Icons.favorite_rounded,
-              value: mood,
-              tone: AppColors.pink,
-            ),
-            const SizedBox(width: 6),
-            _MoodFillIcon(
-              icon: Icons.bolt_rounded,
-              value: energy,
-              tone: AppColors.pinkLight,
-            ),
-            const SizedBox(width: 6),
-            _MoodFillIcon(
-              icon: Icons.center_focus_strong_rounded,
-              value: focus,
-              tone: AppColors.blueAccent,
-            ),
-            const SizedBox(width: 10),
+            // Fill-by-value icons moved out of the header — they now
+            // sit next to each slider inside the check-in card so the
+            // visual feedback lives where the user's finger is.
             _HeaderBellButton(onTap: onOpenNotifications),
             const SizedBox(width: 6),
             _HeaderAddButton(onTap: onAddTap),
@@ -1114,87 +1099,10 @@ class _CompactStreakChip extends StatelessWidget {
   }
 }
 
-/// A small icon that fills bottom-to-top by [value] (0..1).
-/// Implementation: stack a dim outline copy + a clipped fully-colored
-/// copy whose height = value × icon-size. The clip is anchored to the
-/// bottom so the fill rises like liquid in a glass.
-class _MoodFillIcon extends StatelessWidget {
-  const _MoodFillIcon({
-    required this.icon,
-    required this.value,
-    required this.tone,
-  });
-
-  final IconData icon;
-  final double value;
-  final Color tone;
-  static const double size = 22;
-
-  @override
-  Widget build(BuildContext context) {
-    final clampedValue = value.clamp(0.0, 1.0);
-    return Tooltip(
-      message: '${(clampedValue * 10).toStringAsFixed(1)}/10',
-      child: SizedBox(
-        width: size + 6,
-        height: size + 6,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Dim outline that's always visible.
-            Icon(
-              icon,
-              size: size,
-              color: BrandColors.inkFaint(context).withValues(alpha: 0.65),
-            ),
-            // Coloured fill, clipped to the bottom `value` portion.
-            ClipRect(
-              clipper: _BottomUpClipper(value: clampedValue, iconSize: size),
-              child: Icon(
-                icon,
-                size: size,
-                color: tone,
-                shadows: [
-                  Shadow(
-                    color: tone.withValues(alpha: 0.55),
-                    blurRadius: 8,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Clip rect that exposes the bottom [value] fraction of the icon —
-/// centered horizontally, height = value × iconSize.
-class _BottomUpClipper extends CustomClipper<Rect> {
-  const _BottomUpClipper({required this.value, required this.iconSize});
-  final double value;
-  final double iconSize;
-
-  @override
-  Rect getClip(Size size) {
-    // The icon is centered in the Stack so its drawing rect runs from
-    // ((size.h - iconSize)/2) to ((size.h + iconSize)/2). We expose
-    // the bottom `value` fraction of THAT range.
-    final centerOffset = (size.height - iconSize) / 2;
-    final filledHeight = iconSize * value;
-    return Rect.fromLTWH(
-      0,
-      centerOffset + (iconSize - filledHeight),
-      size.width,
-      filledHeight,
-    );
-  }
-
-  @override
-  bool shouldReclip(covariant _BottomUpClipper old) =>
-      old.value != value || old.iconSize != iconSize;
-}
+// The header _MoodFillIcon + _BottomUpClipper used to live here.
+// They were moved into glow_slider.dart as _FillIcon /
+// _BottomUpFillClipper so each slider draws its own fill-by-value
+// glyph next to its label.
 
 class _HeaderAddButton extends StatelessWidget {
   const _HeaderAddButton({required this.onTap});
@@ -1579,6 +1487,7 @@ class _MoodHeroCard extends StatelessWidget {
                 value: mood,
                 onChanged: onMood,
                 onChangeEnd: onSliderEnd,
+                fillTone: AppColors.pink,
               ),
               CompactGlowSlider(
                 label: 'Energy',
@@ -1586,6 +1495,7 @@ class _MoodHeroCard extends StatelessWidget {
                 value: energy,
                 onChanged: onEnergy,
                 onChangeEnd: onSliderEnd,
+                fillTone: AppColors.pinkLight,
               ),
               CompactGlowSlider(
                 label: 'Focus',
@@ -1593,6 +1503,7 @@ class _MoodHeroCard extends StatelessWidget {
                 value: focus,
                 onChanged: onFocus,
                 onChangeEnd: onSliderEnd,
+                fillTone: AppColors.blueAccent,
               ),
             ],
           ),
