@@ -29,6 +29,20 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
+  <!-- Google Sign-In (GSI). The `google-signin-client_id` meta is the
+       Web OAuth client id and is what `google_sign_in_web` reads at
+       boot to wire its GSI client. Without it the web plugin can't
+       initialize the Google Identity Services library and the flow
+       surfaces a misleading "couldn't reach Google" error. Loading
+       the GSI client script up-front avoids a first-tap latency
+       blip and also makes the failure mode (script blocked → no
+       GSI namespace) cleaner to debug.
+       Web Client ID is a public identifier — only the SECRET is
+       sensitive, and that lives only on the backend. -->
+  <meta name="google-signin-client_id"
+        content="322539199748-bonlhpebtrlsl01m3gs7s4n2d19en16v.apps.googleusercontent.com">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <title>mood8</title>
   <link rel="manifest" href="manifest.json">
 </head>

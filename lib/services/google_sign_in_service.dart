@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'auth_service.dart';
@@ -31,12 +32,23 @@ class GoogleSignInService {
   static const String webClientId =
       '322539199748-bonlhpebtrlsl01m3gs7s4n2d19en16v.apps.googleusercontent.com';
 
-  final GoogleSignIn _gs = GoogleSignIn(
-    // `email` minimum so we can match an existing Mood8 user, and
-    // `profile` for the user's display name on first sign-in.
-    scopes: const ['email', 'profile'],
-    serverClientId: webClientId,
-  );
+  /// Web vs mobile platform split. On web, `google_sign_in_web` reads
+  /// the client id from the `<meta name="google-signin-client_id">`
+  /// in index.html and must be constructed with `clientId:` instead
+  /// of `serverClientId:` — passing both, or the wrong one, is what
+  /// previously surfaced as a generic "couldn't reach Google" error
+  /// on the web build. On Android/iOS, `serverClientId:` is what
+  /// makes Google return an ID token issued FOR the web client (the
+  /// audience the backend verifies against).
+  final GoogleSignIn _gs = kIsWeb
+      ? GoogleSignIn(
+          clientId: webClientId,
+          scopes: const ['email', 'profile'],
+        )
+      : GoogleSignIn(
+          scopes: const ['email', 'profile'],
+          serverClientId: webClientId,
+        );
 
   /// Runs the platform Google flow and posts the resulting ID token
   /// to `/api/auth/google`. Returns the same [AuthResult] surface as
@@ -61,37 +73,83 @@ class GoogleSignInService {
     GoogleSignInAccount? account;
     try {
       account = await _gs.signIn();
-    } catch (e) {
-      debugPrint('[GoogleSignIn] signIn() threw: $e');
-      return AuthResult.fail(
-          "Couldn't reach Google. Check your connection and try again.");
+    } on PlatformException catch (e, st) {
+      debugPrint('[GoogleSignIn] PlatformException code=${e.code} '
+          'message=${e.message} details=${e.details}\n$st');
+      // ApiException code 10 = DEVELOPER_ERROR — usually package +
+      // SHA-1 don't match Google Cloud Console's Android OAuth
+      // client. Code 12500 = SIGN_IN_FAILED on Android (rare,
+      // network/cache). Code 7 = NETWORK_ERROR.
+      final friendly = _friendlyMessageFor(e);
+      return AuthResult.fail(friendly);
+    } catch (e, st) {
+      debugPrint('[GoogleSignIn] signIn() unexpected: $e\n$st');
+      return AuthResult.fail("Google sign-in failed: $e");
     }
     if (account == null) {
-      // User dismissed the chooser.
       return AuthResult.fail('Sign-in cancelled.');
     }
 
     GoogleSignInAuthentication auth;
     try {
       auth = await account.authentication;
-    } catch (e) {
-      debugPrint('[GoogleSignIn] authentication threw: $e');
-      return AuthResult.fail(
-          "Google returned an unexpected response. Try again.");
+    } on PlatformException catch (e, st) {
+      debugPrint(
+          '[GoogleSignIn] authentication PlatformException code=${e.code} '
+          'message=${e.message}\n$st');
+      return AuthResult.fail(_friendlyMessageFor(e));
+    } catch (e, st) {
+      debugPrint('[GoogleSignIn] authentication unexpected: $e\n$st');
+      return AuthResult.fail('Google returned an unexpected response: $e');
     }
     final idToken = auth.idToken;
     if (idToken == null || idToken.isEmpty) {
-      // This means `serverClientId` wasn't accepted by Google for the
-      // current package/SHA — usually a Google Cloud Console
-      // configuration drift.
-      debugPrint('[GoogleSignIn] idToken null — '
-          'check serverClientId + Android/iOS client setup');
+      // Most common root cause: the Web Client ID configured as
+      // `serverClientId` doesn't match what Google's Android OAuth
+      // client is configured to issue tokens for. Verify in Google
+      // Cloud Console:
+      //   • Android client package_name == com.mood8.app
+      //   • Android client SHA-1 == the release keystore SHA-1
+      //   • Web client (322539199748-bonlhpe…) authorized JavaScript
+      //     origins include https://mood8.app
+      debugPrint('[GoogleSignIn] idToken null — accessToken='
+          '${auth.accessToken == null ? 'null' : 'present'} · '
+          'serverAuthCode=${auth.idToken == null ? 'null' : 'present'}');
       return AuthResult.fail(
-          "Google didn't issue an ID token. Contact support — "
-          "your Google account may need to be re-linked.");
+          "Google didn't return an ID token (DEVELOPER_ERROR / package "
+          "or SHA mismatch in Cloud Console).");
     }
 
     return AuthService().signInWithGoogleIdToken(idToken);
+  }
+
+  /// Maps PlatformException codes to friendly UI text. Codes from
+  /// google_sign_in's Android channel + GIS web errors.
+  String _friendlyMessageFor(PlatformException e) {
+    switch (e.code) {
+      case 'sign_in_canceled':
+      case 'sign_in_cancelled':
+        return 'Sign-in cancelled.';
+      case 'sign_in_required':
+        return 'Sign in to a Google account on this device first.';
+      case 'network_error':
+      case '7':
+        return "Couldn't reach Google — check your connection.";
+      case 'sign_in_failed':
+      case '10':
+        // DEVELOPER_ERROR on Android — package name / SHA-1 mismatch
+        // in Google Cloud Console, or the Android OAuth client
+        // doesn't exist at all.
+        return 'Google rejected the app (DEVELOPER_ERROR ${e.code}). '
+            'Check the Android OAuth client package + SHA-1.';
+      case '12500':
+        return 'Google sign-in failed (12500). Make sure Google Play '
+            "services is up to date on this device.";
+      case '12501':
+        return 'Sign-in cancelled.';
+      default:
+        return 'Google sign-in failed (${e.code}): ${e.message}';
+    }
   }
 
   /// Sign out of Google AND clear the local AuthService state.
