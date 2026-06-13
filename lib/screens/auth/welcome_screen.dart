@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_button.dart';
+import '../../widgets/auth/google_sign_in_button.dart';
 import '../../widgets/mood_orb.dart';
 import '../../widgets/responsive_container.dart';
 import 'register_screen.dart';
@@ -101,6 +102,19 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                     ).animate().fadeIn(delay: 400.ms, duration: 500.ms),
                     const Spacer(flex: 2),
+                    GoogleSignInButton(
+                      onResultMessage: (msg) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(msg)),
+                        );
+                      },
+                    )
+                        .animate()
+                        .fadeIn(delay: 500.ms, duration: 500.ms)
+                        .slideY(
+                            begin: 0.1, end: 0, curve: Curves.easeOut),
+                    const SizedBox(height: 12),
                     AuthButton(
                       label: 'Create account',
                       icon: Icons.arrow_forward_rounded,
@@ -112,7 +126,7 @@ class WelcomeScreen extends StatelessWidget {
                       },
                     )
                         .animate()
-                        .fadeIn(delay: 550.ms, duration: 500.ms)
+                        .fadeIn(delay: 600.ms, duration: 500.ms)
                         .slideY(
                             begin: 0.1, end: 0, curve: Curves.easeOut),
                     const SizedBox(height: 12),
@@ -127,7 +141,7 @@ class WelcomeScreen extends StatelessWidget {
                       },
                     )
                         .animate()
-                        .fadeIn(delay: 650.ms, duration: 500.ms)
+                        .fadeIn(delay: 700.ms, duration: 500.ms)
                         .slideY(
                             begin: 0.1, end: 0, curve: Curves.easeOut),
                     const SizedBox(height: 18),

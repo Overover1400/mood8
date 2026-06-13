@@ -6,6 +6,8 @@ import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth/auth_button.dart';
 import '../../widgets/auth/auth_text_field.dart';
+import '../../widgets/auth/google_sign_in_button.dart';
+import '../../widgets/auth/or_divider.dart';
 import '../../widgets/responsive_container.dart';
 import 'sign_in_screen.dart';
 import 'verify_email_screen.dart';
@@ -233,6 +235,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   label: 'Create account',
                   loading: _loading,
                   onTap: _canSubmit && !_loading ? _submit : null,
+                ),
+                const SizedBox(height: 14),
+                const OrDivider(),
+                const SizedBox(height: 14),
+                GoogleSignInButton(
+                  onResultMessage: (msg) {
+                    if (!mounted) return;
+                    setState(() => _error = msg);
+                    HapticService().heavy();
+                  },
                 ),
                 const SizedBox(height: 14),
                 Center(

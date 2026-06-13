@@ -164,6 +164,30 @@ class AuthService {
     );
   }
 
+  /// Posts a Google ID token to `/api/auth/google` and persists the
+  /// returned JWT exactly like a normal login. The endpoint takes
+  /// care of the four account-link branches (existing-by-google_sub,
+  /// existing-by-email + link, guest-upgrade, new account) so this
+  /// method has no client-side branching — the post-login sync that
+  /// AuthGate kicks off handles either flow.
+  ///
+  /// `sendBearer: true` so that when a guest is currently signed in
+  /// their JWT goes up and the server upgrades the guest row in
+  /// place. AuthGate's `_lastUserId` guard suppresses the wipe for
+  /// upgrades and triggers it for switches — same behaviour as
+  /// register/verify.
+  Future<AuthResult> signInWithGoogleIdToken(String idToken) async {
+    debugPrint('[AuthService] signInWithGoogleIdToken (len=${idToken.length})');
+    return _post(
+      path: '/auth/google',
+      body: {'id_token': idToken},
+      onSuccess: (json) => _persistFromAuthBody(json,
+          fallbackMessage: 'Welcome to Mood8.'),
+      fallbackError: "Couldn't sign in with Google. Try again.",
+      sendBearer: true,
+    );
+  }
+
   Future<AuthResult> forgotPassword({required String email}) async {
     debugPrint('[AuthService] forgotPassword → $email');
     return _post(
