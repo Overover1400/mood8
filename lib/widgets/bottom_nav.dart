@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../feature_flags.dart';
 import '../services/haptic_service.dart';
 import '../theme/app_theme.dart';
 
@@ -9,7 +10,12 @@ class NavItem {
   final IconData icon;
 }
 
-const List<NavItem> kNavItems = [
+/// All possible nav items, in canonical order. The actual nav
+/// (and the IndexedStack children in MainNavigation) filters this
+/// list by [_navItemEnabled] — flipping a feature flag changes both
+/// the visible tabs and the index constants below without further
+/// surgery.
+const List<NavItem> _kAllNavItems = [
   NavItem('Today', Icons.today_rounded),
   NavItem('Habits', Icons.check_circle_outline_rounded),
   NavItem('Routine', Icons.schedule_rounded),
@@ -18,15 +24,32 @@ const List<NavItem> kNavItems = [
   NavItem('Progress', Icons.bar_chart_rounded),
 ];
 
+/// Mirror of [_kAllNavItems] but only the items currently shown,
+/// computed at compile time so const lists / index constants below
+/// stay const. When [kRoutineEnabled] is false the Routine tab is
+/// skipped entirely.
+const List<NavItem> kNavItems = kRoutineEnabled
+    ? _kAllNavItems
+    : [
+        NavItem('Today', Icons.today_rounded),
+        NavItem('Habits', Icons.check_circle_outline_rounded),
+        NavItem('Challenge', Icons.flag_rounded),
+        NavItem('Coach', Icons.chat_bubble_outline_rounded),
+        NavItem('Progress', Icons.bar_chart_rounded),
+      ];
+
+// Tab-index constants. They shift when Routine is hidden, so every
+// goToTab caller continues to land on the right screen without
+// per-call branching.
+const int kHomeTabIndex = 0;
 const int kHabitsTabIndex = 1;
-const int kRoutineTabIndex = 2;
-const int kChallengeTabIndex = 3;
-const int kCoachTabIndex = 4;
-const int kProgressTabIndex = 5;
-// Insights is no longer a tab — it now lives inside the Progress screen
-// as a segmented toggle. The legacy constant stays for any tutorial /
-// telemetry call site that still references it; it now aliases the
-// Progress tab so any redirect still lands the user in the right place.
+const int kRoutineTabIndex = kRoutineEnabled ? 2 : -1;
+const int kChallengeTabIndex = kRoutineEnabled ? 3 : 2;
+const int kCoachTabIndex = kRoutineEnabled ? 4 : 3;
+const int kProgressTabIndex = kRoutineEnabled ? 5 : 4;
+// Insights is no longer a tab — it lives inside the Progress screen
+// as a segmented toggle. Legacy alias kept so older call sites still
+// route correctly.
 const int kInsightsTabIndex = kProgressTabIndex;
 
 class MoodBottomNav extends StatelessWidget {

@@ -359,6 +359,11 @@ class HabitRepository {
   ValueListenable<Box<Habit>> watchHabits() => _habitBox.listenable();
   ValueListenable<Box<HabitLog>> watchLogs() => _logBox.listenable();
 
+  /// Iterable view of every log in the box — for widgets that need
+  /// to build their own per-day index (e.g. the Home month
+  /// completion calendar) without paying for one box read per cell.
+  Iterable<HabitLog> get allLogs => _logBox.values;
+
   // ─── Logs ─────────────────────────────────────────────────────────────
 
   Future<HabitLog> logHabit({

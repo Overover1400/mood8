@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../feature_flags.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/tutorial_overlay.dart';
@@ -81,12 +82,16 @@ class _MainNavigationState extends State<MainNavigation> {
       body: Stack(
         children: [
           if (_loaded)
+            // Children order MUST match kNavItems exactly — feature
+            // flags below decide whether RoutineScreen is included so
+            // index constants line up with the visible tab order. See
+            // lib/feature_flags.dart for the kRoutineEnabled flag.
             IndexedStack(
               index: _index,
               children: const [
                 HomeScreen(),
                 HabitsScreen(),
-                RoutineScreen(),
+                if (kRoutineEnabled) RoutineScreen(),
                 ChallengesListScreen(embedded: true),
                 CoachScreen(),
                 ProgressInsightsTab(),

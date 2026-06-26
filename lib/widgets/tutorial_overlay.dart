@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../feature_flags.dart';
 import '../screens/main_navigation.dart';
 import '../services/haptic_service.dart';
 import '../services/overlay_coordinator.dart';
@@ -126,7 +127,7 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
         label: 'TODAY',
         title: 'Your daily moment.',
         body:
-            'Check in with your mood and energy, run through your routines, and feel the shape of your day.',
+            'Check in with your mood and energy, glance at your completion calendar, and feel the shape of your day.',
       ),
       _TutorialStep(
         tabIndex: 0,
@@ -165,23 +166,29 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
         targetKey: TutorialTargets.addHabit,
       ),
       // ── Routine ─────────────────────────────────────────────────────
-      _TutorialStep(
-        tabIndex: kRoutineTabIndex,
-        icon: Icons.schedule_rounded,
-        label: 'ROUTINE',
-        title: 'A flow that fits you.',
-        body:
-            "Lay out the rhythm of your day. We'll surface what's next and celebrate when it's done.",
-      ),
-      _TutorialStep(
-        tabIndex: kRoutineTabIndex,
-        icon: Icons.add_rounded,
-        label: 'ADD A ROUTINE',
-        title: 'Stack your day.',
-        body:
-            'Tap + to drop a new ritual into your timeline — meditate, write, walk, anything.',
-        targetKey: TutorialTargets.addRoutine,
-      ),
+      // Hidden behind kRoutineEnabled — both Routine steps drop out
+      // of the tutorial list when the feature is off so the user
+      // doesn't see a "Routine" card pointing at a tab that doesn't
+      // exist. Flip the flag and these come back automatically.
+      if (kRoutineEnabled) ...[
+        _TutorialStep(
+          tabIndex: kRoutineTabIndex,
+          icon: Icons.schedule_rounded,
+          label: 'ROUTINE',
+          title: 'A flow that fits you.',
+          body:
+              "Lay out the rhythm of your day. We'll surface what's next and celebrate when it's done.",
+        ),
+        _TutorialStep(
+          tabIndex: kRoutineTabIndex,
+          icon: Icons.add_rounded,
+          label: 'ADD A ROUTINE',
+          title: 'Stack your day.',
+          body:
+              'Tap + to drop a new ritual into your timeline — meditate, write, walk, anything.',
+          targetKey: TutorialTargets.addRoutine,
+        ),
+      ],
       // ── Challenge ───────────────────────────────────────────────────
       _TutorialStep(
         tabIndex: kChallengeTabIndex,

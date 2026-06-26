@@ -8,6 +8,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../feature_flags.dart';
 import '../models/adaptive_suggestion.dart';
 import '../models/gratitude_entry.dart';
 import '../models/habit.dart';
@@ -29,6 +30,7 @@ import '../services/notification_feed_service.dart';
 import '../services/weekly_recap_service.dart';
 import '../services/pattern_detection_service.dart';
 import '../models/pattern_alert.dart';
+import '../widgets/habit_completion_calendar.dart';
 import '../widgets/pattern_alert_card.dart';
 import 'notifications_screen.dart';
 import 'patterns_screen.dart';
@@ -729,19 +731,46 @@ class _HomeScreenState extends State<HomeScreen> {
                             builder: (context, _, _) =>
                                 ValueListenableBuilder<Box<HabitLog>>(
                               valueListenable: _habits.watchLogs(),
-                              builder: (context, _, _) => _StatsRow(
-                                streak: _moods.calculateStreak(),
-                                completedToday: _routines
-                                    .getTodayRoutines()
-                                    .where((r) => r.isCompleted)
-                                    .length,
-                                totalToday:
-                                    _routines.getTodayRoutines().length,
-                                disciplineScore: _score.getDisciplineScore(),
-                                onTapDiscipline: () =>
-                                    MainNavigation.goToTab(
-                                        context, kProgressTabIndex),
-                              ),
+                              builder: (context, _, _) {
+                                // "Today" card source depends on which
+                                // surface is live. With Routine
+                                // disabled, the card reads habit
+                                // completion for today instead so the
+                                // stat stays informative; flipping
+                                // kRoutineEnabled back on restores
+                                // the original routine-completion
+                                // count.
+                                final int completed;
+                                final int total;
+                                if (kRoutineEnabled) {
+                                  completed = _routines
+                                      .getTodayRoutines()
+                                      .where((r) => r.isCompleted)
+                                      .length;
+                                  total =
+                                      _routines.getTodayRoutines().length;
+                                } else {
+                                  final today = DateTime.now();
+                                  final scheduled =
+                                      _habits.getHabitsForDate(today);
+                                  total = scheduled.length;
+                                  completed = scheduled.where((h) {
+                                    final log = _habits.getLogForDate(
+                                        h.id, today);
+                                    return log?.isCompleted ?? false;
+                                  }).length;
+                                }
+                                return _StatsRow(
+                                  streak: _moods.calculateStreak(),
+                                  completedToday: completed,
+                                  totalToday: total,
+                                  disciplineScore:
+                                      _score.getDisciplineScore(),
+                                  onTapDiscipline: () =>
+                                      MainNavigation.goToTab(
+                                          context, kProgressTabIndex),
+                                );
+                              },
                             ),
                           );
                         },
@@ -829,18 +858,43 @@ class _HomeScreenState extends State<HomeScreen> {
                           .slideY(
                               begin: 0.1, end: 0, curve: Curves.easeOutCubic),
                       const SizedBox(height: 28),
-                      ValueListenableBuilder<Box<RoutineItem>>(
-                        valueListenable: _routines.watchRoutines(),
-                        builder: (context, _, _) => _UpNextSection(
-                          routines: _routines.getTodayRoutines(),
-                          currentId: _routines.getCurrentRoutine()?.id,
-                          onToggle: _toggleRoutine,
-                          onSeeAll: () => MainNavigation.goToTab(
-                              context, kRoutineTabIndex),
+                      // Up Next (Routine) — hidden behind the
+                      // kRoutineEnabled flag for launch. Flip the
+                      // flag and the section re-mounts unchanged.
+                      if (kRoutineEnabled) ...[
+                        ValueListenableBuilder<Box<RoutineItem>>(
+                          valueListenable: _routines.watchRoutines(),
+                          builder: (context, _, _) => _UpNextSection(
+                            routines: _routines.getTodayRoutines(),
+                            currentId: _routines.getCurrentRoutine()?.id,
+                            onToggle: _toggleRoutine,
+                            onSeeAll: () => MainNavigation.goToTab(
+                                context, kRoutineTabIndex),
+                          ),
+                        )
+                            .animate()
+                            .fadeIn(delay: 450.ms, duration: 500.ms)
+                            .slideY(
+                                begin: 0.1,
+                                end: 0,
+                                curve: Curves.easeOutCubic),
+                        const SizedBox(height: 28),
+                      ],
+                      // Habit-completion month heatmap. Always-on;
+                      // pulls from the same HabitLog box the streak +
+                      // habit screens read so the colour scale is
+                      // consistent with what the user sees elsewhere.
+                      ValueListenableBuilder<Box<HabitLog>>(
+                        valueListenable: _habits.watchLogs(),
+                        builder: (context, _, _) =>
+                            ValueListenableBuilder<Box<Habit>>(
+                          valueListenable: _habits.watchHabits(),
+                          builder: (context, _, _) =>
+                              HabitCompletionCalendar(repo: _habits),
                         ),
                       )
                           .animate()
-                          .fadeIn(delay: 450.ms, duration: 500.ms)
+                          .fadeIn(delay: 500.ms, duration: 500.ms)
                           .slideY(
                               begin: 0.1, end: 0, curve: Curves.easeOutCubic),
                       const SizedBox(height: 100),
