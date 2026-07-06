@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 
+import '../feature_flags.dart';
 import '../models/frequency.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
@@ -131,7 +132,15 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                         child: StreakCalendar(
                           logs: logs,
                           color: color,
-                          frozenDates: habit.frozenDates,
+                          // Streak Freeze is gated by
+                          // kStreakFreezeEnabled — pass the habit's
+                          // frozenDates only when the feature is on
+                          // so the calendar cells that used to
+                          // render the ice glyph fall back to their
+                          // regular streak shading.
+                          frozenDates: kStreakFreezeEnabled
+                              ? habit.frozenDates
+                              : const <DateTime>[],
                         ),
                       ),
                     ),

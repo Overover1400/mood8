@@ -66,11 +66,13 @@ class PremiumScreen extends StatelessWidget {
                           Color(0xFFEC4899),
                         ],
                       ),
+                      // Streak freezes bullet removed for launch —
+                      // gated by kStreakFreezeEnabled. Re-add
+                      // alongside re-enabling the flag.
                       bullets: const [
                         'Unlimited habits and routines',
                         'Unlimited AI Coach messages',
                         'Multi-device sync (web, Android, watch)',
-                        '3 streak freezes per week',
                         'Premium cinematic celebrations',
                         'Advanced insights + pattern alerts',
                         'Weekly recap emails',

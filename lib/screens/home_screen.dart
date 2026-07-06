@@ -153,7 +153,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!tutorialCompletedNotifier.value) return;
     if (_intentionPromptDispatched) return;
     _intentionPromptDispatched = true;
-    _maybePromptIntention();
+    // The morning intention auto-prompt (_maybePromptIntention) was
+    // removed for launch — the user still gets to intention +
+    // gratitude via the header "+" sheet, but Mood8 no longer
+    // ambushes them with a modal when they open Home. Keep the
+    // recap + Year-in-Review banners which are event-driven (a
+    // fresh recap email exists / late-year celebration).
     _maybeShowRecapBanner();
     _maybeShowYirBanner();
   }
@@ -327,6 +332,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Auto-prompt removed for launch — Mood8 no longer opens the
+  // intention sheet uninvited. Kept here (unreferenced) so
+  // re-enabling the nudge is a one-line change at the call site in
+  // _onTutorialStateChange rather than re-authoring the guard rails.
+  // ignore: unused_element
   Future<void> _maybePromptIntention() async {
     if (_intentionPromptShown) return;
     if (!PreferencesService.instance.showMorningIntention) return;
@@ -1060,8 +1070,12 @@ class _Header extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // Streak chip stays — streaks themselves are unaffected.
             _CompactStreakChip(streak: streak),
-            if (profile != null) ...[
+            // Freeze badge — gated by kStreakFreezeEnabled. Wrapped
+            // separately from the streak chip so streaks keep
+            // rendering when the freeze layer is off.
+            if (kStreakFreezeEnabled && profile != null) ...[
               const SizedBox(width: 6),
               FreezeBadge(
                 count: profile!.freezesAvailable,

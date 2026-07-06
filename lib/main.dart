@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/auth_user.dart';
+import 'feature_flags.dart';
 import 'models/user_profile.dart';
 import 'screens/auth/welcome_screen.dart';
 import 'screens/main_navigation.dart';
@@ -57,16 +58,25 @@ Future<void> main() async {
   await SubscriptionService().load();
   await EffectsService().initialize();
   await AuthService().initialize();
-  // Auto-replenish streak freezes (no-op if onboarding hasn't created a
-  // profile yet — first replenish will happen after onboarding).
   await warmUpTutorialState();
-  await FreezeService().warmUpPromptCache();
-  final profile = UserRepository().getCurrentUser();
-  if (profile != null) {
-    await FreezeService().checkAndReplenish(
-      profile,
-      isPremium: SubscriptionService().isPremium,
-    );
+  // Streak Freeze — gated by kStreakFreezeEnabled. When disabled we
+  // skip the boot-time warm-up + auto-replenish entirely so no
+  // freezes accumulate silently while the feature is hidden. The
+  // Hive `freezesAvailable` field stays as-is on existing profiles
+  // (no destructive migration) so flipping the flag back on later
+  // resumes the feature from the state each user was in.
+  if (kStreakFreezeEnabled) {
+    // Auto-replenish streak freezes (no-op if onboarding hasn't
+    // created a profile yet — first replenish will happen after
+    // onboarding).
+    await FreezeService().warmUpPromptCache();
+    final profile = UserRepository().getCurrentUser();
+    if (profile != null) {
+      await FreezeService().checkAndReplenish(
+        profile,
+        isPremium: SubscriptionService().isPremium,
+      );
+    }
   }
   // Smart reminders: ensures the settings record exists (creating defaults
   // on first launch) and schedules timers if enabled + permission granted.

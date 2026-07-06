@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/habit_packages.dart';
+import '../feature_flags.dart';
 import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/sfx_type.dart';
@@ -205,9 +206,13 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
                       // Detect a missed scheduled habit from yesterday and
                       // offer a freeze (once per session per habit per date).
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _maybePromptFreeze(all, user);
-                      });
+                      // Gated by kStreakFreezeEnabled — streaks themselves
+                      // are unchanged, only the freeze layer is hidden.
+                      if (kStreakFreezeEnabled) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _maybePromptFreeze(all, user);
+                        });
+                      }
 
                       return SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
@@ -677,7 +682,11 @@ class _Header extends StatelessWidget {
                     ),
               ),
             ),
-            if (profile != null)
+            // Freeze badge — gated by kStreakFreezeEnabled. Streak
+            // counts + streak-based stats keep rendering normally
+            // via other surfaces; only the freeze indicator here is
+            // suppressed when the feature is off.
+            if (kStreakFreezeEnabled && profile != null)
               FreezeBadge(
                 count: profile!.freezesAvailable,
                 profile: profile,

@@ -11,3 +11,14 @@
 /// Flip to true to bring the feature back without grepping the
 /// codebase.
 const bool kRoutineEnabled = false;
+
+/// Streak Freeze — disabled at launch. Streak counts + flames + all
+/// streak-related stats stay fully intact; only the *freeze* layer
+/// on top is hidden (the FreezeBadge in headers, the freeze modal,
+/// the "prompt to spend a freeze on a missed day" nudge, the
+/// freeze-earned banners on ranking milestones). FreezeService,
+/// UserProfile.freezesAvailable, Habit.frozenDates, and the sync
+/// codec that carries those still exist so a user's freeze state
+/// isn't destroyed by shipping this. Flip [kStreakFreezeEnabled]
+/// to true to bring the feature back with no other code changes.
+const bool kStreakFreezeEnabled = false;

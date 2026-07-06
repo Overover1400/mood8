@@ -671,10 +671,12 @@ class _FeatureList extends StatelessWidget {
   const _FeatureList({required this.plus});
   final bool plus;
 
+  // Streak freezes bullet ("3 streak freezes per week") removed for
+  // launch — the freeze feature is gated by kStreakFreezeEnabled in
+  // feature_flags.dart. Re-add here alongside re-enabling the flag.
   static const _premiumFeatures = [
     'Unlimited habits and routines',
     'Unlimited AI Coach messages',
-    '3 streak freezes per week',
     'Premium cinematic effects',
     'Custom identity themes',
     'Advanced insights + pattern alerts',
