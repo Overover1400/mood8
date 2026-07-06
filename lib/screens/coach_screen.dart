@@ -578,6 +578,11 @@ class _ChatTabState extends State<_ChatTab> {
   /// declines, or sends another message.
   ProposedHabits? _pendingProposal;
   bool _addingProposal = false;
+  /// One-shot latch — the server sets `downgraded_to_mini=true` for
+  /// every turn once quota is exhausted; we only surface the "using
+  /// a lighter model" snackbar the FIRST time we see it in a session
+  /// so we don't nag the user on every reply.
+  bool _downgradeNoticeShown = false;
   List<ChatMessage> _messages = const [];
 
   /// Hive id of the single assistant message that should "type" out
@@ -648,6 +653,26 @@ class _ChatTabState extends State<_ChatTab> {
       _revealingMessageId = inserted.id;
       if (result.proposed != null && result.proposed!.habits.isNotEmpty) {
         _pendingProposal = result.proposed;
+      }
+      // Soft banner ONCE per session when the server has quietly
+      // downgraded us to the mini model (premium user past their
+      // daily/monthly gpt-4o cap). Coach keeps working; user just
+      // gets a lighter model until the window resets.
+      if (result.downgradedToMini &&
+          !_downgradeNoticeShown &&
+          mounted) {
+        _downgradeNoticeShown = true;
+        // `context` local shadowed by the DailyData above — use the
+        // widget's BuildContext explicitly.
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "You've hit today's Coach limit — using a lighter model "
+              'for now. Resets tomorrow.',
+            ),
+            duration: Duration(seconds: 5),
+          ),
+        );
       }
       SfxService().fire(SfxType.aiMessage);
       HapticService().light();

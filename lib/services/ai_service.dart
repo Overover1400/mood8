@@ -115,6 +115,7 @@ class AiService {
       proposed: proposed,
       freeUsed: (body['free_messages_used'] as num?)?.toInt() ?? 0,
       freeLimit: (body['free_messages_limit'] as num?)?.toInt() ?? 0,
+      downgradedToMini: body['downgraded_to_mini'] as bool? ?? false,
     );
   }
 
@@ -379,6 +380,7 @@ class CoachChatReply {
     this.proposed,
     this.freeUsed = 0,
     this.freeLimit = 0,
+    this.downgradedToMini = false,
   });
 
   final String reply;
@@ -387,4 +389,9 @@ class CoachChatReply {
   /// the client uses these to render "X of Y messages today".
   final int freeUsed;
   final int freeLimit;
+  /// True when this reply was served by the fallback (mini) model
+  /// because the premium user has hit their daily or monthly gpt-4o
+  /// quota. The client surfaces a soft "using a lighter model today"
+  /// note; the Coach itself keeps working.
+  final bool downgradedToMini;
 }
