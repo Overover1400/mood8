@@ -29,6 +29,7 @@ import 'services/preferences_service.dart';
 import 'services/routine_repository.dart';
 import 'services/sfx_service.dart';
 import 'services/subscription_service.dart';
+import 'services/timezone_sync_service.dart';
 import 'services/user_repository.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_theme_light.dart';
@@ -123,6 +124,11 @@ Future<void> main() async {
     // accurate the first time it paints.
     // ignore: discarded_futures
     NotificationFeedService().refresh();
+    // Push the device timezone once per calendar day (idempotent
+    // and rate-limited server-side too). Fixes stale users.timezone
+    // when the user travels between app-opens.
+    // ignore: discarded_futures
+    TimezoneSyncService().syncIfNeeded();
   }
   runApp(const Mood8App());
 }
@@ -299,6 +305,7 @@ class AuthGate extends StatefulWidget {
   static Future<void> resetAuth() async {
     await SyncService().clearLocalUserData();
     await SubscriptionService().clearForLogout();
+    await TimezoneSyncService().clearForLogout();
     await AuthService().logout();
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -627,6 +634,9 @@ class _AuthGateState extends State<AuthGate> {
       await SubscriptionService().clearForLogout();
       await SyncService().fullRestore();
       await SubscriptionService().refreshStatus();
+      // ignore: discarded_futures
+      TimezoneSyncService().syncIfNeeded();
+      _syncNameFromAuthUser();
       return;
     }
     final hasLocal = SyncService().hasLocalUserData();
@@ -639,12 +649,43 @@ class _AuthGateState extends State<AuthGate> {
       await SyncService().syncNow();
     }
     await SubscriptionService().refreshStatus();
+    // Fire-and-forget timezone push right after auth becomes stable
+    // so a fresh sign-in stamps the row before any recap job runs.
+    // ignore: discarded_futures
+    TimezoneSyncService().syncIfNeeded();
+    // Keep the local UserProfile's name in sync with the AuthUser
+    // (which the backend just handed us). Google sign-in populates
+    // AuthUser.name from the Google profile; without this write,
+    // Home would keep reading the older (or "friend"-fallback)
+    // value out of Hive while Settings shows the fresh name.
+    _syncNameFromAuthUser();
     // Sync may have brought down a reminder enabled on another device.
     // Coalesce one re-arm pass so the OS state mirrors the new Hive
     // data — the codec already calls rescheduleFor per row, this is
     // belt-and-suspenders for fresh installs.
     // ignore: discarded_futures
     HabitReminderService().scheduleAll();
+  }
+
+  /// If the local UserProfile has a stale or empty name, backfill it
+  /// from AuthService.currentUser.name so the Home greeting reads the
+  /// same identity Settings shows. Idempotent — a UserProfile whose
+  /// name already matches the AuthUser is untouched (so we don't burn
+  /// a debounced sync push on every login).
+  void _syncNameFromAuthUser() {
+    try {
+      final authName = AuthService().currentUser?.name.trim();
+      if (authName == null || authName.isEmpty) return;
+      final repo = UserRepository();
+      final profile = repo.getCurrentUser();
+      if (profile == null) return; // Onboarding will create it later.
+      if (profile.name.trim() == authName) return;
+      profile.name = authName;
+      // ignore: discarded_futures
+      repo.saveUser(profile);
+    } catch (e) {
+      debugPrint('[AuthGate] _syncNameFromAuthUser failed: $e');
+    }
   }
 }
 

@@ -336,6 +336,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       onManage: _openBillingPortal,
                     ),
+                    // Account section — first thing under the premium
+                    // hero card so the user's signed-in identity is
+                    // always the top-of-Settings surface.
+                    SettingsSection(
+                      title: 'Account',
+                      children: [
+                        ValueListenableBuilder<AuthUser?>(
+                          valueListenable:
+                              AuthService().currentUserNotifier,
+                          builder: (context, authUser, _) {
+                            if (authUser != null && authUser.isGuest) {
+                              return SettingsTile(
+                                icon: Icons.cloud_outlined,
+                                title: 'Register your account',
+                                subtitle:
+                                    "You're using Mood8 as a guest — "
+                                    'register to keep your data safe across devices',
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const RegisterScreen(),
+                                  ),
+                                ),
+                              );
+                            }
+                            if (authUser != null) {
+                              return SettingsTile(
+                                icon: Icons.verified_user_outlined,
+                                title: authUser.name.isEmpty
+                                    ? authUser.email
+                                    : authUser.name,
+                                subtitle: 'Signed in · ${authUser.email}',
+                                onTap: _confirmSignOut,
+                              );
+                            }
+                            return SettingsTile(
+                              icon: Icons.login_rounded,
+                              title: 'Sign in',
+                              subtitle:
+                                  'Or create an account to sync later',
+                              onTap: _goToWelcome,
+                            );
+                          },
+                        ),
+                        SettingsTile(
+                          icon: Icons.sync_rounded,
+                          title: 'Sync across devices',
+                          subtitle: 'Coming soon',
+                          onTap: () => _comingSoon('Sync'),
+                        ),
+                        SettingsTile(
+                          icon: Icons.no_accounts_rounded,
+                          title: 'Delete account',
+                          subtitle:
+                              'Removes all local data (account sync not enabled yet)',
+                          destructive: true,
+                          onTap: _confirmDeleteAccount,
+                        ),
+                      ],
+                    ),
                     SettingsSection(
                       title: 'Profile',
                       children: [
@@ -852,62 +911,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ],
                     ),
-                    SettingsSection(
-                      title: 'Account',
-                      children: [
-                        ValueListenableBuilder<AuthUser?>(
-                          valueListenable:
-                              AuthService().currentUserNotifier,
-                          builder: (context, authUser, _) {
-                            if (authUser != null && authUser.isGuest) {
-                              return SettingsTile(
-                                icon: Icons.cloud_outlined,
-                                title: 'Register your account',
-                                subtitle:
-                                    "You're using Mood8 as a guest — "
-                                    'register to keep your data safe across devices',
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const RegisterScreen(),
-                                  ),
-                                ),
-                              );
-                            }
-                            if (authUser != null) {
-                              return SettingsTile(
-                                icon: Icons.verified_user_outlined,
-                                title: authUser.name.isEmpty
-                                    ? authUser.email
-                                    : authUser.name,
-                                subtitle: 'Signed in · ${authUser.email}',
-                                onTap: _confirmSignOut,
-                              );
-                            }
-                            return SettingsTile(
-                              icon: Icons.login_rounded,
-                              title: 'Sign in',
-                              subtitle:
-                                  'Or create an account to sync later',
-                              onTap: _goToWelcome,
-                            );
-                          },
-                        ),
-                        SettingsTile(
-                          icon: Icons.sync_rounded,
-                          title: 'Sync across devices',
-                          subtitle: 'Coming soon',
-                          onTap: () => _comingSoon('Sync'),
-                        ),
-                        SettingsTile(
-                          icon: Icons.no_accounts_rounded,
-                          title: 'Delete account',
-                          subtitle:
-                              'Removes all local data (account sync not enabled yet)',
-                          destructive: true,
-                          onTap: _confirmDeleteAccount,
-                        ),
-                      ],
-                    ),
+                    // The Account section used to live here — moved
+                    // to the top of the Settings screen so the
+                    // signed-in identity + sign-in/sign-out is the
+                    // first thing the user sees.
                     SettingsSection(
                       title: 'Achievements',
                       children: [

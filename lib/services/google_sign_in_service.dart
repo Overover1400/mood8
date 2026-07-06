@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'auth_service.dart';
+import 'timezone_sync_service.dart';
 
 /// Wraps the platform `GoogleSignIn` flow and posts the resulting ID
 /// token to our backend.
@@ -120,7 +121,14 @@ class GoogleSignInService {
           "or SHA mismatch in Cloud Console).");
     }
 
-    return AuthService().signInWithGoogleIdToken(idToken);
+    // Piggyback the device IANA timezone so a brand-new Google
+    // account has its users.timezone populated in the same
+    // round-trip. Failure here is silent — the daily heartbeat
+    // in TimezoneSyncService catches any device that couldn't
+    // resolve the tz at sign-in.
+    final tz = await TimezoneSyncService().readDeviceTimezone();
+    return AuthService()
+        .signInWithGoogleIdToken(idToken, timezone: tz);
   }
 
   /// Maps PlatformException codes to friendly UI text. Codes from

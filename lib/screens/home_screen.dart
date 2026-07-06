@@ -580,8 +580,25 @@ class _HomeScreenState extends State<HomeScreen> {
                           builder: (context, userBox, _) {
                             final user =
                                 userBox.get(UserRepository.userKey);
+                            // Header name resolution — Hive UserProfile
+                            // first, then AuthUser (backend-issued
+                            // identity, which Google sign-in populates
+                            // synchronously), then the "friend"
+                            // fallback. Google sign-in was hitting the
+                            // fallback because the Hive profile is
+                            // only seeded by onboarding, and Google
+                            // users on a fresh device skip past it.
+                            final authName =
+                                AuthService().currentUser?.name.trim();
+                            final displayName = (user?.name.trim().isNotEmpty
+                                        ?? false)
+                                    ? user!.name.trim()
+                                    : (authName != null &&
+                                            authName.isNotEmpty)
+                                        ? authName
+                                        : 'friend';
                             return _Header(
-                              name: user?.name ?? 'friend',
+                              name: displayName,
                               streak: _moods.calculateStreak(),
                               profile: user,
                               mood: _mood,

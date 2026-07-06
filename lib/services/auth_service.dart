@@ -176,11 +176,20 @@ class AuthService {
   /// place. AuthGate's `_lastUserId` guard suppresses the wipe for
   /// upgrades and triggers it for switches — same behaviour as
   /// register/verify.
-  Future<AuthResult> signInWithGoogleIdToken(String idToken) async {
+  Future<AuthResult> signInWithGoogleIdToken(
+    String idToken, {
+    String? timezone,
+  }) async {
     debugPrint('[AuthService] signInWithGoogleIdToken (len=${idToken.length})');
     return _post(
       path: '/auth/google',
-      body: {'id_token': idToken},
+      body: {
+        'id_token': idToken,
+        // Piggyback the IANA timezone so a fresh account has its
+        // users.timezone stamped in the same round-trip. Server
+        // ignores an empty/omitted string.
+        if (timezone != null && timezone.isNotEmpty) 'timezone': timezone,
+      },
       onSuccess: (json) => _persistFromAuthBody(json,
           fallbackMessage: 'Welcome to Mood8.'),
       fallbackError: "Couldn't sign in with Google. Try again.",

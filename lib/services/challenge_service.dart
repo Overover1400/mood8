@@ -177,6 +177,21 @@ class ChallengeService {
     _throwIfHttpError(res);
   }
 
+  /// Owner-only hard delete. Removes the challenge and every child
+  /// row (participants, checkins, join requests, comments, upvotes,
+  /// reports, related notifications) server-side in one transaction.
+  /// Returns 404 for callers who aren't the creator — the client
+  /// should treat that identically to "already gone."
+  Future<void> delete(int challengeId) async {
+    final res = await _client
+        .delete(
+          Uri.parse('$_baseUrl/challenges/$challengeId'),
+          headers: _headers,
+        )
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+  }
+
   // ── Upvotes ────────────────────────────────────────────────────────
 
   /// Toggle the signed-in user's upvote. Returns the new state +

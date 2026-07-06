@@ -213,6 +213,62 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     }
   }
 
+  Future<void> _deleteChallenge() async {
+    final d = _detail;
+    if (d == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text(
+          'Delete "${d.title}"?',
+          style: TextStyle(color: BrandColors.ink(context)),
+        ),
+        content: Text(
+          "This removes the challenge for everyone. Participants, "
+          "checkins, join requests, and comments are all wiped. "
+          "This can't be undone.",
+          style: TextStyle(
+            color: BrandColors.inkSoft(context),
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(
+                color: Color(0xFFFF6B81),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    HapticService().heavy();
+    try {
+      await ChallengeService().delete(widget.challengeId);
+      if (!mounted) return;
+      Navigator.of(context).pop(true); // return to list, which reloads
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e is ChallengeError ? e.message : 'Could not delete challenge.',
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _reportComment(ChallengeComment c) async {
     final controller = TextEditingController();
     final reason = await showDialog<String>(
@@ -569,6 +625,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
               );
               _load();
             },
+            onCreatorDelete: _deleteChallenge,
           ),
           const SizedBox(height: 24),
           _ParticipantHistory(detail: d),
@@ -811,6 +868,7 @@ class _ActionPanel extends StatelessWidget {
     required this.checkingIn,
     required this.onCheckin,
     required this.onCreatorRequests,
+    required this.onCreatorDelete,
   });
 
   final ChallengeDetail detail;
@@ -821,6 +879,7 @@ class _ActionPanel extends StatelessWidget {
   final bool checkingIn;
   final VoidCallback onCheckin;
   final VoidCallback onCreatorRequests;
+  final VoidCallback onCreatorDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -829,6 +888,7 @@ class _ActionPanel extends StatelessWidget {
     if (d.isCreator) {
       return _CreatorPanel(
         onRequests: onCreatorRequests,
+        onDelete: onCreatorDelete,
         details: d,
       );
     }
@@ -962,57 +1022,109 @@ class _CheckinPanel extends StatelessWidget {
 }
 
 class _CreatorPanel extends StatelessWidget {
-  const _CreatorPanel({required this.onRequests, required this.details});
+  const _CreatorPanel({
+    required this.onRequests,
+    required this.onDelete,
+    required this.details,
+  });
   final VoidCallback onRequests;
+  final VoidCallback onDelete;
   final ChallengeDetail details;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onRequests,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
-          decoration: BoxDecoration(
-            color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onRequests,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: AppColors.purple.withValues(alpha: 0.40),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.inbox_rounded, color: AppColors.pinkLight),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Join requests',
-                      style: GoogleFonts.bricolageGrotesque(
-                        color: BrandColors.ink(context),
-                        fontSize: 20,
-                      ),
-                    ),
-                    Text(
-                      'Review who wants to join your challenge.',
-                      style: TextStyle(
-                        color: BrandColors.inkSoft(context),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+              decoration: BoxDecoration(
+                color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: AppColors.purple.withValues(alpha: 0.40),
                 ),
               ),
-              Icon(Icons.chevron_right_rounded,
-                  color: BrandColors.inkSoft(context)),
-            ],
+              child: Row(
+                children: [
+                  Icon(Icons.inbox_rounded, color: AppColors.pinkLight),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Join requests',
+                          style: GoogleFonts.bricolageGrotesque(
+                            color: BrandColors.ink(context),
+                            fontSize: 20,
+                          ),
+                        ),
+                        Text(
+                          'Review who wants to join your challenge.',
+                          style: TextStyle(
+                            color: BrandColors.inkSoft(context),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded,
+                      color: BrandColors.inkSoft(context)),
+                ],
+              ),
+            ),
           ),
         ),
-      ),
+        const SizedBox(height: 10),
+        // Owner delete — softened destructive style (subtle outline
+        // + destructive text colour) so it doesn't dominate the
+        // creator panel but is unambiguously available.
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onDelete,
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+              decoration: BoxDecoration(
+                color: BrandColors.bgCard(context).withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: const Color(0xFFFF6B81).withValues(alpha: 0.55),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Color(0xFFFF6B81),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Delete this challenge',
+                      style: TextStyle(
+                        color: BrandColors.ink(context),
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded,
+                      color: BrandColors.inkSoft(context)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1692,8 +1804,18 @@ class _CommentTile extends StatelessWidget {
   final VoidCallback onReport;
 
   String _relativeTime(DateTime at) {
-    final diff = DateTime.now().difference(at);
-    if (diff.inSeconds < 60) return 'just now';
+    // Compare in UTC to avoid the "just posted → 4h ago" bug that
+    // came from the server emitting naive UTC strings without a
+    // zone marker. `_parseServerUtc` in models/challenge.dart now
+    // stamps every server datetime as UTC; toUtc() here is
+    // defence-in-depth so a local-flagged DateTime from any other
+    // path still lands right.
+    final nowUtc = DateTime.now().toUtc();
+    final atUtc = at.isUtc ? at : at.toUtc();
+    final diff = nowUtc.difference(atUtc);
+    // Clock-skew guard: a server timestamp a few seconds in the
+    // "future" (round-trip latency) shouldn't render "-1m ago".
+    if (diff.isNegative || diff.inSeconds < 60) return 'just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m';
     if (diff.inHours < 24) return '${diff.inHours}h';
     if (diff.inDays < 7) return '${diff.inDays}d';

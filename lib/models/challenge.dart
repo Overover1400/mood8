@@ -200,10 +200,10 @@ class ChallengeParticipant {
       missedRankups: (json['missed_rankups'] as num?)?.toInt() ?? 0,
       joinedAfterStart: json['joined_after_start'] as bool? ?? false,
       joinedAt: json['joined_at'] is String
-          ? DateTime.tryParse(json['joined_at'] as String)
+          ? _parseServerUtc(json['joined_at'])
           : null,
       removedAt: json['removed_at'] is String
-          ? DateTime.tryParse(json['removed_at'] as String)
+          ? _parseServerUtc(json['removed_at'])
           : null,
     );
   }
@@ -308,7 +308,7 @@ class ChallengeDetail {
       status: json['status'] as String? ?? 'active',
       aiReviewStatus: json['ai_review_status'] as String? ?? 'approved',
       aiReviewReason: json['ai_review_reason'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: _parseServerUtc(json['created_at']),
       creator: ChallengeCreator.fromJson(
         json['creator'] as Map<String, dynamic>?,
       ),
@@ -363,11 +363,37 @@ class ChallengeComment {
       userAvatarUrl: user['avatar_url'] as String?,
       userProfileBadge: user['profile_badge'] as String?,
       text: (json['text'] as String?) ?? '',
-      createdAt:
-          DateTime.tryParse(json['created_at'] as String? ?? '') ??
-              DateTime.now(),
+      createdAt: _parseServerUtc(json['created_at']),
     );
   }
+}
+
+/// Parses a server-emitted ISO-8601 datetime string as UTC. The
+/// backend serializer stamps a trailing `Z` so DateTime.tryParse
+/// already returns a UTC-flagged DateTime, but for legacy rows
+/// (or a client build lagging behind the server rollout) we force
+/// `.toUtc()` too — treating naive strings as UTC is what the
+/// storage layer intended all along. Empty / missing / malformed
+/// falls back to `DateTime.now().toUtc()` so relative-time math
+/// still produces "just now" instead of an infinite duration.
+DateTime _parseServerUtc(dynamic value) {
+  if (value is! String || value.isEmpty) {
+    return DateTime.now().toUtc();
+  }
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) return DateTime.now().toUtc();
+  // If the string had a zone marker, .isUtc reflects that. If it
+  // was naive, treat it as UTC too — the server always emits UTC.
+  return parsed.isUtc ? parsed : DateTime.utc(
+        parsed.year,
+        parsed.month,
+        parsed.day,
+        parsed.hour,
+        parsed.minute,
+        parsed.second,
+        parsed.millisecond,
+        parsed.microsecond,
+      );
 }
 
 /// One row from `/api/challenges/{id}/join-requests`.
@@ -399,7 +425,7 @@ class JoinRequest {
       userAvatarUrl: user['avatar_url'] as String?,
       creatorScore: (user['creator_score'] as num?)?.toInt() ?? 0,
       profileBadge: user['profile_badge'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: _parseServerUtc(json['created_at']),
     );
   }
 }
