@@ -9,17 +9,45 @@ import 'auth_service.dart';
 import '../models/daily_data.dart';
 import '../models/routine_category.dart';
 
+/// What kind of 402 the backend returned. Determines which UI the
+/// client should surface — a paywall for the tiers that can convert
+/// out of the limit, a friendly "resets" dialog for premium users
+/// who've hit a cap they can't buy out of.
+enum AiLimitKind {
+  /// Not a limit — a genuine error condition.
+  none,
+  /// Free-tier daily *message* cap on /api/chat or /api/coach/chat
+  /// (the existing 5-msg/day rate limit tracked in ChatUsage).
+  dailyMessageFree,
+  /// Free user hit their per-day gpt-4o allowance (Coach + habit
+  /// generation combined). Client → paywall with upgrade nudge.
+  gpt4oFreeDaily,
+  /// Premium user hit their per-day gpt-4o allowance. Client →
+  /// "resets tomorrow" dialog. No paywall — they already pay.
+  gpt4oPremiumDaily,
+  /// User (either tier) hit the per-month gpt-4o backstop. Client →
+  /// "resets next month" dialog.
+  gpt4oMonthly,
+}
+
 class AiException implements Exception {
   AiException(
     this.message, {
     this.retryable = true,
     this.dailyLimitReached = false,
+    this.limitKind = AiLimitKind.none,
   });
   final String message;
   final bool retryable;
-  /// Backend returned 402 with `daily_limit_reached: true` (free-tier
-  /// chat cap). Callers should surface the paywall, not a generic error.
+  /// Backend returned 402 that should push the paywall — kept as a
+  /// simple boolean for backward compat with call sites that don't
+  /// need to distinguish message-limit from gpt-4o-limit. New code
+  /// should read [limitKind] for the precise cause.
   final bool dailyLimitReached;
+  /// The precise 402 kind. Callers switch on this to pick the right
+  /// UI: paywall for [dailyMessageFree] + [gpt4oFreeDaily], soft
+  /// dialog for [gpt4oPremiumDaily] + [gpt4oMonthly].
+  final AiLimitKind limitKind;
 
   @override
   String toString() => 'AiException: $message';
@@ -115,7 +143,8 @@ class AiService {
       proposed: proposed,
       freeUsed: (body['free_messages_used'] as num?)?.toInt() ?? 0,
       freeLimit: (body['free_messages_limit'] as num?)?.toInt() ?? 0,
-      downgradedToMini: body['downgraded_to_mini'] as bool? ?? false,
+      remainingToday: (body['gpt4o_remaining_today'] as num?)?.toInt(),
+      remainingMonth: (body['gpt4o_remaining_month'] as num?)?.toInt(),
     );
   }
 
@@ -258,10 +287,61 @@ class AiService {
     }
 
     if (res.statusCode == 402) {
+      // The server sends structured detail on 402. FastAPI wraps that
+      // in {"detail": {...}} — parse both shapes.
+      Map<String, dynamic> body = const {};
+      Map<String, dynamic> detail = const {};
+      try {
+        final raw = jsonDecode(res.body);
+        if (raw is Map<String, dynamic>) {
+          body = raw;
+          final d = raw['detail'];
+          if (d is Map<String, dynamic>) detail = d;
+        }
+      } catch (_) {/* leave detail empty — falls to defaults */}
+      final errorCode = (detail['error'] as String?) ??
+          (body['error'] as String?) ??
+          '';
+      final serverMsg = (detail['message'] as String?) ??
+          (body['message'] as String?);
+      // Map the server's error code to the client's AiLimitKind so
+      // callers pick the right UI (paywall vs "resets" dialog).
+      AiLimitKind kind;
+      String fallbackMsg;
+      switch (errorCode) {
+        case 'gpt4o_free_daily_limit':
+          kind = AiLimitKind.gpt4oFreeDaily;
+          fallbackMsg =
+              "You've reached today's Coach limit — it resets "
+              "tomorrow. Upgrade to Premium for more Coach access.";
+          break;
+        case 'gpt4o_premium_daily_limit':
+          kind = AiLimitKind.gpt4oPremiumDaily;
+          fallbackMsg =
+              "You've reached today's Coach limit — it resets "
+              "tomorrow.";
+          break;
+        case 'gpt4o_monthly_limit':
+          kind = AiLimitKind.gpt4oMonthly;
+          fallbackMsg = "You've reached this month's Coach limit.";
+          break;
+        default:
+          // Legacy 402 = free-tier daily message rate limit (5/day
+          // on /api/chat + /api/coach/chat).
+          kind = AiLimitKind.dailyMessageFree;
+          fallbackMsg =
+              "You've hit today's free-tier limit. Upgrade for "
+              "unlimited chat.";
+      }
+      // Free-tier limits (both message + gpt-4o) push the paywall,
+      // so the legacy dailyLimitReached bool stays true for those.
+      final pushPaywall = kind == AiLimitKind.dailyMessageFree ||
+          kind == AiLimitKind.gpt4oFreeDaily;
       throw AiException(
-        "You've hit today's free-tier limit. Upgrade for unlimited chat.",
+        serverMsg ?? fallbackMsg,
         retryable: false,
-        dailyLimitReached: true,
+        dailyLimitReached: pushPaywall,
+        limitKind: kind,
       );
     }
     if (res.statusCode == 429) {
@@ -380,18 +460,20 @@ class CoachChatReply {
     this.proposed,
     this.freeUsed = 0,
     this.freeLimit = 0,
-    this.downgradedToMini = false,
+    this.remainingToday,
+    this.remainingMonth,
   });
 
   final String reply;
   final ProposedHabits? proposed;
-  /// Free-tier counters (server echo). Both 0 for premium users —
-  /// the client uses these to render "X of Y messages today".
+  /// Free-tier message counters (server echo). Both 0 for premium
+  /// users — the client uses these to render "X of Y messages today".
   final int freeUsed;
   final int freeLimit;
-  /// True when this reply was served by the fallback (mini) model
-  /// because the premium user has hit their daily or monthly gpt-4o
-  /// quota. The client surfaces a soft "using a lighter model today"
-  /// note; the Coach itself keeps working.
-  final bool downgradedToMini;
+  /// gpt-4o quota remaining for this user AFTER this call was
+  /// counted. Null for anonymous callers (no counters). The client
+  /// can render a subtle "N left today" hint when the numbers are
+  /// low.
+  final int? remainingToday;
+  final int? remainingMonth;
 }

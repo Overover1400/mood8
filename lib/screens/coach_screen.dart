@@ -578,11 +578,11 @@ class _ChatTabState extends State<_ChatTab> {
   /// declines, or sends another message.
   ProposedHabits? _pendingProposal;
   bool _addingProposal = false;
-  /// One-shot latch — the server sets `downgraded_to_mini=true` for
-  /// every turn once quota is exhausted; we only surface the "using
-  /// a lighter model" snackbar the FIRST time we see it in a session
-  /// so we don't nag the user on every reply.
-  bool _downgradeNoticeShown = false;
+  /// Latest gpt-4o quota remaining today, echoed by the server on
+  /// each successful Coach reply. Null before the first reply or
+  /// for anonymous callers. Used to render a subtle "N left today"
+  /// hint on the compose row when getting close to the cap.
+  int? _remainingToday;
   List<ChatMessage> _messages = const [];
 
   /// Hive id of the single assistant message that should "type" out
@@ -654,40 +654,35 @@ class _ChatTabState extends State<_ChatTab> {
       if (result.proposed != null && result.proposed!.habits.isNotEmpty) {
         _pendingProposal = result.proposed;
       }
-      // Soft banner ONCE per session when the server has quietly
-      // downgraded us to the mini model (premium user past their
-      // daily/monthly gpt-4o cap). Coach keeps working; user just
-      // gets a lighter model until the window resets.
-      if (result.downgradedToMini &&
-          !_downgradeNoticeShown &&
-          mounted) {
-        _downgradeNoticeShown = true;
-        // `context` local shadowed by the DailyData above — use the
-        // widget's BuildContext explicitly.
-        ScaffoldMessenger.of(this.context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "You've hit today's Coach limit — using a lighter model "
-              'for now. Resets tomorrow.',
-            ),
-            duration: Duration(seconds: 5),
-          ),
-        );
-      }
+      // Track the latest remaining-4o counts so the compose bar can
+      // render a subtle "N left today" hint when we're getting low.
+      _remainingToday = result.remainingToday;
       SfxService().fire(SfxType.aiMessage);
       HapticService().light();
     } on AiException catch (e) {
       SfxService().fire(SfxType.errorGentle);
-      if (e.dailyLimitReached && mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const PaywallScreen(
-              contextNote: "You've hit today's free chat limit",
+      // The four 402 kinds route to different UIs:
+      //  * dailyMessageFree + gpt4oFreeDaily → paywall (free users
+      //    can convert out of the limit).
+      //  * gpt4oPremiumDaily → soft dialog "resets tomorrow" (they
+      //    already pay; no paywall).
+      //  * gpt4oMonthly → soft dialog "resets next month".
+      if (!mounted) return;
+      switch (e.limitKind) {
+        case AiLimitKind.dailyMessageFree:
+        case AiLimitKind.gpt4oFreeDaily:
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => PaywallScreen(contextNote: e.message),
             ),
-          ),
-        );
-      } else {
-        setState(() => _sendError = e.message);
+          );
+          break;
+        case AiLimitKind.gpt4oPremiumDaily:
+        case AiLimitKind.gpt4oMonthly:
+          await _showCoachLimitDialog(e.message, e.limitKind);
+          break;
+        case AiLimitKind.none:
+          setState(() => _sendError = e.message);
       }
     } catch (e) {
       debugPrint('CoachScreen.chat send failed: $e');
@@ -703,6 +698,63 @@ class _ChatTabState extends State<_ChatTab> {
         }
       }
     }
+  }
+
+  /// Friendly hard-stop dialog for the two premium-only limit kinds
+  /// (daily + monthly gpt-4o exhaustion). No paywall — these users
+  /// already pay; the cap is a cost control the product accepted.
+  /// Copy varies: daily → "resets tomorrow", monthly → "resets next
+  /// month".
+  Future<void> _showCoachLimitDialog(
+    String serverMessage,
+    AiLimitKind kind,
+  ) async {
+    final title = kind == AiLimitKind.gpt4oMonthly
+        ? "This month's Coach limit"
+        : "Today's Coach limit";
+    final subtitle = kind == AiLimitKind.gpt4oMonthly
+        ? 'Your Coach access refreshes at the start of next month.'
+        : 'Your Coach access refreshes tomorrow.';
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: BrandColors.bgCard(dialogCtx),
+        title: Text(
+          title,
+          style: TextStyle(color: BrandColors.ink(dialogCtx)),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              serverMessage,
+              style: TextStyle(
+                color: BrandColors.inkSoft(dialogCtx),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              subtitle,
+              style: TextStyle(
+                color: BrandColors.inkDim(dialogCtx),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: Text(
+              'Got it',
+              style: TextStyle(color: AppColors.pinkLight),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _acceptProposal() async {
@@ -920,6 +972,28 @@ class _ChatTabState extends State<_ChatTab> {
                   ),
                 ),
               const SizedBox(height: 8),
+              // Subtle "N Coach messages left today" hint when the
+              // remaining gpt-4o count is running low. Only shown for
+              // authenticated callers (server returns null otherwise)
+              // and only when we're within 3 of the daily cap — the
+              // rest of the time we don't want to advertise limits.
+              if (_remainingToday != null && _remainingToday! <= 3)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    _remainingToday == 0
+                        ? "Today's Coach limit reached — resets tomorrow"
+                        : '$_remainingToday Coach message'
+                          '${_remainingToday == 1 ? '' : 's'} left today',
+                    style: TextStyle(
+                      color: _remainingToday == 0
+                          ? AppColors.pinkLight
+                          : BrandColors.inkDim(context),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               _Composer(
                 controller: _input,
                 focus: _focus,
