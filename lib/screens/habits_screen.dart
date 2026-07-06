@@ -21,7 +21,6 @@ import '../widgets/add_habit_sheet.dart';
 import '../widgets/badge_unlock_modal.dart';
 import '../widgets/tutorial_targets.dart';
 import '../widgets/empty_state.dart';
-import '../widgets/freeze_badge.dart';
 import '../widgets/freeze_modal.dart';
 import '../widgets/habit_card.dart';
 import '../widgets/responsive_container.dart';
@@ -199,7 +198,6 @@ class _HabitsScreenState extends State<HabitsScreen> {
                       }).length;
 
                       final grouped = _groupByIdentity(visible);
-                      final best = _bestStreak(all);
 
                       debugPrint(
                           '==> HabitsScreen build (habits=${all.length}, scheduled=${scheduled.length}, completed=$completedToday, filter=$_filter)');
@@ -222,30 +220,17 @@ class _HabitsScreenState extends State<HabitsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _Header(
-                              profile: user,
                               sortMode: _sortMode,
                               onSortChanged: _setSortMode,
                             ),
-                            const SizedBox(height: 12),
-                            // Free-tier upgrade nudge — dismissible,
-                            // no-op for premium users, auto-hidden
-                            // for the 5-day cool-off after dismissal.
-                            const UpgradePromptBar(),
-                            // Slim single-line "N of M done today ·
-                            // 🔥 top streak" replaces the bulky
-                            // _ProgressCard hero, so the filter
-                            // chips can sit right at the top.
-                            _TodaySummaryLine(
-                              completed: completedToday,
-                              total: scheduled.length,
-                              bestStreak: best,
-                            ),
-                            const SizedBox(height: 12),
-                            // Filter chips + (for package
-                            // categories) a trailing "delete
-                            // category" affordance handled by the
-                            // parent via _confirmDeletePackage.
-                            _IdentityFilter(
+                            const SizedBox(height: 14),
+                            // Collapsible category picker — one pill
+                            // showing the current filter ("All ▾" by
+                            // default); tap to expand into the full
+                            // chip strip. Replaces the always-visible
+                            // horizontal chip row so the top of the
+                            // screen is quiet by default.
+                            _CollapsibleCategoryPicker(
                               identities: identities,
                               packageIds: activePackageIds,
                               showAiManaged: hasAiManaged,
@@ -263,7 +248,19 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                     _confirmDeletePackage(visible),
                               ),
                             ],
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 12),
+                            // Free-tier upgrade nudge — dismissible,
+                            // no-op for premium users, auto-hidden
+                            // for the 5-day cool-off after dismissal.
+                            const UpgradePromptBar(),
+                            // Concise single-line "N of M done today"
+                            // — no streak chip; Home/Insights already
+                            // surface the top streak.
+                            _TodaySummaryLine(
+                              completed: completedToday,
+                              total: scheduled.length,
+                            ),
+                            const SizedBox(height: 16),
                             if (all.isEmpty)
                               EmptyState(
                                 icon: Icons.check_circle_outline_rounded,
@@ -390,15 +387,6 @@ class _HabitsScreenState extends State<HabitsScreen> {
       from: today.subtract(const Duration(days: 6)),
       to: today,
     );
-  }
-
-  int _bestStreak(List<Habit> all) {
-    var best = 0;
-    for (final h in all) {
-      final s = _repo.getStreakForHabit(h.id);
-      if (s > best) best = s;
-    }
-    return best;
   }
 
   Map<String, List<Habit>> _groupByIdentity(List<Habit> habits) {
@@ -651,20 +639,18 @@ class _BackgroundGlow extends StatelessWidget {
 
 class _Header extends StatelessWidget {
   const _Header({
-    this.profile,
     required this.sortMode,
     required this.onSortChanged,
   });
-  final UserProfile? profile;
   final HabitSortMode sortMode;
   final ValueChanged<HabitSortMode> onSortChanged;
 
   @override
   Widget build(BuildContext context) {
-    // Title gets its own row with the freeze badge (single small chip),
-    // controls (Packages + sort) sit on a row below. This guarantees the
-    // serif italic "Habits" always renders on one line regardless of
-    // device width or future font swaps.
+    // Single title row: serif "Habits" left, Packages + icon-only sort
+    // trigger right. Compact, no more streak/freeze indicator eating
+    // that spot — the collapsible category picker below takes over as
+    // the primary top-of-screen affordance. Subtitle sits underneath.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -682,15 +668,9 @@ class _Header extends StatelessWidget {
                     ),
               ),
             ),
-            // Freeze badge — gated by kStreakFreezeEnabled. Streak
-            // counts + streak-based stats keep rendering normally
-            // via other surfaces; only the freeze indicator here is
-            // suppressed when the feature is off.
-            if (kStreakFreezeEnabled && profile != null)
-              FreezeBadge(
-                count: profile!.freezesAvailable,
-                profile: profile,
-              ),
+            _PackagesButton(),
+            const SizedBox(width: 8),
+            _SortButton(current: sortMode, onSelect: onSortChanged),
           ],
         ),
         const SizedBox(height: 2),
@@ -702,14 +682,6 @@ class _Header extends StatelessWidget {
             fontWeight: FontWeight.w600,
             letterSpacing: 0.4,
           ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            _PackagesButton(),
-            const SizedBox(width: 8),
-            _SortButton(current: sortMode, onSelect: onSortChanged),
-          ],
         ),
       ],
     );
@@ -789,7 +761,6 @@ class _SortButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeIcon = _icons[current] ?? Icons.sort_rounded;
     return PopupMenuButton<HabitSortMode>(
       tooltip: 'Sort',
       color: BrandColors.bgCard(context),
@@ -832,31 +803,24 @@ class _SortButton extends StatelessWidget {
             ),
           ),
       ],
+      // Icon-only trigger — small round pencil that opens the sort
+      // menu. Frees the top row from the "Date added" text label so
+      // Packages sits next to the pencil without the header wrapping.
       child: Container(
-        height: 38,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        width: 34,
+        height: 34,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: BrandColors.bgCard(context).withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(20),
+          shape: BoxShape.circle,
           border: Border.all(
             color: AppColors.purple.withValues(alpha: 0.30),
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(activeIcon,
-                color: BrandColors.inkSoft(context), size: 14),
-            const SizedBox(width: 6),
-            Text(
-              _labels[current]!,
-              style: TextStyle(
-                color: BrandColors.inkSoft(context),
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+        child: Icon(
+          Icons.edit_rounded,
+          color: BrandColors.inkSoft(context),
+          size: 15,
         ),
       ),
     );
@@ -1107,6 +1071,140 @@ class _ManualLockBar extends StatelessWidget {
   }
 }
 
+/// Wraps [_IdentityFilter] with a collapsed/expanded state so the top
+/// of the Habits screen is quiet by default: a single pill shows the
+/// current filter (e.g. "All ▾" or "Athlete ▾"), tapping expands to
+/// reveal the full chip strip; picking a chip applies the filter and
+/// collapses again. Trims visual noise without losing any of the
+/// existing filter options.
+class _CollapsibleCategoryPicker extends StatefulWidget {
+  const _CollapsibleCategoryPicker({
+    required this.identities,
+    required this.packageIds,
+    required this.showAiManaged,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final List<String> identities;
+  final List<String> packageIds;
+  final bool showAiManaged;
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_CollapsibleCategoryPicker> createState() =>
+      _CollapsibleCategoryPickerState();
+}
+
+class _CollapsibleCategoryPickerState
+    extends State<_CollapsibleCategoryPicker> {
+  bool _expanded = false;
+
+  String _labelFor(String id) {
+    if (id == _kAllFilter) return 'All';
+    if (id == _kAvoidFilter) return 'Bad habits';
+    if (id == _kAiManagedFilter) return 'Mood8 AI Habits';
+    if (id.startsWith(_kPackagePrefix)) {
+      final p = habitPackageById(id.substring(_kPackagePrefix.length));
+      return p?.name ?? 'Package';
+    }
+    return id;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      alignment: Alignment.topLeft,
+      curve: Curves.easeOutCubic,
+      child: _expanded
+          ? Column(
+              key: const ValueKey('expanded'),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _IdentityFilter(
+                  identities: widget.identities,
+                  packageIds: widget.packageIds,
+                  showAiManaged: widget.showAiManaged,
+                  value: widget.value,
+                  onChanged: (v) {
+                    widget.onChanged(v);
+                    // Collapse right after the user picks so the top
+                    // row goes quiet again immediately.
+                    setState(() => _expanded = false);
+                  },
+                ),
+                const SizedBox(height: 6),
+                Center(
+                  child: InkWell(
+                    onTap: () {
+                      HapticService().selection();
+                      setState(() => _expanded = false);
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
+                      child: Icon(
+                        Icons.keyboard_arrow_up_rounded,
+                        color: BrandColors.inkDim(context),
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : Align(
+              key: const ValueKey('collapsed'),
+              alignment: Alignment.centerLeft,
+              child: GestureDetector(
+                onTap: () {
+                  HapticService().selection();
+                  setState(() => _expanded = true);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.buttonGradient,
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.pink.withValues(alpha: 0.30),
+                        blurRadius: 14,
+                        spreadRadius: -4,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.tune_rounded,
+                          color: Colors.white, size: 13),
+                      const SizedBox(width: 6),
+                      Text(
+                        _labelFor(widget.value),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.keyboard_arrow_down_rounded,
+                          color: Colors.white, size: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+}
+
 class _IdentityFilter extends StatelessWidget {
   const _IdentityFilter({
     required this.identities,
@@ -1289,21 +1387,18 @@ class _IdentityFilter extends StatelessWidget {
 }
 
 
-/// One-line "done today" summary that replaced the fat _ProgressCard
-/// at the top of the Habits screen. Compact single row so the filter
-/// chips can sit right above the list without the header eating
-/// half the screen. Streak lives inline as a small chip on the
-/// right — total-of-scheduled on the left.
+/// One-line "done today" summary — the concise progress read at the
+/// top of the Habits list. Streak-indicator chip on the right was
+/// removed as part of the collapsible-category-picker reorg; Home +
+/// Insights already surface the top streak.
 class _TodaySummaryLine extends StatelessWidget {
   const _TodaySummaryLine({
     required this.completed,
     required this.total,
-    required this.bestStreak,
   });
 
   final int completed;
   final int total;
-  final int bestStreak;
 
   @override
   Widget build(BuildContext context) {
@@ -1313,67 +1408,25 @@ class _TodaySummaryLine extends StatelessWidget {
     final percent = total == 0 ? 0.0 : completed / total;
     return Row(
       children: [
-        Expanded(
-          child: Row(
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  color: BrandColors.ink(context),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13.5,
-                ),
-              ),
-              if (total > 0) ...[
-                const SizedBox(width: 8),
-                Text(
-                  '${(percent * 100).round()}%',
-                  style: TextStyle(
-                    color: AppColors.pinkLight,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13.5,
-                  ),
-                ),
-              ],
-            ],
+        Text(
+          label,
+          style: TextStyle(
+            color: BrandColors.ink(context),
+            fontWeight: FontWeight.w700,
+            fontSize: 13.5,
           ),
         ),
-        if (bestStreak > 0)
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: BrandColors.bgCard(context).withValues(alpha: 0.75),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: AppColors.pinkLight.withValues(alpha: 0.30),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('🔥', style: TextStyle(fontSize: 11)),
-                const SizedBox(width: 5),
-                Text(
-                  '$bestStreak',
-                  style: TextStyle(
-                    color: BrandColors.ink(context),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(width: 3),
-                Text(
-                  bestStreak == 1 ? 'day' : 'days',
-                  style: TextStyle(
-                    color: BrandColors.inkDim(context),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+        if (total > 0) ...[
+          const SizedBox(width: 8),
+          Text(
+            '${(percent * 100).round()}%',
+            style: TextStyle(
+              color: AppColors.pinkLight,
+              fontWeight: FontWeight.w800,
+              fontSize: 13.5,
             ),
           ),
+        ],
       ],
     );
   }

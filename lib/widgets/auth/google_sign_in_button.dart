@@ -21,9 +21,9 @@ class GoogleSignInButton extends StatefulWidget {
   });
 
   /// Called with a friendly error message on failure (cancellation,
-  /// network, server rejection). NOT called on success — on success
-  /// AuthService.currentUserNotifier flips and AuthGate routes the
-  /// user to MainNavigation, so the source widget is unmounted.
+  /// network, server rejection). NOT called on success — on success we
+  /// pop back to the first route so the AuthGate rebuild (driven by
+  /// AuthService.currentUserNotifier) is what the user sees.
   final ValueChanged<String> onResultMessage;
   final String label;
 
@@ -43,9 +43,17 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
       if (!mounted) return;
       if (!r.success) {
         widget.onResultMessage(r.message);
+        return;
       }
-      // r.success → AuthGate handles the route change; nothing else
-      // for us to do.
+      // Success: AuthService.currentUserNotifier has already flipped so
+      // AuthGate has rebuilt underneath us — but if we were pushed on
+      // top of it (SignInScreen / RegisterScreen route), that rebuild
+      // is invisible behind this page. Pop back to the first route so
+      // AuthGate becomes visible and the user lands on Home. Matches
+      // the email/password path in sign_in_screen.dart::_submit. Safe
+      // on WelcomeScreen (which IS the first route → popUntil is a
+      // no-op) and on nested push cases.
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
