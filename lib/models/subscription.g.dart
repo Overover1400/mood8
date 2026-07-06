@@ -19,10 +19,14 @@ class SubscriptionTierAdapter extends TypeAdapter<SubscriptionTier> {
         return SubscriptionTier.premium;
       case 2:
         return SubscriptionTier.premiumLifetime;
+      // Legacy Plus values from before the tier collapse: read
+      // recurring Plus (3) back as plain Premium and lifetime Plus
+      // (4) back as Premium · Lifetime so any Hive-cached row
+      // written by an older build still deserialises cleanly.
       case 3:
-        return SubscriptionTier.premiumPlus;
+        return SubscriptionTier.premium;
       case 4:
-        return SubscriptionTier.premiumPlusLifetime;
+        return SubscriptionTier.premiumLifetime;
       default:
         return SubscriptionTier.free;
     }
@@ -39,12 +43,6 @@ class SubscriptionTierAdapter extends TypeAdapter<SubscriptionTier> {
         break;
       case SubscriptionTier.premiumLifetime:
         writer.writeByte(2);
-        break;
-      case SubscriptionTier.premiumPlus:
-        writer.writeByte(3);
-        break;
-      case SubscriptionTier.premiumPlusLifetime:
-        writer.writeByte(4);
         break;
     }
   }

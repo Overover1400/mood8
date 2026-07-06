@@ -10,10 +10,10 @@ import '../theme/app_theme.dart';
 import '../widgets/responsive_container.dart';
 import 'paywall_screen.dart';
 
-/// Browse + start the 10 AI Habit Packages (Premium Plus). Free /
-/// Premium users see the full grid but a "Plus required" overlay on
-/// each detail screen with a Paywall CTA. Plus users get an active
-/// Start button + a list of already-running packages.
+/// Browse + start the 10 curated Habit Packages. Free users see the
+/// full grid but a "Premium required" overlay on each detail screen
+/// with a Paywall CTA. Premium users get an active Start button + a
+/// list of already-running packages.
 class HabitPackagesScreen extends StatefulWidget {
   const HabitPackagesScreen({super.key});
 
@@ -50,19 +50,19 @@ class _HabitPackagesScreenState extends State<HabitPackagesScreen> {
             listenable: SubscriptionService(),
             builder: (context, _) {
               final running = _running;
-              final isPlus = SubscriptionService().isPremiumPlus;
+              final unlocked = SubscriptionService().hasHabitPackages;
               return SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _HeaderCard(isPlus: isPlus),
+                    _HeaderCard(unlocked: unlocked),
                     const SizedBox(height: 20),
                     for (var i = 0; i < kHabitPackages.length; i++) ...[
                       _PackageTile(
                         pkg: kHabitPackages[i],
                         running: running.contains(kHabitPackages[i].id),
-                        isPlus: isPlus,
+                        unlocked: unlocked,
                         onTap: () => _openDetail(kHabitPackages[i]),
                       )
                           .animate(delay: (40 * i).ms)
@@ -98,8 +98,8 @@ class _HabitPackagesScreenState extends State<HabitPackagesScreen> {
 }
 
 class _HeaderCard extends StatelessWidget {
-  const _HeaderCard({required this.isPlus});
-  final bool isPlus;
+  const _HeaderCard({required this.unlocked});
+  final bool unlocked;
 
   @override
   Widget build(BuildContext context) {
@@ -146,7 +146,7 @@ class _HeaderCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isPlus ? 'Choose your next program' : 'Premium Plus',
+                  unlocked ? 'Choose your next program' : 'Premium',
                   style: GoogleFonts.bricolageGrotesque(
                     color: BrandColors.ink(context),
                     fontSize: 17,
@@ -156,7 +156,7 @@ class _HeaderCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  isPlus
+                  unlocked
                       ? 'Curated multi-week programs — each one ships a'
                           ' fresh set of habits + a dedicated tab.'
                       : 'Ten curated multi-week programs designed to'
@@ -181,13 +181,13 @@ class _PackageTile extends StatelessWidget {
   const _PackageTile({
     required this.pkg,
     required this.running,
-    required this.isPlus,
+    required this.unlocked,
     required this.onTap,
   });
 
   final HabitPackage pkg;
   final bool running;
-  final bool isPlus;
+  final bool unlocked;
   final VoidCallback onTap;
 
   @override
@@ -308,10 +308,10 @@ class _PackageTile extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Icon(
-                isPlus
+                unlocked
                     ? Icons.chevron_right_rounded
                     : Icons.lock_outline_rounded,
-                color: isPlus
+                color: unlocked
                     ? BrandColors.inkSoft(context)
                     : AppColors.pinkLight,
               ),
@@ -350,7 +350,7 @@ class _RunningPill extends StatelessWidget {
 }
 
 /// Detail screen for a single package. Lists every habit, then a CTA:
-/// Start (Plus user) or "Unlock Premium Plus" (everyone else).
+/// Start (Premium user) or "Unlock Premium" (free users).
 class _PackageDetailScreen extends StatefulWidget {
   const _PackageDetailScreen({required this.pkg});
   final HabitPackage pkg;
@@ -412,7 +412,7 @@ class _PackageDetailScreenState extends State<_PackageDetailScreen> {
         child: ListenableBuilder(
           listenable: SubscriptionService(),
           builder: (context, _) {
-            final isPlus = SubscriptionService().isPremiumPlus;
+            final unlocked = SubscriptionService().hasHabitPackages;
             return ResponsiveContainer(
               maxWidth: 640,
               child: ListView(
@@ -437,7 +437,7 @@ class _PackageDetailScreenState extends State<_PackageDetailScreen> {
                   const SizedBox(height: 22),
                   if (_alreadyRunning)
                     _RunningCard(name: pkg.name)
-                  else if (isPlus)
+                  else if (unlocked)
                     _StartButton(
                       label: _starting ? 'Starting…' : 'Start ${pkg.name}',
                       onTap: _starting ? null : _start,
@@ -450,8 +450,7 @@ class _PackageDetailScreenState extends State<_PackageDetailScreen> {
                           MaterialPageRoute<void>(
                             builder: (_) => const PaywallScreen(
                               contextNote:
-                                  'AI Habit Packages are a Premium Plus feature.',
-                              highlightPlus: true,
+                                  'Habit Packages are a Premium feature.',
                             ),
                           ),
                         );
@@ -742,7 +741,7 @@ class _LockedCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Premium Plus required',
+                  'Premium required',
                   style: GoogleFonts.bricolageGrotesque(
                     color: Colors.white,
                     fontSize: 16,
@@ -751,7 +750,7 @@ class _LockedCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Unlock all 10 packages + everything in Premium.',
+                  'Unlock all 10 packages + everything Premium.',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.95),
                     fontSize: 12.5,

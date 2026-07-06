@@ -40,7 +40,7 @@ class HabitPackageItem {
 }
 
 /// One curated habit package — a guided 7-to-60-day program shipped
-/// as Premium Plus content. Definitions live here in code (not on the
+/// as Premium content. Definitions live here in code (not on the
 /// server) so a package is the same on every device, every install.
 /// When a user starts a package, [items] is materialised into real
 /// Habit rows tagged with this package's [id].

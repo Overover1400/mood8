@@ -416,14 +416,10 @@ class _AuthGateState extends State<AuthGate> {
 
   void _onPremiumJustUnlocked() {
     if (!SubscriptionService().premiumJustUnlockedNotifier.value) return;
-    // Match the celebration copy to whichever tier the user just landed
-    // on — Plus subscribers shouldn't be welcomed to "Premium".
-    final isPlus = SubscriptionService().isPremiumPlus;
-    final label = isPlus ? 'Premium Plus' : 'Premium';
     rootScaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(
-        content: Text('Welcome to Mood8 $label ✨ Thanks for being here.'),
-        duration: const Duration(seconds: 4),
+      const SnackBar(
+        content: Text('Welcome to Mood8 Premium ✨ Thanks for being here.'),
+        duration: Duration(seconds: 4),
       ),
     );
   }
@@ -474,16 +470,11 @@ class _AuthGateState extends State<AuthGate> {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           await SubscriptionService().refreshStatus();
           if (!mounted) return;
-          // refreshStatus has populated the canonical tier — read it
-          // back so the snackbar greets the correct family.
-          final label = SubscriptionService().isPremiumPlus
-              ? 'Premium Plus'
-              : 'Premium';
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text(
-                  'Welcome to Mood8 $label ✨ Thanks for being here.'),
-              duration: const Duration(seconds: 4),
+                  'Welcome to Mood8 Premium ✨ Thanks for being here.'),
+              duration: Duration(seconds: 4),
             ),
           );
         });

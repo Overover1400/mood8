@@ -2,12 +2,16 @@ import 'package:hive/hive.dart';
 
 part 'subscription.g.dart';
 
-/// Subscription tier. Two paid families (Premium and Premium Plus),
-/// each with a recurring + a lifetime variant. The backend stores the
-/// family in `premium_plan` ("premium" / "premium_plus") and the
-/// billing cadence in `premium_type` ("monthly" / "annual" /
-/// "lifetime"); we collapse them into the four paid enum values below
-/// plus `free`.
+/// Subscription tier. One paid family called "Premium" with a
+/// recurring + a lifetime variant. The backend stores the billing
+/// cadence in `premium_type` ("monthly" / "annual" / "lifetime"); we
+/// collapse that into the two paid enum values below plus `free`.
+///
+/// The former `premiumPlus` + `premiumPlusLifetime` values were
+/// retired when the two-tier system was collapsed into one. The
+/// HiveField ids stay stable so any cached enum value from an older
+/// build still deserializes cleanly (a Plus row simply reads back as
+/// its lifetime/recurring Premium equivalent via the adapter).
 @HiveType(typeId: 14)
 enum SubscriptionTier {
   @HiveField(0)
@@ -15,26 +19,13 @@ enum SubscriptionTier {
   @HiveField(1)
   premium,
   @HiveField(2)
-  premiumLifetime,
-  @HiveField(3)
-  premiumPlus,
-  @HiveField(4)
-  premiumPlusLifetime;
+  premiumLifetime;
 
   bool get isPaid =>
       this == SubscriptionTier.premium ||
-      this == SubscriptionTier.premiumLifetime ||
-      this == SubscriptionTier.premiumPlus ||
-      this == SubscriptionTier.premiumPlusLifetime;
+      this == SubscriptionTier.premiumLifetime;
 
-  /// True for any Premium Plus variant — gates the AI Habit Packages.
-  bool get isPlus =>
-      this == SubscriptionTier.premiumPlus ||
-      this == SubscriptionTier.premiumPlusLifetime;
-
-  bool get isLifetime =>
-      this == SubscriptionTier.premiumLifetime ||
-      this == SubscriptionTier.premiumPlusLifetime;
+  bool get isLifetime => this == SubscriptionTier.premiumLifetime;
 
   String get label {
     switch (this) {
@@ -44,10 +35,6 @@ enum SubscriptionTier {
         return 'Premium';
       case SubscriptionTier.premiumLifetime:
         return 'Premium · Lifetime';
-      case SubscriptionTier.premiumPlus:
-        return 'Premium Plus';
-      case SubscriptionTier.premiumPlusLifetime:
-        return 'Premium Plus · Lifetime';
     }
   }
 }

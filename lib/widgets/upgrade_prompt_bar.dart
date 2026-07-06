@@ -108,10 +108,7 @@ class _UpgradePromptBarState extends State<UpgradePromptBar> {
     HapticService().light();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => const PaywallScreen(
-          highlightPlus: true,
-          contextNote: null,
-        ),
+        builder: (_) => const PaywallScreen(),
       ),
     );
   }
@@ -182,7 +179,7 @@ class _UpgradePromptBarState extends State<UpgradePromptBar> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Premium Plus — everything AI, no limits.',
+                        'Premium — everything AI, no limits.',
                         style: TextStyle(
                           color: BrandColors.inkSoft(context),
                           fontSize: 11,

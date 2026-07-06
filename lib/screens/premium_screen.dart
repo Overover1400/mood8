@@ -56,14 +56,13 @@ class PremiumScreen extends StatelessWidget {
                     _TierBenefitsCard(
                       title: 'Mood8 Premium',
                       tagline: 'Everything that compounds.',
-                      priceLine: r'From $3.99/month · $29/year · $129 lifetime',
-                      isCurrent: tier == SubscriptionTier.premium ||
-                          tier == SubscriptionTier.premiumLifetime,
-                      isLockedBecausePlus: tier.isPlus,
+                      priceLine: r'$6.99/month · $49/year · $199 lifetime',
+                      isCurrent: tier.isPaid,
                       gradient: const LinearGradient(
                         colors: [
                           Color(0xFFA855F7),
                           Color(0xFFEC4899),
+                          Color(0xFFF472B6),
                         ],
                       ),
                       // Streak freezes bullet removed for launch —
@@ -72,31 +71,14 @@ class PremiumScreen extends StatelessWidget {
                       bullets: const [
                         'Unlimited habits and routines',
                         'Unlimited AI Coach messages',
+                        '10 curated Habit Packages',
+                        'Personalized AI Habit Packages designed by Mood8 for your goals',
+                        'AI Coach can add the habits it suggests, in one tap',
                         'Multi-device sync (web, Android, watch)',
                         'Premium cinematic celebrations',
                         'Advanced insights + pattern alerts',
                         'Weekly recap emails',
                         'Custom identity themes',
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    _TierBenefitsCard(
-                      title: 'Mood8 Premium Plus',
-                      tagline: 'Premium + AI-designed packages.',
-                      priceLine: r'From $6.99/month · $49/year · $199 lifetime',
-                      isCurrent: tier.isPlus,
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFFA855F7),
-                          Color(0xFFEC4899),
-                          Color(0xFFF472B6),
-                        ],
-                      ),
-                      bullets: const [
-                        'Everything in Premium',
-                        '10 curated Habit Packages',
-                        'Personalized AI Habit Packages designed by Mood8 for your goals',
-                        'AI Coach can add the habits it suggests, in one tap',
                       ],
                     ),
                     const SizedBox(height: 22),
@@ -252,7 +234,6 @@ class _TierBenefitsCard extends StatelessWidget {
     required this.bullets,
     required this.gradient,
     required this.isCurrent,
-    this.isLockedBecausePlus = false,
   });
 
   final String title;
@@ -261,19 +242,10 @@ class _TierBenefitsCard extends StatelessWidget {
   final List<String> bullets;
   final Gradient gradient;
   final bool isCurrent;
-  /// True when the user is on Premium Plus and we're rendering the
-  /// "regular Premium" tier card. Premium Plus is a strict superset,
-  /// so a Plus subscriber already gets everything below — we badge it
-  /// "Included" instead of "Current plan" or "Upgrade".
-  final bool isLockedBecausePlus;
 
   @override
   Widget build(BuildContext context) {
-    final badge = isCurrent
-        ? 'Current plan'
-        : isLockedBecausePlus
-            ? 'Included in Plus'
-            : null;
+    final badge = isCurrent ? 'Current plan' : null;
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
       decoration: BoxDecoration(
@@ -413,43 +385,22 @@ class _CTAStack extends StatelessWidget {
       return _GradientCTA(
         label: 'See plans',
         icon: Icons.lock_open_rounded,
-        onTap: () => _openPaywall(context, plus: false),
+        onTap: () => _openPaywall(context),
       );
     }
-    if (tier.isPlus) {
-      return Column(
-        children: [
-          _GradientCTA(
-            label: 'Manage subscription',
-            icon: Icons.tune_rounded,
-            onTap: () => _openBillingPortal(context),
-          ),
-        ],
-      );
-    }
-    // Premium (non-Plus).
-    return Column(
-      children: [
-        _GradientCTA(
-          label: 'Upgrade to Premium Plus',
-          icon: Icons.diamond_outlined,
-          onTap: () => _openPaywall(context, plus: true),
-        ),
-        const SizedBox(height: 10),
-        _SecondaryCTA(
-          label: 'Manage subscription',
-          icon: Icons.tune_rounded,
-          onTap: () => _openBillingPortal(context),
-        ),
-      ],
+    // Paid — recurring or lifetime — one CTA either way.
+    return _GradientCTA(
+      label: 'Manage subscription',
+      icon: Icons.tune_rounded,
+      onTap: () => _openBillingPortal(context),
     );
   }
 
-  void _openPaywall(BuildContext context, {required bool plus}) {
+  void _openPaywall(BuildContext context) {
     HapticService().light();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => PaywallScreen(highlightPlus: plus),
+        builder: (_) => const PaywallScreen(),
       ),
     );
   }
@@ -525,47 +476,3 @@ class _GradientCTA extends StatelessWidget {
   }
 }
 
-class _SecondaryCTA extends StatelessWidget {
-  const _SecondaryCTA({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 48,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: BrandColors.bgCard(context).withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: AppColors.purple.withValues(alpha: 0.32),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: BrandColors.inkSoft(context), size: 18),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: BrandColors.ink(context),
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

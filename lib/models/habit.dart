@@ -107,17 +107,17 @@ class Habit extends HiveObject {
   @HiveField(19)
   int? avoidDurationDays;
 
-  /// Set when this habit was materialised by starting an AI Habit
-  /// Package (Premium Plus). Stable id from `lib/data/habit_packages.dart`,
-  /// e.g. "pkg.morning_calm". Null for regular user-created habits.
-  /// Drives the per-package filter tab on the Habits screen.
+  /// Set when this habit was materialised by starting a curated Habit
+  /// Package. Stable id from `lib/data/habit_packages.dart`, e.g.
+  /// "pkg.morning_calm". Null for regular user-created habits. Drives
+  /// the per-package filter tab on the Habits screen.
   @HiveField(20)
   String? packageId;
 
   /// True when this habit was designed by the Mood8 AI Coach via the
-  /// `/api/coach/chat` flow (Premium Plus). Drives the "Mood8 AI
-  /// Habits" filter tab on the Habits screen and, in future builds,
-  /// failure-recovery conversations + program-progress display.
+  /// `/api/coach/chat` flow. Drives the "Mood8 AI Habits" filter tab
+  /// on the Habits screen and, in future builds, failure-recovery
+  /// conversations + program-progress display.
   @HiveField(21)
   bool aiManaged;
 

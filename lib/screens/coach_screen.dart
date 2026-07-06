@@ -658,7 +658,6 @@ class _ChatTabState extends State<_ChatTab> {
           MaterialPageRoute(
             builder: (_) => const PaywallScreen(
               contextNote: "You've hit today's free chat limit",
-              highlightPlus: true,
             ),
           ),
         );
@@ -685,17 +684,15 @@ class _ChatTabState extends State<_ChatTab> {
     final proposal = _pendingProposal;
     if (proposal == null || _addingProposal) return;
 
-    // Adding AI-managed habits is a Premium Plus feature. Free /
-    // Premium users land on the paywall pre-flipped to the Plus
-    // toggle; the chat itself stays available so they can keep
-    // exploring the idea.
-    if (!SubscriptionService().isPremiumPlus) {
+    // Adding AI-managed habits is a Premium feature. Free users land
+    // on the paywall; the chat itself stays available so they can
+    // keep exploring the idea.
+    if (!SubscriptionService().isPremium) {
       HapticService().light();
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => const PaywallScreen(
-            contextNote: 'Adding AI-designed habits is a Premium Plus feature.',
-            highlightPlus: true,
+            contextNote: 'Adding AI-designed habits is a Premium feature.',
           ),
         ),
       );

@@ -17,35 +17,25 @@ class PaywallScreen extends StatefulWidget {
   const PaywallScreen({
     super.key,
     this.contextNote,
-    this.highlightPlus = false,
   });
 
   /// Optional in-screen explanation of *why* the paywall fired
   /// (e.g. "Unlimited habits is a Premium feature").
   final String? contextNote;
 
-  /// When true, the paywall opens on the Premium Plus tier toggle
-  /// instead of Premium. Used by entry points where the paywall fires
-  /// from a Plus-only feature (the AI Habit Packages screen).
-  final bool highlightPlus;
-
   @override
   State<PaywallScreen> createState() => _PaywallScreenState();
 }
 
 class _PaywallScreenState extends State<PaywallScreen> {
-  /// Which tier the user is shopping for right now — flips the price
-  /// labels + the plan_key prefix sent to the backend. Premium Plus
-  /// plan keys are `plus_monthly`/`plus_annual`/`plus_lifetime`.
-  bool _shoppingPlus = false;
   String _selectedCadence = 'annual'; // default-on most-value plan
   bool _loading = false;
   String? _error;
 
   /// Stripe-computed quote for the currently selected plan when it
-  /// would be an in-place upgrade (Premium → Premium Plus, same
-  /// billing cadence family). Null when not applicable (free user,
-  /// fresh checkout, lifetime, downgrade, same tier).
+  /// would be an in-place cadence swap (monthly ↔ annual). Null when
+  /// not applicable (free user, fresh checkout, lifetime target, or
+  /// the exact plan the user is already on).
   UpgradePreview? _preview;
   bool _previewLoading = false;
   String? _previewedPlanKey;
@@ -53,7 +43,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
   @override
   void initState() {
     super.initState();
-    _shoppingPlus = widget.highlightPlus;
     SubscriptionService().addListener(_onSubscriptionChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _refreshPreview());
   }
@@ -70,56 +59,35 @@ class _PaywallScreenState extends State<PaywallScreen> {
     _refreshPreview();
   }
 
-  String get _selectedPlan =>
-      _shoppingPlus ? 'plus_$_selectedCadence' : _selectedCadence;
+  String get _selectedPlan => _selectedCadence;
 
   // ─── Plan-relationship helpers ─────────────────────────────────────
-  // These collapse the user's current tier into the actions a paywall
-  // card should expose: is this row their current plan, an upgrade, a
-  // downgrade, or a fresh purchase? The CTA label + the prorated
-  // preview both branch off these. See _CTAAction enum below.
+  // Single-tier world: "current plan" is either the recurring Premium
+  // sub the user is on, the lifetime purchase they made, or free. The
+  // paywall's only actionable change is cadence-swap (monthly ↔ annual)
+  // or lifetime-upgrade — everything else is either "current" or "new".
 
   SubscriptionTier get _currentTier => SubscriptionService().tier;
 
-  bool get _currentIsPlus =>
-      _currentTier == SubscriptionTier.premiumPlus ||
-      _currentTier == SubscriptionTier.premiumPlusLifetime;
-  bool get _currentIsRecurring =>
-      _currentTier == SubscriptionTier.premium ||
-      _currentTier == SubscriptionTier.premiumPlus;
+  bool get _currentIsRecurring => _currentTier == SubscriptionTier.premium;
 
   /// True when this exact selection matches what the user already pays
   /// for. Renders the CTA as a disabled "Current plan" affordance.
   bool get _isOnCurrentPlan {
-    if (_shoppingPlus) {
-      if (_selectedCadence == 'lifetime') {
-        return _currentTier == SubscriptionTier.premiumPlusLifetime;
-      }
-      return _currentTier == SubscriptionTier.premiumPlus;
-    }
     if (_selectedCadence == 'lifetime') {
       return _currentTier == SubscriptionTier.premiumLifetime;
     }
     return _currentTier == SubscriptionTier.premium;
   }
 
-  /// True when the selection is a strict downgrade — Plus user
-  /// shopping a Premium-only plan. Surfaced as a "Downgrade" CTA so
-  /// the user understands what happens.
-  bool get _isDowngrade => _currentIsPlus && !_shoppingPlus;
-
-  /// True when the selection is an in-place subscription change that
-  /// Stripe will prorate (recurring → recurring, not a downgrade, not
-  /// the plan they already have). Lifetime targets short-circuit out
-  /// because Stripe Checkout creates a separate one-off invoice and
-  /// the webhook handler cancels the recurring sub afterwards. We
-  /// surface the prorated quote any time this is true so the user
-  /// sees the real number before tapping (covers Premium → Plus and
-  /// also same-tier cadence swaps like monthly → annual).
+  /// True when the selection is a recurring→recurring cadence swap
+  /// that Stripe will prorate (e.g. monthly → annual). Lifetime
+  /// targets short-circuit out because Stripe creates a separate one-
+  /// off invoice for those. When true we surface the prorated quote
+  /// so the user sees the real number before tapping.
   bool get _isInPlaceUpgrade =>
       _currentIsRecurring &&
       !_isOnCurrentPlan &&
-      !_isDowngrade &&
       _selectedCadence != 'lifetime';
 
   Future<void> _refreshPreview() async {
@@ -151,12 +119,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
   void _onCadenceTapped(String cadence) {
     if (_selectedCadence == cadence) return;
     setState(() => _selectedCadence = cadence);
-    _refreshPreview();
-  }
-
-  void _onTierToggled(bool plus) {
-    if (_shoppingPlus == plus) return;
-    setState(() => _shoppingPlus = plus);
     _refreshPreview();
   }
 
@@ -195,10 +157,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
   }
 
   List<Widget> _buildPlanCards() {
-    final spec = _shoppingPlus ? _kPlusPlans : _kPremiumPlans;
     final out = <Widget>[];
-    for (var i = 0; i < spec.length; i++) {
-      final p = spec[i];
+    for (var i = 0; i < _kPremiumPlans.length; i++) {
+      final p = _kPremiumPlans[i];
       final isCurrent = _isCadenceCurrent(p.cadence);
       out.add(_PlanCard(
         title: p.title,
@@ -210,18 +171,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
         accent: p.accent,
         onTap: () => _onCadenceTapped(p.cadence),
       ));
-      if (i < spec.length - 1) out.add(const SizedBox(height: 10));
+      if (i < _kPremiumPlans.length - 1) out.add(const SizedBox(height: 10));
     }
     return out;
   }
 
   bool _isCadenceCurrent(String cadence) {
-    if (_shoppingPlus) {
-      if (cadence == 'lifetime') {
-        return _currentTier == SubscriptionTier.premiumPlusLifetime;
-      }
-      return _currentTier == SubscriptionTier.premiumPlus;
-    }
     if (cadence == 'lifetime') {
       return _currentTier == SubscriptionTier.premiumLifetime;
     }
@@ -231,9 +186,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
   String _ctaLabel() {
     if (_loading) return 'Opening…';
     if (_isOnCurrentPlan) return 'Current plan';
-    if (_isDowngrade) return 'Switch to Premium';
-    if (_isInPlaceUpgrade) return 'Upgrade to Premium Plus';
-    return _shoppingPlus ? 'Start Premium Plus' : 'Start Premium';
+    if (_isInPlaceUpgrade) {
+      return _selectedCadence == 'annual'
+          ? 'Switch to Annual'
+          : 'Switch to Monthly';
+    }
+    return 'Start Premium';
   }
 
   Future<void> _restore() async {
@@ -333,18 +291,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       ),
                     ],
                     const SizedBox(height: 22),
-                    _TierToggle(
-                      plus: _shoppingPlus,
-                      onChanged: _onTierToggled,
-                    ),
-                    const SizedBox(height: 18),
                     ..._buildPlanCards(),
                     const SizedBox(height: 18),
                     if (_isInPlaceUpgrade) _ProratedBanner(
                       preview: _preview,
                       loading: _previewLoading,
                     ),
-                    if (_isDowngrade) const _DowngradeNotice(),
                     const SizedBox(height: 18),
                     _CTAButton(
                       label: _ctaLabel(),
@@ -378,7 +330,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       ),
                     ),
                     const SizedBox(height: 22),
-                    _FeatureList(plus: _shoppingPlus),
+                    const _FeatureList(),
                     const SizedBox(height: 26),
                     _Testimonials(),
                     const SizedBox(height: 26),
@@ -668,15 +620,18 @@ class _CTAButton extends StatelessWidget {
 }
 
 class _FeatureList extends StatelessWidget {
-  const _FeatureList({required this.plus});
-  final bool plus;
+  const _FeatureList();
 
+  // Single-tier feature list — every paying user gets everything.
   // Streak freezes bullet ("3 streak freezes per week") removed for
   // launch — the freeze feature is gated by kStreakFreezeEnabled in
   // feature_flags.dart. Re-add here alongside re-enabling the flag.
   static const _premiumFeatures = [
     'Unlimited habits and routines',
     'Unlimited AI Coach messages',
+    '10 curated Habit Packages — science-backed routines',
+    'Personalized AI Habit Packages designed by Mood8 for your goals',
+    'AI Coach can add the habits it suggests, in one tap',
     'Premium cinematic effects',
     'Custom identity themes',
     'Advanced insights + pattern alerts',
@@ -684,17 +639,10 @@ class _FeatureList extends StatelessWidget {
     'Priority support',
   ];
 
-  static const _plusExtras = [
-    'Everything in Premium',
-    '10 curated Habit Packages — science-backed routines',
-    'Personalized AI Habit Packages designed by Mood8 for your goals',
-    'AI Coach can add the habits it suggests, in one tap',
-  ];
-
   @override
   Widget build(BuildContext context) {
-    final features = plus ? _plusExtras : _premiumFeatures;
-    final title = plus ? "What's in Premium Plus" : "What's included";
+    const features = _premiumFeatures;
+    const title = "What's included";
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
@@ -757,9 +705,8 @@ class _FeatureList extends StatelessWidget {
   }
 }
 
-/// Wire-level plan spec for the paywall — separates copy from the
-/// build loop so the same widget renders both Premium and Premium Plus
-/// without an if/else cascade per row.
+/// Wire-level plan spec for the paywall — one spec per billing cadence
+/// under the single Premium tier.
 class _PaywallPlanSpec {
   const _PaywallPlanSpec({
     required this.cadence,
@@ -780,35 +727,6 @@ class _PaywallPlanSpec {
 }
 
 final List<_PaywallPlanSpec> _kPremiumPlans = [
-  const _PaywallPlanSpec(
-    cadence: 'annual',
-    title: 'Annual',
-    price: r'$29',
-    cadenceLabel: '/year',
-    subtitle: r'$2.42 / mo',
-    accent: AppColors.pinkLight,
-    badge: 'Best value — save 39%',
-  ),
-  const _PaywallPlanSpec(
-    cadence: 'monthly',
-    title: 'Monthly',
-    price: r'$3.99',
-    cadenceLabel: '/month',
-    subtitle: 'Try it. Cancel anytime.',
-    accent: AppColors.purpleLight,
-  ),
-  const _PaywallPlanSpec(
-    cadence: 'lifetime',
-    title: 'Lifetime',
-    price: r'$129',
-    cadenceLabel: 'one-time',
-    subtitle: 'Pay once. Forever.',
-    accent: AppColors.blueAccent,
-    badge: 'Pay once',
-  ),
-];
-
-final List<_PaywallPlanSpec> _kPlusPlans = [
   const _PaywallPlanSpec(
     cadence: 'annual',
     title: 'Annual',
@@ -837,9 +755,9 @@ final List<_PaywallPlanSpec> _kPlusPlans = [
   ),
 ];
 
-/// Banner shown above the CTA when the user is upgrading an existing
-/// Premium recurring sub to Premium Plus. The amount comes from
-/// Stripe via /api/stripe/preview-upgrade — we never compute proration
+/// Banner shown above the CTA when the user is doing an in-place
+/// cadence swap (monthly ↔ annual). The amount comes from Stripe via
+/// /api/stripe/preview-upgrade — we never compute proration
 /// client-side. While the preview is in-flight we show a quiet
 /// placeholder so the UI doesn't jump when the number arrives.
 class _ProratedBanner extends StatelessWidget {
@@ -910,43 +828,6 @@ class _ProratedBanner extends StatelessWidget {
                   ),
                 ],
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Small note shown when a Plus subscriber is shopping a Premium-only
-/// plan — sets expectations before they tap "Switch to Premium".
-class _DowngradeNotice extends StatelessWidget {
-  const _DowngradeNotice();
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: AppColors.blueAccent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.blueAccent.withValues(alpha: 0.40),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline_rounded,
-              color: AppColors.blueAccent, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              "You'll lose access to AI Habit Packages. Unused time on Premium Plus is credited.",
-              style: TextStyle(
-                color: BrandColors.inkSoft(context),
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                height: 1.4,
-              ),
             ),
           ),
         ],
@@ -1150,126 +1031,3 @@ class _FAQRow extends StatelessWidget {
   }
 }
 
-/// Premium ↔ Premium Plus segmented toggle. Visually mirrors the
-/// other segmented controls in the app (Progress/Insights, freq
-/// picker, etc.) but with a pink-tinted "PLUS" side and a small
-/// "+ Habit Packages" badge on the Plus end to signal what the extra
-/// $3/mo buys.
-class _TierToggle extends StatelessWidget {
-  const _TierToggle({required this.plus, required this.onChanged});
-
-  final bool plus;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: BrandColors.bgCard(context).withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: AppColors.purple.withValues(alpha: 0.22),
-        ),
-      ),
-      child: Row(
-        children: [
-          _TierTab(
-            label: 'Premium',
-            selected: !plus,
-            gradient: AppColors.buttonGradient,
-            onTap: () => onChanged(false),
-          ),
-          _TierTab(
-            label: 'Premium Plus',
-            sub: '+ Habit Packages',
-            selected: plus,
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFFA855F7),
-                Color(0xFFEC4899),
-                Color(0xFFF472B6),
-              ],
-            ),
-            onTap: () => onChanged(true),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TierTab extends StatelessWidget {
-  const _TierTab({
-    required this.label,
-    required this.selected,
-    required this.gradient,
-    required this.onTap,
-    this.sub,
-  });
-
-  final String label;
-  final String? sub;
-  final bool selected;
-  final Gradient gradient;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          HapticService().selection();
-          onTap();
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            gradient: selected ? gradient : null,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: AppColors.pink.withValues(alpha: 0.35),
-                      blurRadius: 14,
-                      spreadRadius: -3,
-                    ),
-                  ]
-                : null,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected
-                      ? Colors.white
-                      : BrandColors.inkSoft(context),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                  letterSpacing: 0.2,
-                ),
-              ),
-              if (sub != null)
-                Text(
-                  sub!,
-                  style: TextStyle(
-                    color: selected
-                        ? Colors.white.withValues(alpha: 0.92)
-                        : BrandColors.inkDim(context),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 10,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

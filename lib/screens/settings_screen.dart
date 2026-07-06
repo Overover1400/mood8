@@ -938,12 +938,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ],
                     ),
-                    // Membership: always visible — the page shows the
-                    // user's tier, benefits of Premium + Premium Plus,
-                    // and the right CTA (upgrade for free users,
-                    // manage for paying users). The gradient
-                    // _PremiumHeroCard above is the marketing nudge;
-                    // this row is the canonical settings entry point.
+                    // Membership: always visible — page shows the
+                    // user's current plan + a Manage/Upgrade CTA. Now
+                    // a single Premium tier so the copy is simple.
                     SettingsSection(
                       title: 'Membership',
                       children: [
@@ -952,10 +949,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           builder: (context, _) {
                             final tier = SubscriptionService().tier;
                             final subtitle = !tier.isPaid
-                                ? 'See plans · Premium · Premium Plus'
-                                : tier.isPlus
-                                    ? 'Premium Plus · manage or change plan'
-                                    : 'Premium · manage or upgrade to Plus';
+                                ? 'See Premium plans'
+                                : 'Premium · manage your plan';
                             return SettingsTile(
                               icon: Icons.workspace_premium_rounded,
                               title: 'Membership',

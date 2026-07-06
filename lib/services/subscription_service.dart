@@ -43,19 +43,12 @@ class SubscriptionService extends ChangeNotifier {
   SubscriptionTier get tier => _tier;
   bool get isPremium => _tier.isPaid && !_isExpired();
 
-  /// True only for Premium Plus tiers — gates the AI Habit Packages.
-  /// Plus is a strict superset of Premium, so anything gated by
-  /// `isPremium` is also unlocked for Plus users.
-  bool get isPremiumPlus => _tier.isPlus && !_isExpired();
-
   DateTime? get expiresAt => _expiresAt;
   String? get premiumType {
     switch (_tier) {
       case SubscriptionTier.premium:
-      case SubscriptionTier.premiumPlus:
         return 'monthly_or_annual';
       case SubscriptionTier.premiumLifetime:
-      case SubscriptionTier.premiumPlusLifetime:
         return 'lifetime';
       case SubscriptionTier.free:
         return null;
@@ -70,10 +63,12 @@ class SubscriptionService extends ChangeNotifier {
 
   // ─── Feature gates ──────────────────────────────────────────────────
   // Free tier (per the launch spec):
-  //   3 habits · 5 routines · 5 AI Coach messages/day · 1 freeze/week
-  // Premium:
-  //   unlimited everything · 3 freezes/week · premium effects · custom
-  //   identity themes · advanced insights · weekly recap · priority flag
+  //   3 habits · 5 routines · 5 AI Coach messages/day
+  // Premium — a single paid tier that covers EVERYTHING:
+  //   unlimited habits + routines + AI messages, premium effects,
+  //   custom identity themes, advanced insights, weekly recap emails,
+  //   the 10 curated habit packages, AI-designed habit packages
+  //   (Coach can add habits directly), priority support.
 
   bool get hasUnlimitedAi => isPremium;
   bool get hasAdvancedInsights => isPremium;
@@ -84,6 +79,9 @@ class SubscriptionService extends ChangeNotifier {
   bool get hasCustomThemes => isPremium;
   bool get hasWeeklyRecapEmail => isPremium;
   bool get hasExport => true; // free for now
+  /// Habit Packages (the 10 curated + AI-designed) are unlocked for
+  /// every paying user now that Premium is the only tier.
+  bool get hasHabitPackages => isPremium;
 
   int get maxHabits => isPremium ? -1 : 3;
   int get maxRoutines => isPremium ? -1 : 5;
@@ -146,10 +144,6 @@ class SubscriptionService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Premium-feature gates apply to BOTH Premium and Premium Plus —
-  /// the latter is a strict superset that adds the Habit Packages.
-  bool get hasHabitPackages => isPremiumPlus;
-
   Future<void> _persist() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -198,22 +192,11 @@ class SubscriptionService extends ChangeNotifier {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       final apiIsPremium = body['is_premium'] as bool? ?? false;
       final type = body['premium_type'] as String?;
-      // premium_plan distinguishes "premium" vs "premium_plus". Legacy
-      // backends or fresh free users may return null — collapse to
-      // "premium" for paying users so we don't drop them to free.
-      final plan = body['premium_plan'] as String?;
       final expiresIso = body['premium_expires_at'] as String?;
       final isLifetime = type == 'lifetime';
-      final isPlus = plan == 'premium_plus';
       if (!apiIsPremium) {
         _tier = SubscriptionTier.free;
         _expiresAt = null;
-      } else if (isPlus && isLifetime) {
-        _tier = SubscriptionTier.premiumPlusLifetime;
-        _expiresAt = null;
-      } else if (isPlus) {
-        _tier = SubscriptionTier.premiumPlus;
-        _expiresAt = expiresIso != null ? DateTime.tryParse(expiresIso) : null;
       } else if (isLifetime) {
         _tier = SubscriptionTier.premiumLifetime;
         _expiresAt = null;
@@ -224,7 +207,7 @@ class SubscriptionService extends ChangeNotifier {
       await _persist();
       notifyListeners();
       debugPrint(
-          '[Subscription] refreshed · isPremium=$apiIsPremium · type=$type · plan=$plan · expires=$expiresIso');
+          '[Subscription] refreshed · isPremium=$apiIsPremium · type=$type · expires=$expiresIso');
       final justUnlocked = !wasPremium && isPremium;
       if (justUnlocked) {
         // Pulse the notifier so AuthGate can show its celebration.
@@ -374,8 +357,8 @@ class SubscriptionService extends ChangeNotifier {
   }
 }
 
-/// Stripe-computed quote for what an in-place subscription upgrade
-/// (Premium → Premium Plus) will cost the user TODAY. Returned by
+/// Stripe-computed quote for what an in-place cadence swap (monthly
+/// ↔ annual) will cost the user TODAY. Returned by
 /// SubscriptionService.previewUpgrade; consumed by the paywall to
 /// display "You'll be charged $X.XX today (prorated)".
 class UpgradePreview {
