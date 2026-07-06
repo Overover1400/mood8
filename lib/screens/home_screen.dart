@@ -31,6 +31,7 @@ import '../services/weekly_recap_service.dart';
 import '../services/pattern_detection_service.dart';
 import '../models/pattern_alert.dart';
 import '../widgets/habit_completion_calendar.dart';
+import '../widgets/upgrade_prompt_bar.dart';
 import '../widgets/pattern_alert_card.dart';
 import 'notifications_screen.dart';
 import 'patterns_screen.dart';
@@ -740,6 +741,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       // no longer rendered inline — both flows live in
                       // the header "+" sheet now.
                       const SizedBox(height: 18),
+                      // Free-tier upgrade nudge — self-hides for
+                      // premium users and after dismissal.
+                      const UpgradePromptBar(),
                       ValueListenableBuilder<Box<MoodEntry>>(
                         valueListenable: _moods.watchEntries(),
                         builder: (context, _, _) {

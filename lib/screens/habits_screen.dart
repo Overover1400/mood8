@@ -25,6 +25,7 @@ import '../widgets/freeze_modal.dart';
 import '../widgets/habit_card.dart';
 import '../widgets/responsive_container.dart';
 import '../widgets/tutorial_overlay.dart';
+import '../widgets/upgrade_prompt_bar.dart';
 import 'habit_detail_screen.dart';
 import 'habit_packages_screen.dart';
 
@@ -220,7 +221,25 @@ class _HabitsScreenState extends State<HabitsScreen> {
                               sortMode: _sortMode,
                               onSortChanged: _setSortMode,
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
+                            // Free-tier upgrade nudge — dismissible,
+                            // no-op for premium users, auto-hidden
+                            // for the 5-day cool-off after dismissal.
+                            const UpgradePromptBar(),
+                            // Slim single-line "N of M done today ·
+                            // 🔥 top streak" replaces the bulky
+                            // _ProgressCard hero, so the filter
+                            // chips can sit right at the top.
+                            _TodaySummaryLine(
+                              completed: completedToday,
+                              total: scheduled.length,
+                              bestStreak: best,
+                            ),
+                            const SizedBox(height: 12),
+                            // Filter chips + (for package
+                            // categories) a trailing "delete
+                            // category" affordance handled by the
+                            // parent via _confirmDeletePackage.
                             _IdentityFilter(
                               identities: identities,
                               packageIds: activePackageIds,
@@ -229,13 +248,17 @@ class _HabitsScreenState extends State<HabitsScreen> {
                               onChanged: (v) =>
                                   setState(() => _filter = v),
                             ),
-                            const SizedBox(height: 16),
-                            _ProgressCard(
-                              completed: completedToday,
-                              total: scheduled.length,
-                              bestStreak: best,
-                            ),
-                            const SizedBox(height: 22),
+                            if (_filter.startsWith(_kPackagePrefix)) ...[
+                              const SizedBox(height: 10),
+                              _DeleteCategoryBar(
+                                packageId: _filter.substring(
+                                    _kPackagePrefix.length),
+                                habitCount: visible.length,
+                                onDelete: () =>
+                                    _confirmDeletePackage(visible),
+                              ),
+                            ],
+                            const SizedBox(height: 18),
                             if (all.isEmpty)
                               EmptyState(
                                 icon: Icons.check_circle_outline_rounded,
@@ -384,6 +407,76 @@ class _HabitsScreenState extends State<HabitsScreen> {
   Future<void> _openSheet({Habit? editing}) async {
     HapticService().light();
     await showAddHabitSheet(context, editing: editing);
+  }
+
+  /// Bulk-delete every habit in the currently-selected package
+  /// category. Never called for default filters — the "delete
+  /// category" affordance simply isn't rendered for them.
+  Future<void> _confirmDeletePackage(List<Habit> visible) async {
+    if (!_filter.startsWith(_kPackagePrefix)) return;
+    final packageId = _filter.substring(_kPackagePrefix.length);
+    final pkg = habitPackageById(packageId);
+    final name = pkg?.name ?? 'this category';
+    final n = visible.length;
+    if (n == 0) return;
+    HapticService().light();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text(
+          'Delete all $n habit${n == 1 ? '' : 's'} in $name?',
+          style: TextStyle(color: BrandColors.ink(context)),
+        ),
+        content: Text(
+          "Every habit in this category will be removed from your "
+          "list. Their history stays on your account so streaks and "
+          "insights don't lose their past — you just won't see the "
+          "habits any more. This can't be undone.",
+          style: TextStyle(
+            color: BrandColors.inkSoft(context),
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Delete all',
+              style: TextStyle(
+                color: Color(0xFFFF6B81),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    HapticService().heavy();
+    // Delete each habit — HabitRepository.deleteHabit tombstones
+    // the row + every log so cross-device sync picks up the wipe.
+    for (final h in visible) {
+      try {
+        await _repo.deleteHabit(h.id);
+      } catch (e) {
+        debugPrint('[HabitsScreen] deleteHabit ${h.id} failed: $e');
+      }
+    }
+    if (!mounted) return;
+    // The chip we were filtering on no longer has any habits — drop
+    // back to "All" so the list isn't stuck on an empty package tab.
+    setState(() => _filter = _kAllFilter);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Deleted $n habit${n == 1 ? '' : 's'} from $name.'),
+        backgroundColor: BrandColors.bgCard(context),
+      ),
+    );
   }
 
   Future<void> _openDetail(Habit habit) async {
@@ -1186,8 +1279,14 @@ class _IdentityFilter extends StatelessWidget {
   }
 }
 
-class _ProgressCard extends StatelessWidget {
-  const _ProgressCard({
+
+/// One-line "done today" summary that replaced the fat _ProgressCard
+/// at the top of the Habits screen. Compact single row so the filter
+/// chips can sit right above the list without the header eating
+/// half the screen. Streak lives inline as a small chip on the
+/// right — total-of-scheduled on the left.
+class _TodaySummaryLine extends StatelessWidget {
+  const _TodaySummaryLine({
     required this.completed,
     required this.total,
     required this.bestStreak,
@@ -1199,90 +1298,150 @@ class _ProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final label = total == 0
+        ? 'No habits scheduled today'
+        : '$completed of $total done today';
     final percent = total == 0 ? 0.0 : completed / total;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-      decoration: BoxDecoration(
-        color: BrandColors.bgCard(context).withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: AppColors.purple.withValues(alpha: 0.20),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Row(
+      children: [
+        Expanded(
+          child: Row(
             children: [
-              Expanded(
-                child: Text(
-                  total == 0
-                      ? 'No habits scheduled today'
-                      : '$completed of $total habits done today',
+              Text(
+                label,
+                style: TextStyle(
+                  color: BrandColors.ink(context),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                ),
+              ),
+              if (total > 0) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '${(percent * 100).round()}%',
                   style: TextStyle(
-                    color: BrandColors.ink(context),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
+                    color: AppColors.pinkLight,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13.5,
                   ),
                 ),
-              ),
-              Text(
-                '${(percent * 100).round()}%',
-                style: TextStyle(
-                  color: AppColors.pinkLight,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 18,
-                ),
-              ),
+              ],
             ],
           ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Stack(
+        ),
+        if (bestStreak > 0)
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: BrandColors.bgCard(context).withValues(alpha: 0.75),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppColors.pinkLight.withValues(alpha: 0.30),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  height: 10,
-                  color: BrandColors.bg(context).withValues(alpha: 0.7),
+                const Text('🔥', style: TextStyle(fontSize: 11)),
+                const SizedBox(width: 5),
+                Text(
+                  '$bestStreak',
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                AnimatedFractionallySizedBox(
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.easeOutCubic,
-                  widthFactor: percent.clamp(0, 1),
-                  child: Container(
-                    height: 10,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.buttonGradient,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.pink.withValues(alpha: 0.45),
-                          blurRadius: 12,
-                        ),
-                      ],
-                    ),
+                const SizedBox(width: 3),
+                Text(
+                  bestStreak == 1 ? 'day' : 'days',
+                  style: TextStyle(
+                    color: BrandColors.inkDim(context),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Text('🔥', style: TextStyle(fontSize: 14)),
-              const SizedBox(width: 6),
-              Text(
-                bestStreak == 0
-                    ? 'No streaks yet — start today.'
-                    : 'Top streak: $bestStreak day${bestStreak == 1 ? '' : 's'}',
-                style: TextStyle(
-                  color: BrandColors.inkDim(context),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+      ],
+    );
+  }
+}
+
+/// Delete-all-in-category affordance. Shown only under the filter
+/// chip strip when a PACKAGE category is selected — default filters
+/// (All / Bad habits / Mood8 AI Habits / identity chips) never
+/// surface this bar. Parent owns the confirm dialog + cascade so
+/// HabitRepository + sync side-effects stay in the state class.
+class _DeleteCategoryBar extends StatelessWidget {
+  const _DeleteCategoryBar({
+    required this.packageId,
+    required this.habitCount,
+    required this.onDelete,
+  });
+
+  final String packageId;
+  final int habitCount;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final pkg = habitPackageById(packageId);
+    final name = pkg?.name ?? 'this category';
+    return InkWell(
+      onTap: onDelete,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        decoration: BoxDecoration(
+          color: BrandColors.bgCard(context).withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: const Color(0xFFFF6B81).withValues(alpha: 0.45),
+          ),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.delete_outline_rounded,
+              color: Color(0xFFFF6B81),
+              size: 18,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: 'Delete all $habitCount habit'
+                          '${habitCount == 1 ? '' : 's'} in ',
+                      style: TextStyle(
+                        color: BrandColors.inkSoft(context),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    TextSpan(
+                      text: name,
+                      style: TextStyle(
+                        color: BrandColors.ink(context),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ],
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: BrandColors.inkSoft(context),
+              size: 18,
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../services/analytics_service.dart';
 import '../services/haptic_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/upgrade_prompt_bar.dart';
 import 'insights_screen.dart';
 import 'progress_screen.dart';
 
@@ -54,6 +55,9 @@ class ProgressInsightsTabState extends State<ProgressInsightsTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Free-tier upgrade nudge — no-op for premium
+                  // users and after dismissal.
+                  const UpgradePromptBar(),
                   Row(
                     children: [
                       Expanded(
