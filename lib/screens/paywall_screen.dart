@@ -8,6 +8,7 @@ import '../models/subscription.dart';
 import '../services/deep_link_service.dart' show kDeepLinkReturnUrl;
 
 import '../services/haptic_service.dart';
+import '../services/purchase_service.dart';
 import '../services/subscription_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/mood_orb.dart';
@@ -130,22 +131,36 @@ class _PaywallScreenState extends State<PaywallScreen> {
       _error = null;
     });
     HapticService().light();
-    // Native clients deep-link back; web stays on the existing
-    // ?checkout=success page handled by AuthGate.
-    final returnUrl = kIsWeb ? null : kDeepLinkReturnUrl;
-    final url = await SubscriptionService()
-        .startCheckout(_selectedPlan, returnUrl: returnUrl);
-    if (!mounted) return;
-    if (url == null) {
+    // Route through PurchaseService — on web this returns a Stripe
+    // checkout URL; on native mobile in-app purchase is disabled at
+    // launch (Play Billing / StoreKit come later) and the paywall
+    // build shouldn't have reached this method anyway. Belt-and-
+    // suspenders: bail if the current platform doesn't support it.
+    final purchase = PurchaseService();
+    if (!purchase.supportsInAppPurchase) {
       setState(() {
         _loading = false;
-        _error = "Couldn't open checkout. Check your connection and sign-in.";
+        _error = purchase.unavailableReason;
       });
       return;
     }
-    final uri = Uri.parse(url);
+    // Native clients deep-link back; web stays on the existing
+    // ?checkout=success page handled by AuthGate.
+    final returnUrl = kIsWeb ? null : kDeepLinkReturnUrl;
+    final result = await purchase.startPurchase(
+      _selectedPlan, returnUrl: returnUrl,
+    );
+    if (!mounted) return;
+    if (!result.ok || result.checkoutUrl == null) {
+      setState(() {
+        _loading = false;
+        _error = result.message ??
+            "Couldn't open checkout. Check your connection and sign-in.";
+      });
+      return;
+    }
     final launched = await launchUrl(
-      uri,
+      Uri.parse(result.checkoutUrl!),
       mode: LaunchMode.platformDefault,
       webOnlyWindowName: '_self',
     );
@@ -293,35 +308,47 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     const SizedBox(height: 22),
                     ..._buildPlanCards(),
                     const SizedBox(height: 18),
-                    if (_isInPlaceUpgrade) _ProratedBanner(
-                      preview: _preview,
-                      loading: _previewLoading,
-                    ),
-                    const SizedBox(height: 18),
-                    _CTAButton(
-                      label: _ctaLabel(),
-                      onTap: (_loading || _isOnCurrentPlan)
-                          ? null
-                          : _startCheckout,
-                    ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        _error!,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: AppColors.pinkLight,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    // In-app purchase is only wired up on web at
+                    // launch — Play Billing / StoreKit come later.
+                    // Native builds swap the CTA for a compliance-
+                    // safe "managed on mood8.app" card that opens
+                    // the browser (no checkout button, no Stripe
+                    // URL routed through the app).
+                    if (PurchaseService().supportsInAppPurchase) ...[
+                      if (_isInPlaceUpgrade) _ProratedBanner(
+                        preview: _preview,
+                        loading: _previewLoading,
                       ),
+                      const SizedBox(height: 18),
+                      _CTAButton(
+                        label: _ctaLabel(),
+                        onTap: (_loading || _isOnCurrentPlan)
+                            ? null
+                            : _startCheckout,
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.pinkLight,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ] else ...[
+                      const _WebPurchaseNotice(),
                     ],
                     const SizedBox(height: 14),
                     Center(
                       child: TextButton(
                         onPressed: _restore,
                         child: Text(
-                          'Restore purchase',
+                          PurchaseService().supportsInAppPurchase
+                              ? 'Restore purchase'
+                              : 'I already subscribed on mood8.app',
                           style: TextStyle(
                             color: BrandColors.inkSoft(context),
                             fontWeight: FontWeight.w700,
@@ -561,6 +588,129 @@ class _PlanCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Launch-time compliance card shown on native mobile in place of
+/// the "Start Premium" CTA. No in-app purchase surface — points the
+/// user to mood8.app to complete the subscription in a browser and
+/// come back. Detection still runs in the background, so the app
+/// flips to Premium automatically as soon as the backend reports it.
+class _WebPurchaseNotice extends StatelessWidget {
+  const _WebPurchaseNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final url = PurchaseService().manageInBrowserUrl;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+        color: BrandColors.bgCard(context).withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.purple.withValues(alpha: 0.36),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppColors.buttonGradient,
+                ),
+                child: const Icon(
+                  Icons.open_in_new_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Premium is managed on mood8.app',
+                  style: GoogleFonts.bricolageGrotesque(
+                    color: BrandColors.ink(context),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    height: 1.05,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            "Sign in there to upgrade. This app unlocks Premium "
+            'automatically as soon as your subscription is active — '
+            'nothing else to do here.',
+            style: TextStyle(
+              color: BrandColors.inkSoft(context),
+              fontSize: 13,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: () async {
+              HapticService().light();
+              await openManageInBrowser();
+            },
+            child: Container(
+              height: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: AppColors.buttonGradient,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.pink.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    spreadRadius: -4,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.open_in_new_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Open mood8.app',
+                    style: GoogleFonts.bricolageGrotesque(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            url,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: BrandColors.inkDim(context),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
       ),
     );
   }

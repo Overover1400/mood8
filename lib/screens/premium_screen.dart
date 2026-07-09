@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/subscription.dart';
 import '../services/haptic_service.dart';
+import '../services/purchase_service.dart';
 import '../services/subscription_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/responsive_container.dart';
@@ -381,18 +382,40 @@ class _CTAStack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canPurchaseInApp = PurchaseService().supportsInAppPurchase;
     if (!tier.isPaid) {
+      // Free user. On web → normal "See plans" opens the paywall
+      // with a live checkout button. On native mobile (Play Billing
+      // not wired yet) → CTA opens mood8.app directly, which is
+      // where the subscription actually gets created; the app will
+      // pick up Premium status from the backend on the next
+      // refresh, no restart needed.
       return _GradientCTA(
-        label: 'See plans',
-        icon: Icons.lock_open_rounded,
-        onTap: () => _openPaywall(context),
+        label: canPurchaseInApp ? 'See plans' : 'Upgrade on mood8.app',
+        icon: canPurchaseInApp
+            ? Icons.lock_open_rounded
+            : Icons.open_in_new_rounded,
+        onTap: () => canPurchaseInApp
+            ? _openPaywall(context)
+            : _openManageInBrowser(context),
       );
     }
-    // Paid — recurring or lifetime — one CTA either way.
+    // Paid user. On web → open Stripe billing portal in place.
+    // On native mobile → point the user to mood8.app to manage
+    // billing so we don't ship an in-app path to Stripe's hosted
+    // billing page (technically account management, but keeping
+    // the mobile app free of ALL billing surfaces is the safest
+    // compliance posture for launch).
     return _GradientCTA(
-      label: 'Manage subscription',
-      icon: Icons.tune_rounded,
-      onTap: () => _openBillingPortal(context),
+      label: canPurchaseInApp
+          ? 'Manage subscription'
+          : 'Manage on mood8.app',
+      icon: canPurchaseInApp
+          ? Icons.tune_rounded
+          : Icons.open_in_new_rounded,
+      onTap: () => canPurchaseInApp
+          ? _openBillingPortal(context)
+          : _openManageInBrowser(context),
     );
   }
 
@@ -403,6 +426,21 @@ class _CTAStack extends StatelessWidget {
         builder: (_) => const PaywallScreen(),
       ),
     );
+  }
+
+  Future<void> _openManageInBrowser(BuildContext context) async {
+    HapticService().light();
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await openManageInBrowser();
+    if (!ok) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Couldn't open mood8.app — try opening it in your browser.",
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _openBillingPortal(BuildContext context) async {

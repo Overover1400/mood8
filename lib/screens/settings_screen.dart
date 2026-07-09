@@ -21,6 +21,7 @@ import '../services/notification_service.dart';
 import '../services/onboarding_service.dart';
 import '../services/preferences_service.dart';
 import '../services/sfx_service.dart';
+import '../services/purchase_service.dart';
 import '../services/subscription_service.dart';
 import '../services/user_repository.dart';
 import '../theme/app_theme.dart';
@@ -254,6 +255,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _openBillingPortal() async {
+    // On native mobile (no in-app purchase surface at launch) route
+    // billing management to mood8.app instead of hitting Stripe's
+    // hosted portal directly. Web keeps the in-place portal.
+    if (!PurchaseService().supportsInAppPurchase) {
+      final ok = await openManageInBrowser();
+      if (!mounted) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  "Couldn't open mood8.app — try opening it in your browser.")),
+        );
+      }
+      return;
+    }
     final url = await SubscriptionService().openBillingPortal();
     if (!mounted) return;
     if (url == null) {
