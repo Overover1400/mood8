@@ -53,6 +53,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../widgets/settings/settings_toggle.dart';
 import 'settings/about_screen.dart';
+import 'settings/delete_account_screen.dart';
 import 'settings/ai_privacy_screen.dart';
 import 'settings/data_privacy_screen.dart';
 import 'settings/notification_debug_screen.dart';
@@ -404,10 +405,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         SettingsTile(
                           icon: Icons.no_accounts_rounded,
                           title: 'Delete account',
-                          subtitle:
-                              'Removes all local data (account sync not enabled yet)',
+                          subtitle: AuthService().isAuthenticated
+                              ? 'Permanently remove your account and all data'
+                              : 'Erase everything stored on this device',
                           destructive: true,
-                          onTap: _confirmDeleteAccount,
+                          onTap: _openDeleteAccount,
                         ),
                       ],
                     ),
@@ -1322,15 +1324,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
-  Future<void> _confirmDeleteAccount() async {
+  /// Route the delete-account tap. Signed-in users (including guest
+  /// accounts, which have a real user row + JWT server-side) go
+  /// through the full DeleteAccountScreen → DELETE /api/account
+  /// flow. Truly-anonymous local-only users (no JWT at all — rare
+  /// in prod since "Try without account" creates a guest row) fall
+  /// back to the legacy local-wipe dialog so they aren't stuck.
+  Future<void> _openDeleteAccount() async {
+    if (AuthService().isAuthenticated) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const DeleteAccountScreen(),
+        ),
+      );
+      return;
+    }
+    await _confirmLocalWipe();
+  }
+
+  /// Legacy local-only wipe. Only reachable when there's no JWT (no
+  /// server-side row to delete) — Onboarding reset returns the user
+  /// to the welcome flow. Kept behind [_openDeleteAccount] so the
+  /// canonical path is always the server delete.
+  Future<void> _confirmLocalWipe() async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: BrandColors.bgCard(context),
-        title: Text('Delete account?',
+        title: Text('Delete local data?',
             style: TextStyle(color: BrandColors.ink(context))),
         content: Text(
-          'Sync isn\'t enabled yet — this erases everything stored on this device. '
+          'This erases everything stored on this device. '
           'You can re-onboard right after.',
           style: TextStyle(color: BrandColors.inkSoft(context)),
         ),

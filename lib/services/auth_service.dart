@@ -294,6 +294,47 @@ class AuthService {
     }
   }
 
+  /// Permanently delete the current account + every row of user data
+  /// on the server. On success the local auth state is cleared and
+  /// the caller should immediately route the user back to the
+  /// welcome screen (see AuthGate.resetAuth for the paired local
+  /// wipe). Returns a friendly message the caller can surface on
+  /// failure — 401 becomes "session expired", 5xx becomes a retry
+  /// nudge. This is destructive AND irreversible; UI MUST require
+  /// explicit confirmation (typed word) before calling.
+  Future<AuthResult> deleteAccount() async {
+    final t = _token;
+    if (t == null) return AuthResult.fail('Not signed in.');
+    try {
+      debugPrint('[AuthService] DELETE /account');
+      final res = await _client
+          .delete(
+            Uri.parse('$_baseUrl/account'),
+            headers: {'authorization': 'Bearer $t'},
+          )
+          .timeout(_timeout);
+      debugPrint('[AuthService] DELETE /account → ${res.statusCode}');
+      if (res.statusCode == 401) {
+        return AuthResult.fail('Session expired. Sign in again.');
+      }
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        // Server deleted the row. Wipe local auth before returning
+        // so callers don't accidentally reuse a JWT for a gone user.
+        await logout();
+        return AuthResult.ok(
+          message: 'Your account and data have been deleted.',
+        );
+      }
+      return AuthResult.fail(
+        _friendlyError(res, fallback: "Couldn't delete your account."),
+      );
+    } on TimeoutException {
+      return AuthResult.fail("Mood8 didn't reply in time. Try again.");
+    } catch (e) {
+      return AuthResult.fail(_networkError(e));
+    }
+  }
+
   // ─── internals ────────────────────────────────────────────────────────
 
   Future<AuthResult> _post({

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0A0612" />
+  <title>Delete your Mood8 account</title>
+  <meta name="description" content="How to delete your Mood8 account and the data associated with it. Two methods: in the app, or by email." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://mood8.app/delete-account" />
+  <link rel="icon" type="image/png" href="/app/favicon.png" />
+  <link rel="apple-touch-icon" href="/app/icons/Icon-192.png" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://mood8.app/delete-account" />
+  <meta property="og:title" content="Delete your Mood8 account" />
+  <meta property="og:description" content="How to delete your Mood8 account and the data associated with it." />
+  <meta property="og:site_name" content="Mood8" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg-deep: #0a0612;
+      --bg: #110821;
+      --bg-card: #1f1338;
+      --bg-card-soft: rgba(31, 19, 56, 0.65);
+      --purple: #a855f7;
+      --purple-light: #c084fc;
+      --pink: #ec4899;
+      --pink-light: #f472b6;
+      --blue-accent: #818cf8;
+      --danger: #ff6b81;
+      --ink: #faf5ff;
+      --ink-soft: #e9d5ff;
+      --ink-dim: #a78bb8;
+      --ink-faint: #6b5680;
+      --grad-primary: linear-gradient(135deg, #a855f7 0%, #ec4899 55%, #f472b6 100%);
+      --radius: 18px;
+      --radius-lg: 28px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+
+    body {
+      background:
+        radial-gradient(circle at 15% -10%, rgba(168, 85, 247, 0.28), transparent 55%),
+        radial-gradient(circle at 100% 100%, rgba(236, 72, 153, 0.22), transparent 55%),
+        var(--bg-deep);
+      background-attachment: fixed;
+      color: var(--ink);
+      font-family: 'Bricolage Grotesque', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-weight: 400;
+      line-height: 1.65;
+      min-height: 100vh;
+    }
+
+    ::selection { background: var(--pink); color: var(--ink); }
+
+    a {
+      color: var(--pink-light);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(244, 114, 182, 0.35);
+      transition: color 160ms, border-color 160ms;
+    }
+    a:hover { color: var(--purple-light); border-bottom-color: var(--purple-light); }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 22px clamp(20px, 4vw, 40px);
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 20px;
+      color: var(--ink);
+      border-bottom: none;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--grad-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      box-shadow: 0 6px 20px -4px rgba(236, 72, 153, 0.55);
+    }
+
+    .brand-word em {
+      font-style: italic;
+      background: var(--grad-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .nav-back {
+      color: var(--ink-dim);
+      font-size: 14px;
+      font-weight: 500;
+      border-bottom: none;
+    }
+    .nav-back:hover { color: var(--ink); }
+
+    /* ── Main article ─────────────────────────────────────────── */
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 24px clamp(20px, 5vw, 40px) 64px;
+    }
+
+    .doc-head {
+      padding: 24px 0 32px;
+      border-bottom: 1px solid rgba(168, 85, 247, 0.18);
+      margin-bottom: 40px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--pink-light);
+      background: rgba(236, 72, 153, 0.12);
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(236, 72, 153, 0.35);
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: clamp(34px, 6vw, 52px);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+
+    h1 em {
+      font-style: italic;
+      background: var(--grad-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .doc-summary {
+      margin-top: 20px;
+      color: var(--ink-soft);
+      font-size: 16px;
+      line-height: 1.6;
+      max-width: 640px;
+    }
+
+    .app-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 22px;
+    }
+
+    .app-facts span {
+      font-size: 12px;
+      color: var(--ink-dim);
+      background: rgba(168, 85, 247, 0.08);
+      border: 1px solid rgba(168, 85, 247, 0.24);
+      padding: 5px 12px;
+      border-radius: 999px;
+    }
+
+    /* ── Sections ─────────────────────────────────────────────── */
+    section {
+      margin: 40px 0;
+      scroll-margin-top: 24px;
+    }
+
+    section > h2 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }
+
+    section > h2 .num {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.6px;
+      color: var(--pink-light);
+      background: rgba(236, 72, 153, 0.14);
+      border: 1px solid rgba(236, 72, 153, 0.35);
+      padding: 4px 10px;
+      border-radius: 999px;
+      flex-shrink: 0;
+    }
+
+    section p, section li {
+      color: var(--ink-soft);
+      font-size: 15.5px;
+      line-height: 1.7;
+    }
+
+    section p + p { margin-top: 12px; }
+
+    section h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 20px 0 8px;
+    }
+
+    section ul {
+      margin: 10px 0 6px 0;
+      padding-left: 22px;
+    }
+    section ul li { margin: 6px 0; }
+    section ul li::marker { color: var(--pink); }
+
+    strong { color: var(--ink); font-weight: 600; }
+
+    /* Numbered method cards */
+    .method {
+      background: var(--bg-card-soft);
+      border: 1px solid rgba(168, 85, 247, 0.28);
+      border-radius: var(--radius);
+      padding: 22px;
+      margin: 16px 0;
+      display: flex;
+      gap: 18px;
+    }
+
+    .method-num {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--grad-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 18px;
+      color: #fff;
+      box-shadow: 0 8px 20px -4px rgba(236, 72, 153, 0.40);
+    }
+
+    .method-body h3 { margin: 0 0 10px; font-size: 17px; }
+    .method-body ol { padding-left: 20px; margin-top: 6px; color: var(--ink-soft); }
+    .method-body ol li { padding: 4px 0; }
+    .method-body ol li::marker { color: var(--pink-light); font-weight: 700; }
+
+    /* Callouts */
+    .callout {
+      margin-top: 18px;
+      padding: 16px 18px;
+      background: rgba(168, 85, 247, 0.10);
+      border: 1px solid rgba(168, 85, 247, 0.30);
+      border-radius: var(--radius);
+      font-size: 14.5px;
+      color: var(--ink-soft);
+    }
+    .callout strong { color: var(--pink-light); }
+
+    .warn {
+      margin-top: 24px;
+      padding: 18px 20px;
+      background: rgba(255, 107, 129, 0.10);
+      border: 1px solid rgba(255, 107, 129, 0.45);
+      border-radius: var(--radius);
+      color: var(--ink);
+      font-weight: 600;
+      font-size: 15px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .warn::before {
+      content: '⚠';
+      color: var(--danger);
+      font-size: 20px;
+      flex-shrink: 0;
+      line-height: 1;
+      margin-top: 2px;
+    }
+
+    /* ── Contact panel ────────────────────────────────────────── */
+    .contact {
+      margin-top: 56px;
+      padding: 26px 28px;
+      background: var(--bg-card-soft);
+      border: 1px solid rgba(168, 85, 247, 0.24);
+      border-radius: var(--radius-lg);
+      text-align: center;
+    }
+
+    .contact h2 { font-size: 22px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+    .contact p { color: var(--ink-soft); font-size: 15px; }
+    .contact a {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 12px 22px;
+      border-radius: 999px;
+      background: var(--grad-primary);
+      color: #fff !important;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.2px;
+      border-bottom: none;
+      box-shadow: 0 12px 30px -8px rgba(236, 72, 153, 0.50);
+    }
+    .contact a:hover { transform: translateY(-1px); }
+
+    /* ── Footer ─────────────────────────────────────────────── */
+    footer {
+      padding: 32px 24px 48px;
+      text-align: center;
+      color: var(--ink-faint);
+      font-size: 12.5px;
+      border-top: 1px solid rgba(168, 85, 247, 0.14);
+      margin-top: 40px;
+    }
+    footer a { color: var(--ink-dim); border-bottom: none; margin: 0 10px; }
+    footer a:hover { color: var(--pink-light); }
+
+    @media (max-width: 640px) {
+      main { padding: 12px 20px 48px; }
+      .doc-head { padding: 14px 0 24px; margin-bottom: 28px; }
+      section > h2 { font-size: 21px; }
+      section > h2 .num { font-size: 11px; padding: 3px 8px; }
+      section p, section li { font-size: 15px; }
+      .method { flex-direction: column; padding: 20px; gap: 12px; }
+      .contact { padding: 22px 20px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="nav">
+    <a href="/" class="brand" aria-label="Mood8 home">
+      <span class="brand-mark">M</span>
+      <span class="brand-word">Mood<em>8</em></span>
+    </a>
+    <a href="/" class="nav-back">← Back to home</a>
+  </header>
+
+  <main>
+
+    <div class="doc-head">
+      <span class="eyebrow">Account Deletion</span>
+      <h1>Delete your <em>Mood8</em> account.</h1>
+      <p class="doc-summary">
+        You can permanently delete your Mood8 account and the data
+        associated with it at any time. This page explains the two
+        methods, what gets removed, and what may be retained by law.
+      </p>
+      <div class="app-facts">
+        <span>App: <strong style="color:var(--ink-soft)">Mood8</strong></span>
+        <span>Developer: <strong style="color:var(--ink-soft)">Mood8</strong></span>
+        <span>Support: <a href="mailto:support@mood8.app" style="border-bottom:none;color:var(--ink-soft)">support@mood8.app</a></span>
+      </div>
+    </div>
+
+    <!-- 1. HOW TO DELETE ─────────────────────────────────────── -->
+    <section id="how">
+      <h2><span class="num">01</span> How to delete your account</h2>
+      <p>Choose either method. Both remove your account.</p>
+
+      <div class="method">
+        <div class="method-num">1</div>
+        <div class="method-body">
+          <h3>In the Mood8 app</h3>
+          <p>The fastest way — takes about 15 seconds.</p>
+          <ol>
+            <li>Open Mood8 on your phone.</li>
+            <li>Go to <strong>Settings</strong>.</li>
+            <li>Scroll to the <strong>Account</strong> section.</li>
+            <li>Tap <strong>Delete account</strong> (shown in red).</li>
+            <li>
+              Read the confirmation screen. If you have an active
+              <strong>Premium</strong> subscription, the screen tells
+              you it will be canceled as part of the deletion.
+            </li>
+            <li>Type <strong>DELETE</strong> to confirm you understand this is permanent.</li>
+            <li>Tap <strong>Delete my account</strong>. The app signs out to the welcome screen.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="method">
+        <div class="method-num">2</div>
+        <div class="method-body">
+          <h3>By email</h3>
+          <p>If you can't access the app, or you'd rather do it manually.</p>
+          <ol>
+            <li>
+              Send an email to
+              <a href="mailto:support@mood8.app">support@mood8.app</a>
+              <strong>from the email address on your Mood8 account.</strong>
+              (Sending from the account address lets us verify you own it.)
+            </li>
+            <li>
+              Subject line:
+              <strong>&ldquo;Delete my Mood8 account&rdquo;</strong>.
+              Body can be a single line — no reason required.
+            </li>
+            <li>
+              We reply to confirm receipt and complete the deletion
+              within <strong>30 days</strong>, usually the same
+              business day.
+            </li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. WHAT IS DELETED ────────────────────────────────── -->
+    <section id="what-deleted">
+      <h2><span class="num">02</span> What is deleted</h2>
+      <p>Deleting your account removes the following from our servers:</p>
+      <ul>
+        <li>
+          <strong>Account:</strong> email address, name, profile
+          photo, bio, hashed password (or Google Sign-In link).
+        </li>
+        <li>
+          <strong>Habits + completion history</strong> — every habit
+          you tracked and every check-off.
+        </li>
+        <li>
+          <strong>Mood, energy, and focus check-ins</strong> across
+          your whole history.
+        </li>
+        <li>
+          <strong>Gratitude entries</strong> and
+          <strong>morning intentions</strong>.
+        </li>
+        <li>
+          <strong>AI Coach conversations</strong> — every message you
+          sent and every reply from the Coach.
+        </li>
+        <li>
+          <strong>Challenge participation</strong> — your join
+          history, check-ins, badges, and rank progression across
+          every challenge.
+        </li>
+        <li>
+          <strong>Comments</strong> you posted inside challenges.
+        </li>
+        <li>
+          <strong>Notification and reminder settings</strong> —
+          reminders you configured and the times they were set for.
+        </li>
+        <li>
+          All <strong>synced Mood8 data</strong> that lived on our
+          servers to keep your devices in sync.
+        </li>
+      </ul>
+
+      <h3>Challenges you created</h3>
+      <p>
+        If you created a challenge that other people joined, the
+        challenge itself stays alive so other participants don't lose
+        their progress. Your personal link to it is removed — the
+        challenge shows the creator as <em>[deleted user]</em>. If
+        you want the challenge itself taken down, mention that in
+        your email request.
+      </p>
+    </section>
+
+    <!-- 3. WHAT MAY BE RETAINED ─────────────────────────── -->
+    <section id="retained">
+      <h2><span class="num">03</span> What may be retained, and for how long</h2>
+      <p>A few small things may persist for legal or operational reasons:</p>
+      <ul>
+        <li>
+          <strong>Payment records (Stripe).</strong> If you subscribed
+          to Premium, the payment / invoice records for those
+          transactions are retained by <strong>Stripe</strong> for as
+          long as tax and accounting law requires (typically several
+          years). Mood8 doesn't store card numbers — those live only
+          at Stripe. Any <strong>active Premium subscription is
+          canceled</strong> as part of the deletion so no further
+          charges occur.
+        </li>
+        <li>
+          <strong>Server backups.</strong> Our rolling encrypted
+          backups may still contain your data for up to
+          <strong>30 days</strong> after the deletion, after which
+          they're irretrievably overwritten as the backup window
+          rolls forward.
+        </li>
+        <li>
+          <strong>Anonymous aggregate statistics.</strong> Numbers
+          like "how many habits were completed on the platform this
+          week" may remain in aggregated form. No personal data is
+          retained in these; you can't be re-identified from them.
+        </li>
+      </ul>
+      <div class="callout">
+        <strong>No shadow copies.</strong> Once deletion completes we
+        do NOT keep a hidden profile of you for advertising, ranking,
+        or any other purpose. Mood8 does not sell personal data and
+        does not integrate advertising networks.
+      </div>
+    </section>
+
+    <!-- 4. TIMELINE + WARNING ─────────────────────────── -->
+    <section id="timeline">
+      <h2><span class="num">04</span> Timeline</h2>
+      <p>
+        Deletion from active systems is <strong>immediate</strong>
+        for the in-app method — the API deletes the row and its
+        children in the same request. Email requests are processed
+        within <strong>30 days</strong>, usually the same business
+        day. Backup roll-off completes within another
+        <strong>~30 days</strong> after that.
+      </p>
+      <div class="warn">
+        Deletion is <strong>permanent</strong> and cannot be undone.
+        Your habits, streaks, check-ins, and history are unrecoverable
+        after the request completes. If you're not sure, sign out and
+        take a break instead — the account will still be here.
+      </div>
+    </section>
+
+    <div class="contact">
+      <h2>Questions? Or delete by email?</h2>
+      <p>We read every message and reply within a day.</p>
+      <a href="mailto:support@mood8.app">support@mood8.app</a>
+    </div>
+
+  </main>
+
+  <footer>
+    <a href="/">Home</a>
+    <a href="/app/">Web app</a>
+    <a href="/privacy-policy">Privacy</a>
+    <a href="/delete-account">Delete account</a>
+    <a href="mailto:support@mood8.app">Contact</a>
+    <p style="margin-top:14px;">© 2026 Mood8 · Built with care.</p>
+  </footer>
+
+</body>
+</html>
