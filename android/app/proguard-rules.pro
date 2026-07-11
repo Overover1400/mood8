@@ -30,3 +30,17 @@
 -keep class com.google.gson.reflect.TypeToken { *; }
 -keep class * extends com.google.gson.reflect.TypeToken
 -keep public class * implements java.lang.reflect.Type
+
+# ─── Firebase Crashlytics ────────────────────────────────────────────
+# Keep line numbers so uploaded symbols map back to readable stacks in
+# the Firebase console instead of "<obfuscated>:12". The plugin also
+# uploads a mapping file so R8 obfuscation itself is fine — but the
+# source-file + line-number attributes must survive shrinking.
+-keepattributes SourceFile,LineNumberTable
+
+# Preserve Crashlytics + the Google Play Services runtime it plugs
+# into. These paths are reflected against by the plugin at runtime.
+-keep class com.google.firebase.crashlytics.** { *; }
+-dontwarn com.google.firebase.crashlytics.**
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.android.gms.**

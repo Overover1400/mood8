@@ -8,6 +8,27 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Firebase Crashlytics is applied conditionally: only when the
+// google-services.json config file is actually present in the project.
+// This lets local checkouts, PRs from forks, and any CI run without the
+// GOOGLE_SERVICES_JSON_BASE64 secret still build without a
+// "google-services.json is missing" fatal from the plugin. At runtime
+// the Flutter-side _initCrashlytics is defensively wrapped, so a build
+// without the config just produces an app without crash reporting —
+// no crash on startup, no other regression.
+val googleServicesFile = project.file("google-services.json")
+val firebaseEnabled = googleServicesFile.exists()
+if (firebaseEnabled) {
+    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
+} else {
+    println(
+        "[mood8] google-services.json not found in android/app/ — " +
+        "skipping Firebase / Crashlytics plugin apply. The app will " +
+        "build without crash reporting."
+    )
+}
+
 // Release signing config sources:
 //
 //   1. Local builds — `android/key.properties` (gitignored). Copy

@@ -1,3 +1,8 @@
+import 'dart:ui' show PlatformDispatcher;
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -37,6 +42,13 @@ import 'theme/app_theme_light.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Crash reporting FIRST so any exception thrown by the setup
+  // below still gets recorded. `_initCrashlytics` is fully wrapped:
+  // Firebase / Crashlytics failing (missing google-services.json,
+  // network blip, native init exception, etc.) MUST NEVER crash the
+  // app — the user still gets a working app, just without crash
+  // reporting. Web is a no-op (Crashlytics has no web SDK yet).
+  await _initCrashlytics();
   await DatabaseService.instance.init();
   // Hydrate the SharedPreferences shadow store BEFORE first frame —
   // if a counter-habit tap from a prior session didn't reach Hive
@@ -174,6 +186,56 @@ Future<void> _flushCorruptedNotificationCacheOnce() async {
     await prefs.setBool(flagKey, true);
   } catch (e) {
     debugPrint('[Notif] cache-flush wrapper failed: $e');
+  }
+}
+
+/// Initialize Firebase Crashlytics + wire it as the terminal sink for
+/// framework + platform errors. Fully wrapped so that ANY failure in
+/// this path (missing `android/app/google-services.json`, first-run
+/// network error, native init exception, plugin missing, etc.) is
+/// caught + logged + swallowed — the app must never fail to start
+/// because crash reporting is broken.
+///
+/// Web is a no-op: firebase_crashlytics has no web platform yet, and
+/// forcing initialization there throws.
+///
+/// Debug builds have collection disabled by default so local crashes
+/// stay local and don't pollute prod dashboards. Set
+/// [FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true)]
+/// at runtime to test the wire.
+Future<void> _initCrashlytics() async {
+  if (kIsWeb) return;
+  try {
+    await Firebase.initializeApp();
+    final crashlytics = FirebaseCrashlytics.instance;
+    // Release → collect. Debug → don't (developer will see the stack
+    // in the console; we don't want dev crashes cluttering prod).
+    await crashlytics.setCrashlyticsCollectionEnabled(!kDebugMode);
+    // Forward Flutter framework errors. Preserve any pre-existing
+    // handler (e.g. one set by a future test-mode wrapper).
+    final previousFlutterOnError = FlutterError.onError;
+    FlutterError.onError = (details) {
+      previousFlutterOnError?.call(details);
+      try {
+        crashlytics.recordFlutterFatalError(details);
+      } catch (_) {/* Crashlytics itself failing is not fatal */}
+    };
+    // Forward async / platform errors (unhandled Future rejections,
+    // isolate errors, etc.). Returning true tells the framework
+    // "we handled it" so the app keeps running instead of surfacing
+    // a red screen.
+    PlatformDispatcher.instance.onError = (error, stack) {
+      try {
+        crashlytics.recordError(error, stack, fatal: true);
+      } catch (_) {/* Crashlytics itself failing is not fatal */}
+      return true;
+    };
+    debugPrint('[Crashlytics] initialized · collect=${!kDebugMode}');
+  } catch (e, st) {
+    // Missing google-services.json is the most common cause of this
+    // branch — a fresh clone / PR / fork without the CI secret. The
+    // rest of the app continues without crash reporting.
+    debugPrint('[Crashlytics] init failed, continuing without: $e\n$st');
   }
 }
 

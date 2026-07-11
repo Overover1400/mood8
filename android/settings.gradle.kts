@@ -21,6 +21,12 @@ plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.11.1" apply false
     id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+    // Firebase Crashlytics support. Both are declared here with
+    // apply=false and are conditionally applied by app/build.gradle.kts
+    // only when android/app/google-services.json is present — so a
+    // fresh clone / PR / fork without the file still builds cleanly.
+    id("com.google.gms.google-services") version "4.4.2" apply false
+    id("com.google.firebase.crashlytics") version "3.0.2" apply false
 }
 
 include(":app")

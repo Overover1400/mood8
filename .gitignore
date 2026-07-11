@@ -31,3 +31,9 @@ android/key.properties
 # Handoff files for the Android release keystore. NEVER commit.
 android/keystore_base64.txt
 android/keystore_secrets.txt
+
+# Firebase config — carries the (public but project-scoped) mobile SDK
+# app IDs. Kept out of git so a fork can't accidentally point crashes
+# at our Firebase project; CI decodes it from the
+# GOOGLE_SERVICES_JSON_BASE64 secret before build.
+android/app/google-services.json

@@ -76,6 +76,33 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${NDK_VERSION}"
           ls -la "$ANDROID_HOME/ndk/" || true
 
+      # Decode Firebase Crashlytics config from a base64 secret. Same
+      # posture as the keystore below: if GOOGLE_SERVICES_JSON_BASE64
+      # isn't present (forks, PRs without secrets), the file is not
+      # written and android/app/build.gradle.kts silently skips the
+      # Firebase plugin apply — the build completes without crash
+      # reporting instead of blowing up.
+      - name: Decode Firebase google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d \
+              > android/app/google-services.json
+            # Fail loudly if the decoded file isn't valid JSON — a
+            # malformed config would silently produce an app that
+            # can't report crashes.
+            if ! python3 -c 'import json,sys; json.load(open("android/app/google-services.json"))' 2>/dev/null; then
+              echo "::error::google-services.json decoded but is not valid JSON — check the GOOGLE_SERVICES_JSON_BASE64 secret."
+              exit 1
+            fi
+            echo "CRASHLYTICS_ENABLED=true" >> "$GITHUB_ENV"
+            echo "Crashlytics wire: config file written ($(wc -c < android/app/google-services.json) bytes)."
+          else
+            echo "warn: GOOGLE_SERVICES_JSON_BASE64 secret is not set — building without Firebase / Crashlytics."
+            echo "CRASHLYTICS_ENABLED=false" >> "$GITHUB_ENV"
+          fi
+
       # Decode the release keystore from the base64-encoded GitHub
       # secret into a file on the runner. android/app/build.gradle.kts
       # picks it up via the MOOD8_KEYSTORE_* env vars below — no
@@ -191,6 +218,10 @@ jobs:
           if [ "${RELEASE_SIGNED:-false}" = "true" ]; then
             SIGNING="release keystore (Play-uploadable)"
           fi
+          CRASHLYTICS="disabled (no google-services.json)"
+          if [ "${CRASHLYTICS_ENABLED:-false}" = "true" ]; then
+            CRASHLYTICS="enabled"
+          fi
           {
             echo "## Mood8 Android build"
             echo ""
@@ -202,6 +233,7 @@ jobs:
             echo "| Build number | ${{ github.run_number }} |"
             echo "| Version | 0.1.${{ github.run_number }} |"
             echo "| Signing | $SIGNING |"
+            echo "| Crashlytics | $CRASHLYTICS |"
             echo "| Commit | \`${{ github.sha }}\` |"
             echo ""
             echo "Download under **Artifacts** above."
