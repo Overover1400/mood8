@@ -84,8 +84,8 @@ class AboutScreen extends StatelessWidget {
                     SettingsTile(
                       icon: Icons.lock_outline_rounded,
                       title: 'Privacy Policy',
-                      subtitle: 'mood8.app/privacy.html',
-                      onTap: () => _copy(context, 'https://mood8.app/privacy.html'),
+                      subtitle: 'mood8.app/privacy-policy',
+                      onTap: () => _copy(context, 'https://mood8.app/privacy-policy'),
                     ),
                     SettingsTile(
                       icon: Icons.gavel_rounded,

@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0A0612" />
+  <title>Mood8 — Privacy Policy</title>
+  <meta name="description" content="How Mood8 collects, uses, and protects your data. Plain-language privacy policy for the Mood8 habit and wellbeing app." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://mood8.app/privacy-policy" />
+  <link rel="icon" type="image/png" href="/app/favicon.png" />
+  <link rel="apple-touch-icon" href="/app/icons/Icon-192.png" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://mood8.app/privacy-policy" />
+  <meta property="og:title" content="Mood8 — Privacy Policy" />
+  <meta property="og:description" content="How Mood8 collects, uses, and protects your data." />
+  <meta property="og:site_name" content="Mood8" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg-deep: #0a0612;
+      --bg: #110821;
+      --bg-card: #1f1338;
+      --bg-card-soft: rgba(31, 19, 56, 0.65);
+      --purple: #a855f7;
+      --purple-light: #c084fc;
+      --pink: #ec4899;
+      --pink-light: #f472b6;
+      --blue-accent: #818cf8;
+      --ink: #faf5ff;
+      --ink-soft: #e9d5ff;
+      --ink-dim: #a78bb8;
+      --ink-faint: #6b5680;
+      --grad-primary: linear-gradient(135deg, #a855f7 0%, #ec4899 55%, #f472b6 100%);
+      --radius: 18px;
+      --radius-lg: 28px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+
+    body {
+      background:
+        radial-gradient(circle at 15% -10%, rgba(168, 85, 247, 0.28), transparent 55%),
+        radial-gradient(circle at 100% 100%, rgba(236, 72, 153, 0.22), transparent 55%),
+        var(--bg-deep);
+      background-attachment: fixed;
+      color: var(--ink);
+      font-family: 'Bricolage Grotesque', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-weight: 400;
+      line-height: 1.65;
+      min-height: 100vh;
+    }
+
+    ::selection { background: var(--pink); color: var(--ink); }
+
+    a {
+      color: var(--pink-light);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(244, 114, 182, 0.35);
+      transition: color 160ms, border-color 160ms;
+    }
+    a:hover { color: var(--purple-light); border-bottom-color: var(--purple-light); }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 22px clamp(20px, 4vw, 40px);
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 20px;
+      color: var(--ink);
+      border-bottom: none;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--grad-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      box-shadow: 0 6px 20px -4px rgba(236, 72, 153, 0.55);
+    }
+
+    .brand-word em {
+      font-style: italic;
+      background: var(--grad-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .nav-back {
+      color: var(--ink-dim);
+      font-size: 14px;
+      font-weight: 500;
+      border-bottom: none;
+    }
+    .nav-back:hover { color: var(--ink); }
+
+    /* ── Main article ─────────────────────────────────────────── */
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 24px clamp(20px, 5vw, 40px) 64px;
+    }
+
+    .doc-head {
+      padding: 24px 0 32px;
+      border-bottom: 1px solid rgba(168, 85, 247, 0.18);
+      margin-bottom: 40px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--pink-light);
+      background: rgba(236, 72, 153, 0.12);
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(236, 72, 153, 0.35);
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: clamp(34px, 6vw, 52px);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+
+    h1 em {
+      font-style: italic;
+      background: var(--grad-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .doc-meta {
+      color: var(--ink-dim);
+      font-size: 14px;
+      margin-top: 14px;
+    }
+
+    .doc-summary {
+      margin-top: 20px;
+      color: var(--ink-soft);
+      font-size: 16px;
+      line-height: 1.6;
+      max-width: 640px;
+    }
+
+    /* ── Table of contents ────────────────────────────────────── */
+    .toc {
+      background: var(--bg-card-soft);
+      border: 1px solid rgba(168, 85, 247, 0.22);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 40px;
+    }
+
+    .toc-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-bottom: 12px;
+    }
+
+    .toc ol {
+      list-style: none;
+      padding: 0;
+      counter-reset: toc-counter;
+    }
+
+    .toc ol li {
+      counter-increment: toc-counter;
+      margin: 6px 0;
+      display: flex;
+      gap: 12px;
+      align-items: baseline;
+    }
+
+    .toc ol li::before {
+      content: counter(toc-counter, decimal-leading-zero);
+      color: var(--ink-faint);
+      font-size: 12px;
+      font-weight: 700;
+      min-width: 24px;
+    }
+
+    .toc a {
+      color: var(--ink-soft);
+      border-bottom: none;
+      font-size: 15px;
+    }
+    .toc a:hover { color: var(--pink-light); }
+
+    /* ── Sections ─────────────────────────────────────────────── */
+    section {
+      margin: 40px 0;
+      scroll-margin-top: 24px;
+    }
+
+    section > h2 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }
+
+    section > h2 .num {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.6px;
+      color: var(--pink-light);
+      background: rgba(236, 72, 153, 0.14);
+      border: 1px solid rgba(236, 72, 153, 0.35);
+      padding: 4px 10px;
+      border-radius: 999px;
+      flex-shrink: 0;
+    }
+
+    section p, section li {
+      color: var(--ink-soft);
+      font-size: 15.5px;
+      line-height: 1.7;
+    }
+
+    section p + p { margin-top: 12px; }
+
+    section h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 20px 0 8px;
+    }
+
+    section ul {
+      margin: 10px 0 6px 0;
+      padding-left: 22px;
+    }
+    section ul li {
+      margin: 6px 0;
+    }
+    section ul li::marker { color: var(--pink); }
+
+    strong { color: var(--ink); font-weight: 600; }
+
+    /* Callout for the "no sale / no ads" line — matches landing cards. */
+    .callout {
+      margin-top: 18px;
+      padding: 16px 18px;
+      background: rgba(168, 85, 247, 0.10);
+      border: 1px solid rgba(168, 85, 247, 0.30);
+      border-radius: var(--radius);
+      font-size: 14.5px;
+      color: var(--ink-soft);
+    }
+
+    .callout strong { color: var(--pink-light); }
+
+    /* ── Contact panel ────────────────────────────────────────── */
+    .contact {
+      margin-top: 56px;
+      padding: 26px 28px;
+      background: var(--bg-card-soft);
+      border: 1px solid rgba(168, 85, 247, 0.24);
+      border-radius: var(--radius-lg);
+      text-align: center;
+    }
+
+    .contact h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 8px;
+    }
+
+    .contact p { color: var(--ink-soft); font-size: 15px; }
+
+    .contact a {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 12px 22px;
+      border-radius: 999px;
+      background: var(--grad-primary);
+      color: #fff !important;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.2px;
+      border-bottom: none;
+      box-shadow: 0 12px 30px -8px rgba(236, 72, 153, 0.50);
+    }
+    .contact a:hover { transform: translateY(-1px); }
+
+    /* ── Footer ─────────────────────────────────────────────── */
+    footer {
+      padding: 32px 24px 48px;
+      text-align: center;
+      color: var(--ink-faint);
+      font-size: 12.5px;
+      border-top: 1px solid rgba(168, 85, 247, 0.14);
+      margin-top: 40px;
+    }
+
+    footer a {
+      color: var(--ink-dim);
+      border-bottom: none;
+      margin: 0 10px;
+    }
+
+    footer a:hover { color: var(--pink-light); }
+
+    /* ── Mobile refinements ───────────────────────────────────── */
+    @media (max-width: 640px) {
+      main { padding: 12px 20px 48px; }
+      .doc-head { padding: 14px 0 24px; margin-bottom: 28px; }
+      section > h2 { font-size: 21px; }
+      section > h2 .num { font-size: 11px; padding: 3px 8px; }
+      section p, section li { font-size: 15px; }
+      .contact { padding: 22px 20px; }
+      .toc { padding: 18px 20px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="nav">
+    <a href="/" class="brand" aria-label="Mood8 home">
+      <span class="brand-mark">M</span>
+      <span class="brand-word">Mood<em>8</em></span>
+    </a>
+    <a href="/" class="nav-back">← Back to home</a>
+  </header>
+
+  <main>
+
+    <div class="doc-head">
+      <span class="eyebrow">Privacy Policy</span>
+      <h1>How <em>Mood8</em> handles your data.</h1>
+      <p class="doc-meta">Effective date: <strong>11 July 2026</strong></p>
+      <p class="doc-summary">
+        Mood8 is a habit &amp; wellbeing app. This policy explains what we collect,
+        how we use it, and the controls you have. Plain language, no dark
+        patterns — we don't sell your data, and we don't run advertising.
+      </p>
+    </div>
+
+    <nav class="toc" aria-label="Table of contents">
+      <div class="toc-title">Contents</div>
+      <ol>
+        <li><a href="#who-we-are">Who we are</a></li>
+        <li><a href="#data-we-collect">Data we collect</a></li>
+        <li><a href="#how-we-use-data">How we use data</a></li>
+        <li><a href="#storage-security">Data storage &amp; security</a></li>
+        <li><a href="#data-sharing">Data sharing</a></li>
+        <li><a href="#your-rights">Your rights &amp; controls</a></li>
+        <li><a href="#public-content">Public content</a></li>
+        <li><a href="#children">Children</a></li>
+        <li><a href="#retention">Retention</a></li>
+        <li><a href="#changes-contact">Changes &amp; contact</a></li>
+      </ol>
+    </nav>
+
+    <!-- 1. WHO WE ARE ─────────────────────────────────────── -->
+    <section id="who-we-are">
+      <h2><span class="num">01</span> Who we are</h2>
+      <p>
+        Mood8 is a habit and wellbeing app that helps you build habits, track
+        your mood, and stay accountable through group challenges and an AI
+        coach. This policy covers the Mood8 mobile app, the web app at
+        <a href="https://mood8.app/app/">mood8.app/app</a>, and the marketing
+        site at <a href="https://mood8.app/">mood8.app</a>.
+      </p>
+      <p>
+        When we say <strong>"we"</strong>, <strong>"us"</strong>, or
+        <strong>"Mood8"</strong>, we mean the operators of these services. When
+        we say <strong>"you"</strong>, we mean the person using them.
+      </p>
+    </section>
+
+    <!-- 2. DATA WE COLLECT ────────────────────────────────── -->
+    <section id="data-we-collect">
+      <h2><span class="num">02</span> Data we collect</h2>
+
+      <h3>Account information</h3>
+      <ul>
+        <li>Your <strong>email address</strong> and <strong>name</strong>.</li>
+        <li>
+          If you sign up with a password: a securely <strong>hashed</strong>
+          version of your password (we never store or see the plaintext).
+        </li>
+        <li>
+          If you sign in with Google: your email address and name as provided
+          by Google Sign-In. We do not receive your Google password.
+        </li>
+        <li>
+          <strong>Optional profile fields</strong> — profile photo and short
+          bio, if you choose to add them.
+        </li>
+      </ul>
+
+      <h3>Content you create in the app</h3>
+      <ul>
+        <li>Habits you track, together with the completions and streaks tied to them.</li>
+        <li>Daily <strong>mood, energy, and focus</strong> check-ins.</li>
+        <li><strong>Gratitude</strong> entries and <strong>morning intentions</strong> you record.</li>
+        <li>
+          <strong>Challenge participation</strong> — the challenges you join,
+          your check-ins, upvotes, badges, and rank progression.
+        </li>
+        <li><strong>Comments</strong> you post inside challenges.</li>
+        <li><strong>Reminders</strong> you configure and the times they're set for.</li>
+        <li>Coach conversation history — messages you send to the AI Coach and its replies, kept so you can revisit them.</li>
+      </ul>
+
+      <h3>Technical &amp; account state</h3>
+      <ul>
+        <li>Your <strong>time zone</strong> — used so streaks and reminders honour your local day.</li>
+        <li>Whether you've granted <strong>notification permission</strong>.</li>
+        <li>Your <strong>subscription status</strong> (free or Premium) and the type (monthly, annual, lifetime) — no card details ever reach us.</li>
+      </ul>
+
+      <h3>Crash &amp; diagnostics</h3>
+      <p>
+        For the Android app we use <strong>Firebase Crashlytics</strong> to
+        collect crash reports so we can fix bugs. Crash reports include your
+        device model, OS version, and the stack trace at the moment of a crash.
+        They do not include your habits, moods, or messages.
+      </p>
+
+      <h3>Guest accounts</h3>
+      <p>
+        You can start using Mood8 without an account. When you do, we create an
+        <strong>anonymous guest account</strong> on our servers so your data can
+        sync and be restored. The guest account holds the same categories of
+        content data described above, but no email or name until you register
+        — at which point the guest account is upgraded in place and your data
+        continues under your real account.
+      </p>
+    </section>
+
+    <!-- 3. HOW WE USE DATA ───────────────────────────────── -->
+    <section id="how-we-use-data">
+      <h2><span class="num">03</span> How we use data</h2>
+
+      <h3>To provide the service</h3>
+      <p>
+        We use your data to run Mood8 for you: sync your habits across devices,
+        restore your data after a reinstall, calculate streaks, deliver
+        reminders, run challenges, and show your history.
+      </p>
+
+      <h3>AI features (OpenAI)</h3>
+      <p>
+        When you chat with the AI Coach, the messages you send — along with
+        relevant context (your recent mood, streak, active habits, current
+        intention) — are transmitted to <strong>OpenAI</strong> to generate the
+        coaching reply. When you post user-generated content (challenge title
+        or description, comments, bio), that content may be sent to OpenAI for
+        automated <strong>safety moderation</strong> before it appears to other
+        users.
+      </p>
+      <p>
+        OpenAI processes this data solely to provide the AI response and the
+        moderation decision. We do not use this data — or allow it to be used
+        — for advertising or profiling. OpenAI's own handling is covered by
+        its API data policy.
+      </p>
+
+      <h3>Payments (Stripe)</h3>
+      <p>
+        Premium subscriptions are handled by <strong>Stripe</strong> on our
+        website. <strong>We never see or store your card number.</strong>
+        Stripe processes payment data under its own privacy policy; we receive
+        only the subscription status and a Stripe customer ID so we can
+        unlock Premium in your account.
+      </p>
+
+      <h3>Email</h3>
+      <p>
+        We send transactional email for account verification and password
+        reset. If you opt in, we may send a <strong>weekly recap</strong> email
+        summarising your week. You can disable recap emails at any time in
+        Settings or via the unsubscribe link on every recap.
+      </p>
+
+      <div class="callout">
+        <strong>What we don't do:</strong> we do not sell your personal data.
+        We do not integrate any advertising networks. We do not profile you for
+        third-party marketing.
+      </div>
+    </section>
+
+    <!-- 4. STORAGE & SECURITY ────────────────────────────── -->
+    <section id="storage-security">
+      <h2><span class="num">04</span> Data storage &amp; security</h2>
+      <p>
+        Your data is stored on our servers, currently hosted in
+        <strong>Europe</strong>. Data in transit is protected with
+        <strong>HTTPS/TLS</strong> between the app and our servers.
+      </p>
+      <p>
+        Passwords are stored as one-way <strong>hashes</strong> (never in plain
+        text) and cannot be recovered — only reset. Access to production data
+        is restricted to a minimal number of Mood8 operators.
+      </p>
+      <p>
+        No system is perfectly secure. If a breach affecting your data ever
+        happens, we will notify affected users promptly as required by
+        applicable law.
+      </p>
+    </section>
+
+    <!-- 5. DATA SHARING ──────────────────────────────────── -->
+    <section id="data-sharing">
+      <h2><span class="num">05</span> Data sharing</h2>
+      <p>
+        We share data only with the service providers we need in order to run
+        Mood8. These providers act as our processors and use the data solely
+        to deliver the specific service.
+      </p>
+      <ul>
+        <li>
+          <strong>OpenAI</strong> — receives your AI Coach messages, related
+          habit / mood context, and user-generated content submitted for
+          safety moderation.
+        </li>
+        <li>
+          <strong>Stripe</strong> — receives payment information you enter on
+          our website when subscribing to Premium.
+        </li>
+        <li>
+          <strong>Google</strong> — receives sign-in requests you initiate via
+          Google Sign-In. Google (via Firebase Crashlytics) also receives
+          crash reports from the Android app.
+        </li>
+        <li>
+          <strong>Email delivery provider</strong> — receives your email
+          address and the transactional or recap message to be delivered.
+        </li>
+      </ul>
+      <p>
+        We do <strong>not sell</strong> your personal data. We do not share it
+        with data brokers, and we do not integrate with advertising networks.
+        We may disclose specific data if we are legally required to (e.g.
+        under a valid court order), and only to the extent required.
+      </p>
+    </section>
+
+    <!-- 6. YOUR RIGHTS & CONTROLS ────────────────────────── -->
+    <section id="your-rights">
+      <h2><span class="num">06</span> Your rights &amp; controls</h2>
+
+      <h3>Access and edit</h3>
+      <p>
+        You can view and edit most of your data directly in the app — your
+        habits, check-ins, gratitude, intentions, profile, and reminders.
+      </p>
+
+      <h3>Delete your account and data</h3>
+      <p>
+        To delete your account, open the Mood8 app and go to
+        <strong>Settings → Account → Delete account</strong>. This removes
+        your account and content from active systems. If you can't access
+        the app for any reason, email us and we'll delete it manually
+        (see contact below).
+      </p>
+
+      <h3>Export</h3>
+      <p>
+        You can request a copy of your data in a portable format by
+        contacting us. We'll respond within a reasonable timeframe.
+      </p>
+
+      <h3>Disable emails</h3>
+      <p>
+        Disable the weekly recap email in Settings → Notifications, or via
+        the unsubscribe link at the bottom of every recap. Transactional
+        emails (verification, password reset) can't be disabled while your
+        account is active because they're required to secure it.
+      </p>
+
+      <h3>For EEA / UK users (GDPR)</h3>
+      <p>
+        If you are in the European Economic Area or the United Kingdom, you
+        have the right to:
+      </p>
+      <ul>
+        <li><strong>Access</strong> the personal data we hold about you.</li>
+        <li><strong>Rectify</strong> data that is inaccurate or incomplete.</li>
+        <li><strong>Erase</strong> your personal data ("right to be forgotten"), subject to legal limits.</li>
+        <li><strong>Port</strong> your data — receive it in a structured, machine-readable format.</li>
+        <li>
+          <strong>Object to</strong> or <strong>restrict</strong> processing in
+          certain cases, and to withdraw consent where our processing is based
+          on it.
+        </li>
+        <li>
+          <strong>Lodge a complaint</strong> with your local data protection
+          authority.
+        </li>
+      </ul>
+      <p>
+        To exercise any of these rights, email us using the address in
+        section 10.
+      </p>
+    </section>
+
+    <!-- 7. PUBLIC CONTENT ────────────────────────────────── -->
+    <section id="public-content">
+      <h2><span class="num">07</span> Public content</h2>
+      <p>
+        Some parts of Mood8 are inherently social. When you join a challenge,
+        the following are visible to other participants of that challenge:
+      </p>
+      <ul>
+        <li>Your <strong>profile name</strong> and <strong>profile photo</strong> if you set one.</li>
+        <li>Your <strong>badges</strong>, rank, and check-in history within the challenge.</li>
+        <li>Your <strong>comments</strong> on the challenge.</li>
+      </ul>
+      <p>
+        Sharing your <strong>wellbeing data</strong> (mood, energy, focus,
+        streaks) on your public profile is <strong>off by default</strong>. It
+        turns on only if you opt in from Settings. You can turn it off again
+        at any time.
+      </p>
+      <p>
+        Content you post publicly (challenge titles/descriptions you created,
+        comments) may remain visible to other users until you delete it.
+      </p>
+    </section>
+
+    <!-- 8. CHILDREN ─────────────────────────────────────── -->
+    <section id="children">
+      <h2><span class="num">08</span> Children</h2>
+      <p>
+        Mood8 is not directed at children under the age of 13 (or the higher
+        minimum age required by your country's law where applicable — for
+        example, 16 in some parts of the EEA). We do not knowingly collect
+        personal data from children under that age.
+      </p>
+      <p>
+        If you believe a child has provided us with personal data without a
+        parent's consent, please email us and we will delete it.
+      </p>
+    </section>
+
+    <!-- 9. RETENTION ──────────────────────────────────────── -->
+    <section id="retention">
+      <h2><span class="num">09</span> Retention</h2>
+      <p>
+        We keep your personal data for as long as your account is active. If
+        you delete your account, we remove your account and content from
+        active systems as quickly as reasonably possible — usually
+        within <strong>30 days</strong>. Some records may persist a little
+        longer in encrypted, rolling backups until those backups age out
+        (typically within another 60 days), after which they are irretrievably
+        overwritten.
+      </p>
+      <p>
+        We may retain a minimal set of records longer where required by law
+        (for example, financial records related to a Premium subscription)
+        or to resolve disputes and enforce our terms.
+      </p>
+    </section>
+
+    <!-- 10. CHANGES + CONTACT ────────────────────────────── -->
+    <section id="changes-contact">
+      <h2><span class="num">10</span> Changes &amp; contact</h2>
+
+      <h3>Changes to this policy</h3>
+      <p>
+        We may update this policy from time to time — usually when we ship a
+        new feature that changes how data is handled, or to clarify existing
+        language. When we make a <strong>material change</strong>, we'll
+        update the <em>Effective date</em> at the top and, where
+        appropriate, notify you inside the app or by email.
+      </p>
+
+      <h3>Contact us</h3>
+      <p>
+        Questions, requests, or feedback about this policy — including
+        privacy rights requests and account deletion by email — go to:
+      </p>
+    </section>
+
+    <div class="contact">
+      <h2>Talk to us</h2>
+      <p>We read every message.</p>
+      <a href="mailto:hello@mood8.app">hello@mood8.app</a>
+    </div>
+
+  </main>
+
+  <footer>
+    <a href="/">Home</a>
+    <a href="/app/">Web app</a>
+    <a href="/privacy-policy">Privacy</a>
+    <a href="mailto:hello@mood8.app">Contact</a>
+    <p style="margin-top:14px;">© 2026 Mood8 · Built with care.</p>
+  </footer>
+
+</body>
+</html>

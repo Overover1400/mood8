@@ -11,7 +11,7 @@ An AI-powered personal operating system that learns what actually makes you bett
 [![Web](https://img.shields.io/badge/Platform-Web%20%7C%20Android%20%7C%20Wear%20OS-EC4899?style=for-the-badge)](https://mood8.app)
 [![License](https://img.shields.io/badge/License-Proprietary-FAF5FF?style=for-the-badge)](LICENSE)
 
-[**Try it live →**](https://mood8.app) · [Landing page](https://mood8.app/landing/) · [Privacy](https://mood8.app/privacy.html) · [Terms](https://mood8.app/terms.html)
+[**Try it live →**](https://mood8.app) · [Landing page](https://mood8.app/landing/) · [Privacy](https://mood8.app/privacy-policy) · [Terms](https://mood8.app/terms.html)
 
 </div>
 
