@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'
@@ -173,6 +175,73 @@ class _NotificationDebugScreenState extends State<NotificationDebugScreen>
   Future<void> _openAppSettings() async {
     HapticFeedback.selectionClick();
     await openAppSettings();
+  }
+
+  /// Debug hook — deliberately crashes the app so we can verify a
+  /// report reaches the Firebase Crashlytics console. Confirm dialog
+  /// gates it against accidental taps. In release builds crash
+  /// collection is enabled by default, so tapping this in the CI-
+  /// built release APK kills the app; on next launch Crashlytics
+  /// uploads the queued report to the console. In a debug build we
+  /// flip collection on right before crashing so the same round-trip
+  /// works locally too (debug default in main.dart is
+  /// collection-off, which we override just for this test).
+  Future<void> _forceTestCrash() async {
+    if (kIsWeb) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrandColors.bgCard(ctx),
+        title: Text(
+          'Force test crash?',
+          style: TextStyle(color: BrandColors.ink(ctx)),
+        ),
+        content: Text(
+          "This will hard-crash the app right now (native SIGABRT). "
+          "On the NEXT launch Firebase Crashlytics uploads the "
+          "report to the console — usually visible within a few "
+          "minutes under Release & monitor → Crashlytics.",
+          style: TextStyle(
+            color: BrandColors.inkSoft(ctx),
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: BrandColors.inkSoft(ctx)),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Crash the app',
+              style: TextStyle(
+                color: Color(0xFFFF6B81),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      // Force-enable so debug builds also get the report. In release
+      // builds this is a no-op (already enabled from _initCrashlytics
+      // in main.dart).
+      await FirebaseCrashlytics.instance
+          .setCrashlyticsCollectionEnabled(true);
+      await FirebaseCrashlytics.instance.log(
+        'force test crash from notification-debug hook',
+      );
+      // Small delay so the log write flushes before the SIGABRT.
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    } catch (_) {/* Crashlytics wire failing must not block the crash */}
+    // Native fatal — non-recoverable. Anything after this doesn't run.
+    FirebaseCrashlytics.instance.crash();
   }
 
   String _now() {
@@ -374,6 +443,17 @@ class _NotificationDebugScreenState extends State<NotificationDebugScreen>
                       icon: Icons.settings_outlined,
                       onTap: _openAppSettings,
                     ),
+                    // Debug pill: hard-crashes the app so we can
+                    // verify Firebase Crashlytics is receiving
+                    // reports. Distinct red styling + confirm
+                    // dialog gate against accidental taps. Hidden
+                    // on web where firebase_crashlytics has no SDK.
+                    if (!kIsWeb)
+                      _DangerPill(
+                        label: 'Force test crash',
+                        icon: Icons.warning_amber_rounded,
+                        onTap: _forceTestCrash,
+                      ),
                   ],
                 ),
                 const SizedBox(height: 18),
@@ -654,6 +734,54 @@ class _ToolPill extends StatelessWidget {
               label,
               style: TextStyle(
                 color: BrandColors.ink(context),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Red-outlined pill for irreversible actions — currently only the
+/// "Force test crash" hook. Distinct styling makes it visually
+/// unmistakable from the ordinary [_ToolPill] so a diagnostic user
+/// won't tap it by muscle memory.
+class _DangerPill extends StatelessWidget {
+  const _DangerPill({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final VoidCallback? onTap;
+  @override
+  Widget build(BuildContext context) {
+    const danger = Color(0xFFFF6B81);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: danger.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: danger.withValues(alpha: 0.60),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: danger, size: 14),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: danger,
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),

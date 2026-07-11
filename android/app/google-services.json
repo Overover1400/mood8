@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "224585170519",
+    "project_id": "mood8-1c635",
+    "storage_bucket": "mood8-1c635.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:224585170519:android:ebc32447edc76f8eb12d12",
+        "android_client_info": {
+          "package_name": "com.mood8.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBePEO8y1W88TcK2OBIjQPJWWnaWqqPyXQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

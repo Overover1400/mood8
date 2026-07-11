@@ -32,8 +32,9 @@ android/key.properties
 android/keystore_base64.txt
 android/keystore_secrets.txt
 
-# Firebase config — carries the (public but project-scoped) mobile SDK
-# app IDs. Kept out of git so a fork can't accidentally point crashes
-# at our Firebase project; CI decodes it from the
-# GOOGLE_SERVICES_JSON_BASE64 secret before build.
-android/app/google-services.json
+# NOTE: android/app/google-services.json IS committed — it holds only
+# public identifiers (project id, app id, project number), no secrets.
+# Firebase's own docs recommend committing it so builds are
+# reproducible without extra setup. If you fork Mood8 and want crash
+# reports going to YOUR Firebase project, replace this file with your
+# own before publishing under a different package name.

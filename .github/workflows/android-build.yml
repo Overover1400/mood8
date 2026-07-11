@@ -76,32 +76,24 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${NDK_VERSION}"
           ls -la "$ANDROID_HOME/ndk/" || true
 
-      # Decode Firebase Crashlytics config from a base64 secret. Same
-      # posture as the keystore below: if GOOGLE_SERVICES_JSON_BASE64
-      # isn't present (forks, PRs without secrets), the file is not
-      # written and android/app/build.gradle.kts silently skips the
-      # Firebase plugin apply — the build completes without crash
-      # reporting instead of blowing up.
-      - name: Decode Firebase google-services.json
-        env:
-          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+      # Firebase Crashlytics config: android/app/google-services.json
+      # is committed to the repo (contains only public project id +
+      # app id, no secrets). Verify presence + shape here so if it
+      # ever gets accidentally deleted the failure mode is a loud
+      # CI step failure instead of a silently un-instrumented build.
+      - name: Check Firebase Crashlytics config
         run: |
-          if [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
-            echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d \
-              > android/app/google-services.json
-            # Fail loudly if the decoded file isn't valid JSON — a
-            # malformed config would silently produce an app that
-            # can't report crashes.
-            if ! python3 -c 'import json,sys; json.load(open("android/app/google-services.json"))' 2>/dev/null; then
-              echo "::error::google-services.json decoded but is not valid JSON — check the GOOGLE_SERVICES_JSON_BASE64 secret."
-              exit 1
-            fi
-            echo "CRASHLYTICS_ENABLED=true" >> "$GITHUB_ENV"
-            echo "Crashlytics wire: config file written ($(wc -c < android/app/google-services.json) bytes)."
-          else
-            echo "warn: GOOGLE_SERVICES_JSON_BASE64 secret is not set — building without Firebase / Crashlytics."
+          if [ ! -f android/app/google-services.json ]; then
+            echo "warn: android/app/google-services.json missing — building without Firebase / Crashlytics."
             echo "CRASHLYTICS_ENABLED=false" >> "$GITHUB_ENV"
+            exit 0
           fi
+          if ! python3 -c 'import json; json.load(open("android/app/google-services.json"))' 2>/dev/null; then
+            echo "::error::android/app/google-services.json exists but is not valid JSON."
+            exit 1
+          fi
+          echo "CRASHLYTICS_ENABLED=true" >> "$GITHUB_ENV"
+          echo "Crashlytics wire: $(wc -c < android/app/google-services.json) bytes of config."
 
       # Decode the release keystore from the base64-encoded GitHub
       # secret into a file on the runner. android/app/build.gradle.kts
