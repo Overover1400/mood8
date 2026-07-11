@@ -119,6 +119,15 @@ jobs:
             echo "RELEASE_SIGNED=false" >> "$GITHUB_ENV"
           fi
 
+      # versionCode + versionName come from pubspec.yaml's `version:`
+      # field (Flutter's default: everything before "+" is versionName,
+      # everything after is versionCode). Bump pubspec BEFORE each Play
+      # submission — the number after "+" is what Play checks against
+      # already-uploaded bundles. We used to override with
+      # --build-number=${{ github.run_number }} but that made the run
+      # counter the source of truth, which drifted from pubspec and
+      # made "which versionCode is currently in Play?" impossible to
+      # answer from the repo alone.
       - name: Build APK (release)
         env:
           MOOD8_KEYSTORE_PATH: ${{ github.workspace }}/android/mood8-release.jks
@@ -127,9 +136,7 @@ jobs:
           MOOD8_KEY_PASSWORD: ${{ secrets.MOOD8_KEY_PASSWORD }}
         run: |
           set -o pipefail
-          flutter build apk --release --verbose \
-            --build-name=0.1.${{ github.run_number }} \
-            --build-number=${{ github.run_number }} 2>&1 | tee /tmp/apk-build.log
+          flutter build apk --release --verbose 2>&1 | tee /tmp/apk-build.log
 
       - name: Upload build log on failure
         if: failure()
@@ -167,6 +174,8 @@ jobs:
           git commit -m "phone log: run ${{ github.run_number }} (sha ${{ github.sha }})"
           git push origin ci-logs
 
+      # AAB build: same posture — pubspec.yaml is the single source
+      # of truth for versionCode + versionName.
       - name: Build App Bundle (release)
         env:
           MOOD8_KEYSTORE_PATH: ${{ github.workspace }}/android/mood8-release.jks
@@ -174,9 +183,7 @@ jobs:
           MOOD8_KEY_ALIAS: ${{ secrets.MOOD8_KEY_ALIAS }}
           MOOD8_KEY_PASSWORD: ${{ secrets.MOOD8_KEY_PASSWORD }}
         run: |
-          flutter build appbundle --release \
-            --build-name=0.1.${{ github.run_number }} \
-            --build-number=${{ github.run_number }}
+          flutter build appbundle --release
 
       - name: Rename artifacts
         run: |
@@ -214,6 +221,15 @@ jobs:
           if [ "${CRASHLYTICS_ENABLED:-false}" = "true" ]; then
             CRASHLYTICS="enabled"
           fi
+          # Pull the actual version + versionCode baked into the AAB
+          # straight from pubspec (`version: NAME+CODE`) so the summary
+          # matches what Play sees. Fixes the old summary which
+          # displayed `github.run_number` while the AAB actually
+          # contained the pubspec values (or vice-versa in the
+          # earlier override era).
+          PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          VERSION_NAME="${PUBSPEC_VERSION%+*}"
+          VERSION_CODE="${PUBSPEC_VERSION#*+}"
           {
             echo "## Mood8 Android build"
             echo ""
@@ -222,8 +238,9 @@ jobs:
             echo "| APK | \`mood8-android-${{ github.run_number }}.apk\` ($APK_SIZE) |"
             echo "| AAB | \`mood8-android-${{ github.run_number }}.aab\` ($AAB_SIZE) |"
             echo "| Application id | \`com.mood8.app\` |"
-            echo "| Build number | ${{ github.run_number }} |"
-            echo "| Version | 0.1.${{ github.run_number }} |"
+            echo "| versionCode | $VERSION_CODE |"
+            echo "| versionName | $VERSION_NAME |"
+            echo "| CI run | ${{ github.run_number }} |"
             echo "| Signing | $SIGNING |"
             echo "| Crashlytics | $CRASHLYTICS |"
             echo "| Commit | \`${{ github.sha }}\` |"
