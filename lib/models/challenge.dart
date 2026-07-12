@@ -177,6 +177,8 @@ class ChallengeParticipant {
     required this.joinedAt,
     required this.removedAt,
     required this.checkedInToday,
+    required this.challengeScore,
+    required this.challengeTier,
   });
 
   final int userId;
@@ -195,6 +197,12 @@ class ChallengeParticipant {
   /// omit the field; missing → false which reads correctly as "not
   /// yet done today".
   final bool checkedInToday;
+  /// Global Challenge Score (lifetime, across every challenge). The
+  /// participants roster surfaces this as a compact tier-colored
+  /// chip next to the name so people can see who they're up against.
+  /// Older backends omit these; missing → 0 / "Bronze".
+  final int challengeScore;
+  final String challengeTier;
 
   factory ChallengeParticipant.fromJson(Map<String, dynamic> json) {
     return ChallengeParticipant(
@@ -214,6 +222,8 @@ class ChallengeParticipant {
           ? _parseServerUtc(json['removed_at'])
           : null,
       checkedInToday: json['checked_in_today'] as bool? ?? false,
+      challengeScore: (json['challenge_score'] as num?)?.toInt() ?? 0,
+      challengeTier: (json['challenge_tier'] as String?) ?? 'Bronze',
     );
   }
 }
