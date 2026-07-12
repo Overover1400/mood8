@@ -26,9 +26,9 @@ import '../theme/app_theme.dart';
 import '../widgets/animated_number.dart';
 import '../widgets/charts/habit_ring.dart';
 import '../widgets/charts/identity_progress_bar.dart';
-import '../widgets/charts/line_chart_card.dart';
-import '../widgets/charts/streak_heatmap.dart';
+import '../widgets/charts/mood_week_bars.dart';
 import '../widgets/charts/time_of_day_chart.dart';
+import '../widgets/habit_completion_calendar.dart';
 import '../widgets/highlight_card.dart';
 import '../widgets/period_comparison.dart';
 import '../widgets/responsive_container.dart';
@@ -136,8 +136,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
     final streak = _analytics.getCurrentStreak();
     final avgMood = _analytics.getAverageMood(_range);
     final habitRate = _analytics.getHabitsCompletionRate(_range);
-    final series = _analytics.getMoodEnergyFocusOverTime(_range);
-    final heatmap = _analytics.getStreakHeatmapData(_range);
+    // Always request at least 7 days so the fixed 7-bar week strip
+    // renders cleanly even when the range selector is on a smaller
+    // window in the future.
+    final series =
+        _analytics.getMoodEnergyFocusOverTime(_range < 7 ? 7 : _range);
     final identity = _analytics.getIdentityProgress(days: _range);
     _maybeCelebrateIdentity(identity);
     final topHabits = _analytics.getTopHabits(5, days: _range);
@@ -175,28 +178,17 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 .slideY(
                     begin: 0.04, end: 0, curve: Curves.easeOut),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 22),
           _Section(
             title: 'How you’ve been',
-            child: LineChartCard(series: series),
-          ),
-          const SizedBox(height: 28),
-          _Section(
-            title: 'Your streak',
-            trailing: streak == 0
-                ? null
-                : Text(
-                    '$streak day${streak == 1 ? '' : 's'}',
-                    style: TextStyle(
-                      color: AppColors.pinkLight,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-            child: StreakHeatmap(days: heatmap),
+            child: MoodWeekBars(series: series),
           ),
           const SizedBox(height: 22),
+          _Section(
+            title: 'Your streak',
+            child: HabitCompletionCalendar(repo: _habits),
+          ),
+          const SizedBox(height: 18),
           ValueListenableBuilder<Box<GratitudeEntry>>(
             valueListenable: _gratitudeListenable,
             builder: (context, _, _) {
@@ -214,7 +206,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   .slideY(begin: 0.05, end: 0, curve: Curves.easeOut);
             },
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 22),
           _Section(
             title: 'Who you’re becoming',
             child: identity.isEmpty
@@ -232,7 +224,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     ],
                   ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 22),
           _Section(
             title: 'Top habits',
             child: topHabits.isEmpty
@@ -248,7 +240,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     ),
                   ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 22),
           _Section(
             title: 'Highlights',
             child: highlights.nonNull.isEmpty
@@ -267,13 +259,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     ],
                   ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 22),
           _Section(
             title: 'When you’re at your best',
             child: TimeOfDayChart(values: tod),
           ),
           if (comparisons != null) ...[
-            const SizedBox(height: 28),
+            const SizedBox(height: 22),
             _Section(
               title: 'This period vs last period',
               child: Column(
@@ -287,7 +279,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
               ),
             ),
           ],
-          const SizedBox(height: 28),
+          const SizedBox(height: 22),
           _YearInReviewCta(
             onTap: () {
               HapticFeedback.lightImpact();
@@ -571,16 +563,16 @@ class _HeroCard extends StatelessWidget {
   }
 }
 
+/// Flat section wrapper: headline + child rendered directly on the
+/// background. Individual visualizations bring their own visual
+/// weight (bars, cards, calendar) so the extra rounded-panel chrome
+/// was pure noise. The previous version wrapped every child in a
+/// `bg-card 22-radius purple-border` container.
 class _Section extends StatelessWidget {
-  const _Section({
-    required this.title,
-    required this.child,
-    this.trailing,
-  });
+  const _Section({required this.title, required this.child});
 
   final String title;
   final Widget child;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -588,30 +580,16 @@ class _Section extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 2, right: 2, bottom: 14),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-              ),
-              if (trailing != null) trailing as Widget,
-            ],
+          padding: const EdgeInsets.only(left: 2, right: 2, bottom: 12),
+          child: Text(
+            title,
+            style: Theme.of(context)
+                .textTheme
+                .headlineSmall
+                ?.copyWith(fontSize: 20),
           ),
         ),
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-          decoration: BoxDecoration(
-            color: BrandColors.bgCard(context).withValues(alpha: 0.78),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: AppColors.purple.withValues(alpha: 0.18),
-            ),
-          ),
-          child: child,
-        ),
+        child,
       ],
     )
         .animate()
