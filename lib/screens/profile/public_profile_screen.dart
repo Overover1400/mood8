@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 
+import '../../models/challenge.dart' show tierColor;
 import '../../services/profile_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/challenges/user_badge_chip.dart';
@@ -178,6 +179,15 @@ class _Body extends StatelessWidget {
                   profile.creatorScore == 0 ? null : profile.creatorScore,
             ),
           ),
+        // Challenge tier chip — always shown for context. Score of 0
+        // still gets a "Bronze · 0 pts" chip, which reads honestly.
+        const SizedBox(height: 10),
+        Center(
+          child: _ProfileTierChip(
+            tier: profile.challengeTier,
+            score: profile.challengeScore,
+          ),
+        ),
         if (profile.bio != null && profile.bio!.trim().isNotEmpty) ...[
           const SizedBox(height: 18),
           Container(
@@ -425,6 +435,57 @@ class _AvatarInitial extends StatelessWidget {
           fontWeight: FontWeight.w800,
           fontSize: 48,
         ),
+      ),
+    );
+  }
+}
+
+/// Compact tier chip shown on the public profile between the badge
+/// and the bio. Always visible — score of 0 reads honestly as
+/// "Bronze · 0 pts" rather than hiding, so the ranking system is
+/// discoverable.
+class _ProfileTierChip extends StatelessWidget {
+  const _ProfileTierChip({required this.tier, required this.score});
+  final String tier;
+  final int score;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = tierColor(tier);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: c.withValues(alpha: 0.55), width: 1.2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.emoji_events_rounded, color: c, size: 15),
+          const SizedBox(width: 6),
+          Text(
+            tier,
+            style: TextStyle(
+              color: c,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
+          ),
+          Text(
+            ' · ',
+            style: TextStyle(color: c.withValues(alpha: 0.55)),
+          ),
+          Text(
+            '$score pts',
+            style: TextStyle(
+              color: c,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -9,6 +9,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/challenges/challenge_card.dart';
 import '../../widgets/responsive_container.dart';
 import 'badge_legend_screen.dart';
+import 'ranking_screen.dart';
 import 'challenge_detail_screen.dart';
 import 'create_challenge_screen.dart';
 import 'my_challenges_screen.dart';
@@ -247,6 +248,16 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+          IconButton(
+            tooltip: 'Ranking',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const RankingScreen(),
+              ),
+            ),
+            icon: Icon(Icons.emoji_events_rounded,
+                color: AppColors.pinkLight),
           ),
           IconButton(
             tooltip: 'Badges & ranks',

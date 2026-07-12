@@ -17,6 +17,7 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _bio = TextEditingController();
   bool _showWellbeing = false;
+  bool _leaderboardHidden = false;
   bool _bioSaving = false;
   bool _avatarUploading = false;
   String? _avatarUrl;
@@ -29,6 +30,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (me != null) {
       _bio.text = me.bio ?? '';
       _showWellbeing = me.showWellbeingPublic;
+      _leaderboardHidden = me.leaderboardHidden;
       _avatarUrl = me.avatarAbsoluteUrl();
     }
     // Refresh /me in the background so cached values get freshened.
@@ -40,6 +42,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       setState(() {
         if (_bio.text.isEmpty) _bio.text = u.bio ?? '';
         _showWellbeing = u.showWellbeingPublic;
+        _leaderboardHidden = u.leaderboardHidden;
         _avatarUrl = u.avatarAbsoluteUrl();
       });
     });
@@ -135,6 +138,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _showWellbeing = !value);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          e is ProfileError ? e.message : 'Could not save that toggle.',
+        )),
+      );
+    }
+  }
+
+  Future<void> _toggleLeaderboardHidden(bool value) async {
+    HapticService().selection();
+    setState(() => _leaderboardHidden = value);
+    try {
+      await ProfileService().update(leaderboardHidden: value);
+      await AuthService().refreshMe();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _leaderboardHidden = !value);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(
           e is ProfileError ? e.message : 'Could not save that toggle.',
@@ -391,6 +411,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       value: _showWellbeing,
                       activeThumbColor: AppColors.pinkLight,
                       onChanged: _toggleWellbeing,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              _SectionLabel('CHALLENGE RANKING'),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+                decoration: BoxDecoration(
+                  color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppColors.purple.withValues(alpha: 0.30),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Hide me from the public leaderboard',
+                            style: TextStyle(
+                              color: BrandColors.ink(context),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "You still earn Challenge Score and see your own "
+                            "rank on the Ranking screen — you just don't "
+                            'appear in the public top-100 list.',
+                            style: TextStyle(
+                              color: BrandColors.inkSoft(context),
+                              fontSize: 12.5,
+                              height: 1.45,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch.adaptive(
+                      value: _leaderboardHidden,
+                      activeThumbColor: AppColors.pinkLight,
+                      onChanged: _toggleLeaderboardHidden,
                     ),
                   ],
                 ),

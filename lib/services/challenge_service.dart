@@ -166,6 +166,20 @@ class ChallengeService {
     );
   }
 
+  /// Fetch the global Challenge Ranking. Returns the top-100 public
+  /// list + the requester's own {position, score, tier}. Server-side
+  /// authoritative — the client can't influence what comes back.
+  Future<Leaderboard> leaderboard() async {
+    final res = await _client
+        .get(Uri.parse('$_baseUrl/ranking/leaderboard'),
+            headers: _headers)
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+    return Leaderboard.fromJson(
+      jsonDecode(res.body) as Map<String, dynamic>,
+    );
+  }
+
   Future<void> report(int challengeId, String reason) async {
     final res = await _client
         .post(

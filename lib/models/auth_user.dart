@@ -13,6 +13,9 @@ class AuthUser {
     this.bio,
     this.avatarUrl,
     this.showWellbeingPublic = false,
+    this.challengeScore = 0,
+    this.challengeTier = 'Bronze',
+    this.leaderboardHidden = false,
   });
 
   final String id;
@@ -31,6 +34,15 @@ class AuthUser {
   /// `Image.network`.
   final String? avatarUrl;
   final bool showWellbeingPublic;
+  /// Global Challenge Ranking — lifetime score + current tier. Both
+  /// server-computed; the client never writes them. Backfill 0 /
+  /// "Bronze" on older payloads that predate the ranking system.
+  final int challengeScore;
+  final String challengeTier;
+  /// True when the user has opted out of the public leaderboard.
+  /// Their score still accrues + they still see their own rank in
+  /// the ranking screen; they just don't appear in top-100.
+  final bool leaderboardHidden;
 
   /// Returns the absolute URL for the user's avatar (or null if none).
   String? avatarAbsoluteUrl({String host = 'https://mood8.app'}) {
@@ -54,6 +66,9 @@ class AuthUser {
     String? bio,
     String? avatarUrl,
     bool? showWellbeingPublic,
+    int? challengeScore,
+    String? challengeTier,
+    bool? leaderboardHidden,
   }) =>
       AuthUser(
         id: id ?? this.id,
@@ -70,6 +85,9 @@ class AuthUser {
         avatarUrl: avatarUrl ?? this.avatarUrl,
         showWellbeingPublic:
             showWellbeingPublic ?? this.showWellbeingPublic,
+        challengeScore: challengeScore ?? this.challengeScore,
+        challengeTier: challengeTier ?? this.challengeTier,
+        leaderboardHidden: leaderboardHidden ?? this.leaderboardHidden,
       );
 
   Map<String, dynamic> toJson() => {
@@ -82,6 +100,9 @@ class AuthUser {
         'creator_score': creatorScore,
         'challenges_completed': challengesCompleted,
         'show_wellbeing_public': showWellbeingPublic,
+        'challenge_score': challengeScore,
+        'challenge_tier': challengeTier,
+        'leaderboard_hidden': leaderboardHidden,
         if (profileBadge != null) 'profile_badge': profileBadge,
         if (bio != null) 'bio': bio,
         if (avatarUrl != null) 'avatar_url': avatarUrl,
@@ -115,6 +136,11 @@ class AuthUser {
       avatarUrl: json['avatar_url'] as String?,
       showWellbeingPublic:
           (json['show_wellbeing_public'] as bool?) ?? false,
+      challengeScore: (json['challenge_score'] as num?)?.toInt() ?? 0,
+      challengeTier:
+          (json['challenge_tier'] as String?) ?? 'Bronze',
+      leaderboardHidden:
+          (json['leaderboard_hidden'] as bool?) ?? false,
     );
   }
 }

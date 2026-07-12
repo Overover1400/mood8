@@ -449,6 +449,22 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
             rankName: result.rankName,
           ),
         );
+        // Small, tasteful score-awarded note after the rank-up
+        // celebration. Only shown when the check-in actually earned
+        // Ranking points (0 for creator-of-challenge halves, <3-
+        // participant challenges, or when the 10/day cap is hit).
+        if (result.scoreAwarded > 0 && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '+${result.scoreAwarded} Challenge Score',
+              ),
+              backgroundColor: AppColors.purple.withValues(alpha: 0.85),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text(

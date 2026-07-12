@@ -1,6 +1,8 @@
 // Plain Dart models mirroring the backend `/api/challenges/*` shapes.
 // Build 1 of 3 wired these up server-side; Build 2 just consumes them.
 
+import 'package:flutter/painting.dart' show Color;
+
 const _kAvatarHost = 'https://mood8.app';
 
 /// Turn a backend-relative avatar path ("/api/avatars/12-abc.jpg") into
@@ -469,6 +471,7 @@ class CheckinResult {
     required this.rankName,
     required this.missedRankups,
     required this.idempotent,
+    required this.scoreAwarded,
   });
 
   final bool checkedIn;
@@ -477,6 +480,11 @@ class CheckinResult {
   final String rankName;
   final int missedRankups;
   final bool idempotent;
+  /// Challenge_score points awarded by THIS check-in. 0 for late
+  /// check-ins, for creator-of-challenge check-ins that halved to 0,
+  /// or for check-ins on <3-participant challenges. The client
+  /// surfaces this in the on-time celebration ("+2 Challenge Score").
+  final int scoreAwarded;
 
   factory CheckinResult.fromJson(Map<String, dynamic> json) {
     return CheckinResult(
@@ -486,7 +494,118 @@ class CheckinResult {
       rankName: (json['rank_name'] as String?) ?? 'Recruit',
       missedRankups: (json['missed_rankups'] as num?)?.toInt() ?? 0,
       idempotent: json['idempotent'] as bool? ?? false,
+      scoreAwarded: (json['score_awarded'] as num?)?.toInt() ?? 0,
     );
+  }
+}
+
+// ─── Global Challenge Ranking ────────────────────────────────────────
+
+/// One row in the /api/ranking/leaderboard top list.
+class LeaderboardEntry {
+  const LeaderboardEntry({
+    required this.position,
+    required this.userId,
+    required this.name,
+    required this.avatarUrl,
+    required this.profileBadge,
+    required this.challengeScore,
+    required this.tier,
+  });
+
+  final int position;
+  final int userId;
+  final String name;
+  final String? avatarUrl;
+  final String? profileBadge;
+  final int challengeScore;
+  final String tier;
+
+  factory LeaderboardEntry.fromJson(Map<String, dynamic> json) =>
+      LeaderboardEntry(
+        position: (json['position'] as num).toInt(),
+        userId: (json['user_id'] as num).toInt(),
+        name: (json['name'] as String?) ?? 'Anonymous',
+        avatarUrl: json['avatar_url'] as String?,
+        profileBadge: json['profile_badge'] as String?,
+        challengeScore: (json['challenge_score'] as num?)?.toInt() ?? 0,
+        tier: (json['tier'] as String?) ?? 'Bronze',
+      );
+}
+
+/// Requester's own {rank, score, tier} — always present in the
+/// leaderboard response even when they're below top 100 or opted out.
+class LeaderboardMe {
+  const LeaderboardMe({
+    required this.position,
+    required this.score,
+    required this.tier,
+    required this.isTop100,
+    required this.hiddenFromLeaderboard,
+    required this.nextTierName,
+    required this.nextTierPointsNeeded,
+  });
+
+  final int position;
+  final int score;
+  final String tier;
+  final bool isTop100;
+  final bool hiddenFromLeaderboard;
+  final String? nextTierName;
+  final int? nextTierPointsNeeded;
+
+  factory LeaderboardMe.fromJson(Map<String, dynamic> json) {
+    final next = json['next_tier'] as Map<String, dynamic>?;
+    return LeaderboardMe(
+      position: (json['position'] as num?)?.toInt() ?? 0,
+      score: (json['score'] as num?)?.toInt() ?? 0,
+      tier: (json['tier'] as String?) ?? 'Bronze',
+      isTop100: json['is_top_100'] as bool? ?? false,
+      hiddenFromLeaderboard:
+          json['hidden_from_leaderboard'] as bool? ?? false,
+      nextTierName: next == null ? null : next['name'] as String?,
+      nextTierPointsNeeded:
+          next == null ? null : (next['points_needed'] as num?)?.toInt(),
+    );
+  }
+}
+
+class Leaderboard {
+  const Leaderboard({
+    required this.top,
+    required this.me,
+  });
+  final List<LeaderboardEntry> top;
+  final LeaderboardMe me;
+
+  factory Leaderboard.fromJson(Map<String, dynamic> json) => Leaderboard(
+        top: ((json['top'] as List?) ?? const [])
+            .map((e) =>
+                LeaderboardEntry.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        me: LeaderboardMe.fromJson(
+          (json['me'] as Map<String, dynamic>?) ?? const {},
+        ),
+      );
+}
+
+/// Convenience: brand colours per tier. Kept in the model so the
+/// Ranking screen + tier chips everywhere share one lookup.
+Color tierColor(String tier) {
+  switch (tier) {
+    case 'Silver':
+      return const Color(0xFFC0C0C0);
+    case 'Gold':
+      return const Color(0xFFFFD700);
+    case 'Platinum':
+      return const Color(0xFFE5E4E2);
+    case 'Diamond':
+      return const Color(0xFFB9F2FF);
+    case 'Legend League':
+      return const Color(0xFFF472B6);
+    case 'Bronze':
+    default:
+      return const Color(0xFFCD7F32);
   }
 }
 

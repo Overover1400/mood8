@@ -77,11 +77,15 @@ class ProfileService {
   Future<Map<String, dynamic>> update({
     String? bio,
     bool? showWellbeingPublic,
+    bool? leaderboardHidden,
   }) async {
     final body = <String, dynamic>{};
     if (bio != null) body['bio'] = bio;
     if (showWellbeingPublic != null) {
       body['show_wellbeing_public'] = showWellbeingPublic;
+    }
+    if (leaderboardHidden != null) {
+      body['leaderboard_hidden'] = leaderboardHidden;
     }
     final res = await _client
         .post(Uri.parse('$_baseUrl/profile/update'),
@@ -154,6 +158,8 @@ class PublicProfile {
     required this.streak,
     required this.joinedAt,
     required this.wellbeing,
+    required this.challengeScore,
+    required this.challengeTier,
   });
 
   final int id;
@@ -166,6 +172,12 @@ class PublicProfile {
   final int streak;
   final DateTime? joinedAt;
   final WellbeingSnapshot? wellbeing;
+  /// Global Challenge Ranking — always public. The `leaderboard_hidden`
+  /// toggle only removes the user from the top-100 listing; their
+  /// score + tier stay on their own profile because otherwise a
+  /// hidden user could game rankings by disclosing selectively.
+  final int challengeScore;
+  final String challengeTier;
 
   factory PublicProfile.fromJson(Map<String, dynamic> json) => PublicProfile(
         id: (json['id'] as num).toInt(),
@@ -184,6 +196,8 @@ class PublicProfile {
             ? WellbeingSnapshot.fromJson(
                 (json['wellbeing'] as Map).cast<String, dynamic>())
             : null,
+        challengeScore: (json['challenge_score'] as num?)?.toInt() ?? 0,
+        challengeTier: (json['challenge_tier'] as String?) ?? 'Bronze',
       );
 
   /// Absolute URL for the avatar image — backend stores it as
