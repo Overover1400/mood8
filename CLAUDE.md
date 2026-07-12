@@ -142,3 +142,19 @@ Code lives in:
 - Disk: ~3.9GB free
 - Use `flutter run -d web-server` for testing
 - Avoid Android builds on this server (use GitHub Actions)
+
+## Shipping Workflow
+- **Do all work on `main` directly** (or always fast-forward-merge
+  the feature branch into `main` before finishing a task) so the
+  Android + Web GitHub Actions workflows fire automatically.
+- Both `.github/workflows/android-build.yml` and `web-build.yml`
+  trigger on `push: branches: [main]` and `pull_request:
+  branches: [main]` only — pushing a feature branch alone does
+  NOT produce an APK / AAB or run Web CI.
+- The backend repo (`mood8-backend`) has no CI at all — pushing
+  to its `main` branch just makes the code available; deploys
+  happen via editing files in place + `systemctl restart mood8-ai`
+  on this server.
+- If direct main push is blocked by policy, fall back to opening
+  a PR (which also fires CI) — but default to main-direct so we
+  don't accumulate unmerged feature branches.
