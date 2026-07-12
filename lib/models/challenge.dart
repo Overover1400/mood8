@@ -174,6 +174,7 @@ class ChallengeParticipant {
     required this.joinedAfterStart,
     required this.joinedAt,
     required this.removedAt,
+    required this.checkedInToday,
   });
 
   final int userId;
@@ -187,6 +188,11 @@ class ChallengeParticipant {
   final bool joinedAfterStart;
   final DateTime? joinedAt;
   final DateTime? removedAt;
+  /// True when this participant has a check-in for today (UTC). Powers
+  /// the "did it today" avatar row on the detail screen. Older backends
+  /// omit the field; missing → false which reads correctly as "not
+  /// yet done today".
+  final bool checkedInToday;
 
   factory ChallengeParticipant.fromJson(Map<String, dynamic> json) {
     return ChallengeParticipant(
@@ -205,6 +211,7 @@ class ChallengeParticipant {
       removedAt: json['removed_at'] is String
           ? _parseServerUtc(json['removed_at'])
           : null,
+      checkedInToday: json['checked_in_today'] as bool? ?? false,
     );
   }
 }

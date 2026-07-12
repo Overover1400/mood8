@@ -17,6 +17,7 @@ import '../../widgets/challenges/user_badge_chip.dart';
 import '../../widgets/responsive_container.dart';
 import '../profile/public_profile_screen.dart';
 import 'badge_legend_screen.dart';
+import 'challenge_participants_screen.dart';
 import 'join_requests_screen.dart';
 
 class ChallengeDetailScreen extends StatefulWidget {
@@ -211,6 +212,27 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
         )),
       );
     }
+  }
+
+  /// Push the participants list screen. `initialTab`: 0=Active,
+  /// 1=Gave up, 2=Completed. Reloads on return so a status change
+  /// (e.g. the viewer's own removal after a missed deadline) reflects
+  /// on the detail page.
+  Future<void> _openParticipants(
+    ChallengeDetail d, {
+    int initialTab = 0,
+  }) async {
+    HapticService().light();
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChallengeParticipantsScreen(
+          challengeTitle: d.title,
+          participants: d.participants,
+          initialTabIndex: initialTab,
+        ),
+      ),
+    );
+    if (mounted) _load();
   }
 
   Future<void> _deleteChallenge() async {
@@ -598,15 +620,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
               height: 1.55,
             ),
           ),
-          const SizedBox(height: 14),
-          _DetailUpvoteRow(
-            detail: d,
-            busy: _upvoting,
-            onTap: _toggleUpvote,
-          ),
-          const SizedBox(height: 16),
-          _StatsRow(d: d),
           const SizedBox(height: 18),
+          // Check-in FIRST — front and centre, above stats + engagement
+          // so an active participant (creator included) always sees
+          // the ticker as the primary affordance on this screen.
           _ActionPanel(
             detail: d,
             joining: _joining,
@@ -627,8 +644,50 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
             },
             onCreatorDelete: _deleteChallenge,
           ),
-          const SizedBox(height: 24),
-          _ParticipantHistory(detail: d),
+          const SizedBox(height: 14),
+          // "Did it today" avatar row — reads today's check-in state
+          // straight off the participants list (server now includes
+          // p.checkedInToday). Tap to open the full participants view
+          // on the Active tab.
+          _TodayCheckinsRow(
+            detail: d,
+            onTap: () => _openParticipants(d, initialTab: 0),
+          ),
+          const SizedBox(height: 14),
+          _DetailUpvoteRow(
+            detail: d,
+            busy: _upvoting,
+            onTap: _toggleUpvote,
+          ),
+          const SizedBox(height: 16),
+          _StatsRow(d: d),
+          const SizedBox(height: 14),
+          // Tap-through strip — opens the full participants screen.
+          // Replaces the previous inline _ParticipantHistory so the
+          // detail page stays short + scannable.
+          _ParticipantsTapStrip(
+            detail: d,
+            onTap: () => _openParticipants(d, initialTab: 0),
+          ),
+          if (d.isCreator) ...[
+            const SizedBox(height: 14),
+            // Creator-only management strip — the check-in above is
+            // the primary tap target, this is secondary. Compact so
+            // it doesn't dominate.
+            _CreatorManagementStrip(
+              onRequests: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => JoinRequestsScreen(
+                      challengeId: d.id, title: d.title,
+                    ),
+                  ),
+                );
+                _load();
+              },
+              onDelete: _deleteChallenge,
+            ),
+          ],
           const SizedBox(height: 28),
           _CommentsSection(
             detail: d,
@@ -885,18 +944,12 @@ class _ActionPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final d = detail;
     final me = d.me;
-    if (d.isCreator) {
-      return _CreatorPanel(
-        onRequests: onCreatorRequests,
-        onDelete: onCreatorDelete,
-        details: d,
-      );
-    }
+    // Non-participant paths first — no `me` means the viewer isn't in
+    // the challenge, so nothing to check in and no management UI.
     if (me == null) {
-      // Not joined, not requested.
       if (d.status != 'active') {
         return _DisabledPanel(
-          message: 'This challenge isn’t accepting new participants.',
+          message: "This challenge isn't accepting new participants.",
         );
       }
       return _PrimaryButton(
@@ -907,7 +960,7 @@ class _ActionPanel extends StatelessWidget {
     if (me.status == 'removed') {
       return _DisabledPanel(
         message:
-            'You were removed from this challenge. Rejoining isn’t allowed.',
+            "You were removed from this challenge. Rejoining isn't allowed.",
       );
     }
     if (me.status == 'completed') {
@@ -915,7 +968,14 @@ class _ActionPanel extends StatelessWidget {
         message: 'You completed this challenge. Onward.',
       );
     }
-    // Active participant — show check-in.
+    // Active participant — show the check-in panel. This intentionally
+    // covers the creator too: they auto-join as participant 0 on
+    // challenge creation (see backend main.py::create_challenge), so
+    // `me.status == 'active'` is true for them and they get to tick
+    // the same daily check-in as everyone else. The creator-only
+    // management row (Join requests + Delete challenge) is rendered
+    // separately from the parent build so the check-in always sits at
+    // the top.
     return _CheckinPanel(
       detail: d,
       me: me,
@@ -1021,6 +1081,10 @@ class _CheckinPanel extends StatelessWidget {
   }
 }
 
+// Superseded by _CreatorManagementStrip below. Kept for reference
+// while the new UX beds in — delete after ~2 releases if nobody
+// misses the tall "Join requests" card.
+// ignore: unused_element
 class _CreatorPanel extends StatelessWidget {
   const _CreatorPanel({
     required this.onRequests,
@@ -1202,6 +1266,10 @@ class _PrimaryButton extends StatelessWidget {
   }
 }
 
+// Superseded by _ParticipantRow inside challenge_participants_screen.
+// Kept here in case a future compact inline preview wants the same
+// shape without pulling the full screen file in.
+// ignore: unused_element
 class _ParticipantTile extends StatelessWidget {
   const _ParticipantTile({required this.p});
   final ChallengeParticipant p;
@@ -1602,82 +1670,338 @@ class _DetailUpvoteRow extends StatelessWidget {
 }
 
 // ──────────────────────────────────────────────────────────────────
-// Participant history section — grouped by status
+// Today's check-ins avatar row + participants tap strip
 // ──────────────────────────────────────────────────────────────────
 
-class _ParticipantHistory extends StatelessWidget {
-  const _ParticipantHistory({required this.detail});
+/// Compact "N of M did it today" strip showing overlapping avatars of
+/// the participants who've already checked in today. Tap → opens the
+/// full participants view (Active tab). Renders nothing before start
+/// or after end so it doesn't lie about "who's checked in" when no
+/// day is in play.
+class _TodayCheckinsRow extends StatelessWidget {
+  const _TodayCheckinsRow({required this.detail, required this.onTap});
   final ChallengeDetail detail;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (detail.status != 'active') return const SizedBox.shrink();
+    final active = detail.participants
+        .where((p) => p.status == 'active')
+        .toList();
+    if (active.isEmpty) return const SizedBox.shrink();
+    final done = active.where((p) => p.checkedInToday).toList();
+    final total = active.length;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: BrandColors.bgCard(context).withValues(alpha: 0.60),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.purple.withValues(alpha: 0.22),
+            ),
+          ),
+          child: Row(
+            children: [
+              _AvatarStack(
+                participants: done.isEmpty
+                    // Show muted avatars of active people when nobody's
+                    // checked in yet — otherwise the row is empty and
+                    // useless.
+                    ? active.take(6).toList()
+                    : done.take(6).toList(),
+                muted: done.isEmpty,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      done.isEmpty
+                          ? 'Nobody has checked in today yet'
+                          : done.length == total
+                              ? 'Everyone did it today · $total of $total'
+                              : '${done.length} of $total did it today',
+                      style: TextStyle(
+                        color: BrandColors.ink(context),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Tap to see everyone',
+                      style: TextStyle(
+                        color: BrandColors.inkDim(context),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: BrandColors.inkSoft(context),
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Overlapping avatar stack, up to N shown, each nudged left. `muted`
+/// reduces opacity for the "nobody checked in yet" placeholder.
+class _AvatarStack extends StatelessWidget {
+  const _AvatarStack({required this.participants, this.muted = false});
+  final List<ChallengeParticipant> participants;
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 30.0;
+    const overlap = 10.0;
+    final width = size + (participants.length - 1) * (size - overlap);
+    return Opacity(
+      opacity: muted ? 0.55 : 1.0,
+      child: SizedBox(
+        width: width.clamp(size, size * 6),
+        height: size,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            for (var i = 0; i < participants.length; i++)
+              Positioned(
+                left: i * (size - overlap),
+                child: Container(
+                  padding: const EdgeInsets.all(1.5),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: BrandColors.bgDeep(context),
+                  ),
+                  child: NetworkAvatar(
+                    name: participants[i].name,
+                    avatarUrl: absoluteAvatarUrl(
+                      participants[i].avatarUrl,
+                    ),
+                    size: size,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "Active 12 · Gave up 3 · Completed 5 ›" tap target that opens the
+/// full participants view. Replaces the previous inline
+/// _ParticipantHistory so the detail scroll stays short.
+class _ParticipantsTapStrip extends StatelessWidget {
+  const _ParticipantsTapStrip({
+    required this.detail,
+    required this.onTap,
+  });
+  final ChallengeDetail detail;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final parts = detail.participants;
-    final active = parts.where((p) => p.status == 'active').toList();
-    final completed =
-        parts.where((p) => p.status == 'completed').toList();
-    final removed = parts.where((p) => p.status == 'removed').toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'PARTICIPANT HISTORY · ${parts.length}',
-          style: TextStyle(
-            color: BrandColors.inkDim(context),
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.6,
+    final active = parts.where((p) => p.status == 'active').length;
+    final removed = parts.where((p) => p.status == 'removed').length;
+    final completed = parts.where((p) => p.status == 'completed').length;
+    if (parts.isEmpty) return const SizedBox.shrink();
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: BrandColors.bgCard(context).withValues(alpha: 0.60),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.purple.withValues(alpha: 0.22),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.groups_rounded,
+                  color: AppColors.pinkLight, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _StatusCount(
+                      label: 'Active',
+                      count: active,
+                      color: AppColors.blueAccent,
+                    ),
+                    _StatusCount(
+                      label: 'Gave up',
+                      count: removed,
+                      color: AppColors.pinkLight,
+                    ),
+                    if (completed > 0)
+                      _StatusCount(
+                        label: 'Completed',
+                        count: completed,
+                        color: AppColors.purpleLight,
+                      ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: BrandColors.inkSoft(context),
+                size: 22,
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 10),
-        if (parts.isEmpty)
-          Text(
-            'No participants yet.',
-            style: TextStyle(
-              color: BrandColors.inkSoft(context),
-              fontSize: 13,
-            ),
-          )
-        else ...[
-          if (active.isNotEmpty)
-            _StatusGroup(label: 'STILL IN', participants: active),
-          if (completed.isNotEmpty)
-            _StatusGroup(label: 'COMPLETED', participants: completed),
-          if (removed.isNotEmpty)
-            _StatusGroup(label: 'GAVE UP', participants: removed),
-        ],
+      ),
+    );
+  }
+}
+
+class _StatusCount extends StatelessWidget {
+  const _StatusCount({
+    required this.label,
+    required this.count,
+    required this.color,
+  });
+  final String label;
+  final int count;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$count',
+          style: TextStyle(
+            color: color,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: BrandColors.inkSoft(context),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ],
     );
   }
 }
 
-class _StatusGroup extends StatelessWidget {
-  const _StatusGroup({required this.label, required this.participants});
-  final String label;
-  final List<ChallengeParticipant> participants;
+/// Compact creator-only management row. Renders below the check-in
+/// panel + participants strip when `d.isCreator` — auto-joined
+/// creators still get to check in, this is the secondary "manage the
+/// challenge you run" surface.
+class _CreatorManagementStrip extends StatelessWidget {
+  const _CreatorManagementStrip({
+    required this.onRequests,
+    required this.onDelete,
+  });
+  final VoidCallback onRequests;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: BrandColors.inkDim(context),
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.4,
+    return Row(
+      children: [
+        Expanded(
+          child: _ManageTile(
+            icon: Icons.inbox_rounded,
+            label: 'Join requests',
+            onTap: onRequests,
+            accent: AppColors.pinkLight,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _ManageTile(
+            icon: Icons.delete_outline_rounded,
+            label: 'Delete',
+            onTap: onDelete,
+            accent: const Color(0xFFFF6B81),
+            danger: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ManageTile extends StatelessWidget {
+  const _ManageTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.accent,
+    this.danger = false,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color accent;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: (danger ? accent : AppColors.purple)
+                .withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: accent.withValues(alpha: danger ? 0.45 : 0.30),
             ),
           ),
-          const SizedBox(height: 6),
-          for (final p in participants)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _ParticipantTile(p: p),
-            ),
-        ],
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: accent, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: danger ? accent : BrandColors.ink(context),
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
