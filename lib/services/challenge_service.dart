@@ -59,10 +59,19 @@ class ChallengeService {
 
   // ── List + mine + detail ──────────────────────────────────────────
 
-  Future<List<ChallengeSummary>> list({String? category}) async {
-    final qs = (category == null || category.isEmpty)
+  Future<List<ChallengeSummary>> list({
+    String? category,
+    String? search,
+  }) async {
+    final params = <String, String>{};
+    if (category != null && category.isNotEmpty) params['category'] = category;
+    if (search != null && search.trim().isNotEmpty) {
+      params['search'] = search.trim();
+    }
+    final qs = params.isEmpty
         ? ''
-        : '?category=${Uri.encodeQueryComponent(category)}';
+        : '?${params.entries.map((e) =>
+            '${e.key}=${Uri.encodeQueryComponent(e.value)}').join('&')}';
     final res = await _client
         .get(Uri.parse('$_baseUrl/challenges/list$qs'),
             headers: _headers)

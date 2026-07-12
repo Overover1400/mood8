@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -33,10 +35,44 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
   String? _error;
   bool _loading = false;
 
+  /// Debounced search field. Empty = no search filter. The controller
+  /// listens for edits and re-fires _load after a short delay so we
+  /// don't hit the backend on every keystroke.
+  final TextEditingController _searchCtl = TextEditingController();
+  Timer? _searchDebounce;
+  /// Last search string sent to the backend. Kept so a debounce tick
+  /// with no change doesn't re-hit the network.
+  String _lastQuery = '';
+  static const _searchDebounceMs = 260;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _searchCtl.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchCtl.removeListener(_onSearchChanged);
+    _searchCtl.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    // Rebuild for the trailing "clear" X visibility.
+    setState(() {});
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(
+      const Duration(milliseconds: _searchDebounceMs),
+      () {
+        final q = _searchCtl.text.trim();
+        if (q == _lastQuery) return;
+        _lastQuery = q;
+        _load();
+      },
+    );
   }
 
   Future<void> _load() async {
@@ -45,7 +81,10 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
       _error = null;
     });
     try {
-      final rows = await ChallengeService().list(category: _category);
+      final rows = await ChallengeService().list(
+        category: _category,
+        search: _searchCtl.text,
+      );
       if (!mounted) return;
       setState(() {
         _challenges = rows;
@@ -64,6 +103,13 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
     HapticService().selection();
     setState(() => _category = c);
     _load();
+  }
+
+  void _clearSearch() {
+    HapticService().selection();
+    _searchCtl.clear();
+    // No need to explicitly _load — the listener + debounce will fire
+    // once and drop the search filter cleanly.
   }
 
   Future<void> _openCreate() async {
@@ -145,6 +191,10 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
                 onCreate: _openCreate,
                 embedded: widget.embedded,
               ),
+              _SearchBar(
+                controller: _searchCtl,
+                onClear: _searchCtl.text.isEmpty ? null : _clearSearch,
+              ),
               _CategoryRow(
                 current: _category,
                 onSelect: _selectCategory,
@@ -176,7 +226,10 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
     }
     final list = _challenges ?? const <ChallengeSummary>[];
     if (list.isEmpty) {
-      return _EmptyState(onCreate: _openCreate);
+      return _EmptyState(
+        onCreate: _openCreate,
+        searchQuery: _searchCtl.text.trim(),
+      );
     }
     return RefreshIndicator(
       onRefresh: _load,
@@ -362,11 +415,28 @@ class _CategoryChip extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onCreate});
+  const _EmptyState({
+    required this.onCreate,
+    required this.searchQuery,
+  });
   final VoidCallback onCreate;
+  /// When non-empty, the empty state is a "no results for X" screen
+  /// (search didn't match anything) rather than a "no challenges
+  /// yet" screen (list actually empty).
+  final String searchQuery;
 
   @override
   Widget build(BuildContext context) {
+    final searching = searchQuery.isNotEmpty;
+    final iconData = searching
+        ? Icons.search_off_rounded
+        : Icons.flag_rounded;
+    final title = searching
+        ? 'No challenges found'
+        : 'No challenges yet.';
+    final subtitle = searching
+        ? 'Nothing matched "$searchQuery". Create one?'
+        : 'Start one — or hold tight while we wait for someone to.';
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -380,12 +450,12 @@ class _EmptyState extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: AppColors.orbGradient,
               ),
-              child: const Icon(Icons.flag_rounded,
+              child: Icon(iconData,
                   color: Colors.white, size: 32),
             ),
             const SizedBox(height: 18),
             Text(
-              'No challenges yet.',
+              title,
               style: GoogleFonts.bricolageGrotesque(
                 color: BrandColors.ink(context),
                 fontSize: 28,
@@ -393,7 +463,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Start one — or hold tight while we wait for someone to.',
+              subtitle,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: BrandColors.inkSoft(context),
@@ -422,6 +492,72 @@ class _EmptyState extends StatelessWidget {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact search bar under the header — one line, 40px tall, matches
+/// the collapsed-category-pill styling on Habits. `onClear` is null
+/// while the input is empty; when set, renders a trailing X.
+class _SearchBar extends StatelessWidget {
+  const _SearchBar({required this.controller, required this.onClear});
+  final TextEditingController controller;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: BrandColors.bgCard(context).withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: AppColors.purple.withValues(alpha: 0.22),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.search_rounded,
+                color: BrandColors.inkSoft(context), size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: controller,
+                textInputAction: TextInputAction.search,
+                style: TextStyle(
+                  color: BrandColors.ink(context),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Search challenges',
+                  hintStyle: TextStyle(
+                    color: BrandColors.inkDim(context),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  isDense: true,
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ),
+            if (onClear != null)
+              GestureDetector(
+                onTap: onClear,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(Icons.close_rounded,
+                      color: BrandColors.inkSoft(context), size: 16),
+                ),
+              ),
           ],
         ),
       ),

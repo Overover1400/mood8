@@ -663,16 +663,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (hour >= 18) {
                             return Padding(
                               padding: const EdgeInsets.only(top: 18),
-                              child: _ReflectionNudge(
-                                onTap: () => MainNavigation.goToTab(
-                                    context, kCoachTabIndex),
-                              )
-                                  .animate()
-                                  .fadeIn(delay: 60.ms, duration: 500.ms)
-                                  .slideY(
-                                      begin: 0.06,
-                                      end: 0,
-                                      curve: Curves.easeOutCubic),
+                              child: _AutoDismissBanner(
+                                // "Tonight's reflection is ready"
+                                // slides in, hangs for 7s, then
+                                // animates out. The reflection
+                                // itself is always reachable from
+                                // the Coach tab.
+                                child: _ReflectionNudge(
+                                  onTap: () => MainNavigation.goToTab(
+                                      context, kCoachTabIndex),
+                                ),
+                              ),
                             );
                           }
                           return const SizedBox.shrink();
@@ -680,45 +681,36 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       if (_showGuestNudge) ...[
                         const SizedBox(height: 18),
-                        _GuestNudgeBanner(
-                          onTap: _openGuestRegister,
-                          onDismiss: _dismissGuestNudge,
-                        )
-                            .animate()
-                            .fadeIn(duration: 400.ms)
-                            .slideY(
-                                begin: -0.05,
-                                end: 0,
-                                curve: Curves.easeOutCubic),
+                        _AutoDismissBanner(
+                          onExpired: _dismissGuestNudge,
+                          child: _GuestNudgeBanner(
+                            onTap: _openGuestRegister,
+                            onDismiss: _dismissGuestNudge,
+                          ),
+                        ),
                       ],
                       if (_showRecapBanner) ...[
                         const SizedBox(height: 18),
-                        _RecapBanner(
-                          onTap: _openRecap,
-                          onDismiss: _dismissRecapBanner,
-                        )
-                            .animate()
-                            .fadeIn(duration: 400.ms)
-                            .slideY(
-                                begin: -0.05,
-                                end: 0,
-                                curve: Curves.easeOutCubic),
+                        _AutoDismissBanner(
+                          onExpired: _dismissRecapBanner,
+                          child: _RecapBanner(
+                            onTap: _openRecap,
+                            onDismiss: _dismissRecapBanner,
+                          ),
+                        ),
                       ],
                       if (_showYirBanner) ...[
                         const SizedBox(height: 18),
-                        _YirBanner(
-                          onTap: _openYearInReview,
-                          onDismiss: _dismissYirBanner,
-                        )
-                            .animate()
-                            .fadeIn(duration: 400.ms)
-                            .slideY(
-                                begin: -0.05,
-                                end: 0,
-                                curve: Curves.easeOutCubic),
+                        _AutoDismissBanner(
+                          onExpired: _dismissYirBanner,
+                          child: _YirBanner(
+                            onTap: _openYearInReview,
+                            onDismiss: _dismissYirBanner,
+                          ),
+                        ),
                       ],
-                      // Challenges entry card removed — Challenges is now
-                      // a bottom-nav tab.
+                      // Challenges entry card removed — Challenges is
+                      // now a bottom-nav tab.
                       ValueListenableBuilder<Box<PatternAlert>>(
                         valueListenable:
                             PatternDetectionService().watch(),
@@ -731,18 +723,21 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (unread.isEmpty) return const SizedBox.shrink();
                           return Padding(
                             padding: const EdgeInsets.only(top: 18),
-                            child: _PatternsCarousel(
-                              alerts: unread,
-                              onAction: _onPatternAction,
-                              onDismiss: _onPatternDismiss,
-                              onSeeAll: _openPatternsScreen,
-                            )
-                                .animate()
-                                .fadeIn(duration: 450.ms)
-                                .slideY(
-                                    begin: -0.04,
-                                    end: 0,
-                                    curve: Curves.easeOutCubic),
+                            // Pattern alerts show for 8s (a beat
+                            // longer than the ordinary prompt banners
+                            // since there's more to read), then fade
+                            // out. The underlying alerts stay on the
+                            // Insights screen — auto-dismiss just
+                            // stops them from accumulating on Home.
+                            child: _AutoDismissBanner(
+                              duration: const Duration(seconds: 8),
+                              child: _PatternsCarousel(
+                                alerts: unread,
+                                onAction: _onPatternAction,
+                                onDismiss: _onPatternDismiss,
+                                onSeeAll: _openPatternsScreen,
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -753,6 +748,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       // Free-tier upgrade nudge — self-hides for
                       // premium users and after dismissal.
                       const UpgradePromptBar(),
+                      // Today's intention (banner above the hero). Shown
+                      // once the user has set one via the "+" sheet.
+                      ValueListenableBuilder<Box<MorningIntention>>(
+                        valueListenable: _intentions.watchIntentions(),
+                        builder: (context, _, _) {
+                          final i = _intentions.getTodaysIntention();
+                          if (i == null ||
+                              i.wasSkipped ||
+                              i.text.trim().isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: _IntentionPill(
+                              text: i.text,
+                              onTap: () =>
+                                  _openIntentionSheet(existing: i.text),
+                            ),
+                          );
+                        },
+                      ),
+                      // ─── Home hero: two-column stats + check-in ──
+                      // Left column (compact): Streak · Today · Discipline
+                      // Right column: mood / energy / focus sliders.
+                      // Stacks to single column below the width
+                      // breakpoint (see _HomeHero._stackBreakpoint) so
+                      // 320dp devices don't squeeze the sliders.
                       ValueListenableBuilder<Box<MoodEntry>>(
                         valueListenable: _moods.watchEntries(),
                         builder: (context, _, _) {
@@ -762,14 +784,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ValueListenableBuilder<Box<HabitLog>>(
                               valueListenable: _habits.watchLogs(),
                               builder: (context, _, _) {
-                                // "Today" card source depends on which
-                                // surface is live. With Routine
-                                // disabled, the card reads habit
-                                // completion for today instead so the
-                                // stat stays informative; flipping
-                                // kRoutineEnabled back on restores
-                                // the original routine-completion
-                                // count.
                                 final int completed;
                                 final int total;
                                 if (kRoutineEnabled) {
@@ -790,7 +804,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     return log?.isCompleted ?? false;
                                   }).length;
                                 }
-                                return _StatsRow(
+                                return _HomeHero(
                                   streak: _moods.calculateStreak(),
                                   completedToday: completed,
                                   totalToday: total,
@@ -799,6 +813,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                   onTapDiscipline: () =>
                                       MainNavigation.goToTab(
                                           context, kProgressTabIndex),
+                                  mood: _mood,
+                                  energy: _energy,
+                                  focus: _focus,
+                                  savedFlash: _savedFlash,
+                                  onMood: (v) =>
+                                      _onSliderChange(() => _mood = v),
+                                  onEnergy: (v) =>
+                                      _onSliderChange(() => _energy = v),
+                                  onFocus: (v) =>
+                                      _onSliderChange(() => _focus = v),
+                                  onSliderEnd: _onSliderEnd,
                                 );
                               },
                             ),
@@ -806,48 +831,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       )
                           .animate()
-                          .fadeIn(delay: 80.ms, duration: 500.ms)
-                          .slideY(
-                              begin: 0.06, end: 0,
-                              curve: Curves.easeOutCubic),
-                      const SizedBox(height: 18),
-                      // Today's intention. Shown once the user has set
-                      // one via the "+" sheet; tap to edit. Hidden when
-                      // unset so it doesn't nag — the prompt path
-                      // (_maybePromptIntention) handles the empty case.
-                      ValueListenableBuilder<Box<MorningIntention>>(
-                        valueListenable: _intentions.watchIntentions(),
-                        builder: (context, _, _) {
-                          final i = _intentions.getTodaysIntention();
-                          if (i == null ||
-                              i.wasSkipped ||
-                              i.text.trim().isEmpty) {
-                            return const SizedBox.shrink();
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: _IntentionPill(
-                              text: i.text,
-                              onTap: () =>
-                                  _openIntentionSheet(existing: i.text),
-                            ),
-                          );
-                        },
-                      ),
-                      _MoodHeroCard(
-                        mood: _mood,
-                        energy: _energy,
-                        focus: _focus,
-                        savedFlash: _savedFlash,
-                        onMood: (v) => _onSliderChange(() => _mood = v),
-                        onEnergy: (v) =>
-                            _onSliderChange(() => _energy = v),
-                        onFocus: (v) =>
-                            _onSliderChange(() => _focus = v),
-                        onSliderEnd: _onSliderEnd,
-                      )
-                          .animate()
-                          .fadeIn(delay: 150.ms, duration: 500.ms)
+                          .fadeIn(delay: 120.ms, duration: 500.ms)
                           .slideY(
                               begin: 0.06, end: 0,
                               curve: Curves.easeOutCubic),
@@ -1479,6 +1463,251 @@ class _AddTile extends StatelessWidget {
 /// button — the parent owns a 2-second debounced auto-save that fires
 /// when the user stops touching sliders. [savedFlash] briefly shows a
 /// "Saved ✓" stamp in the header after each silent save.
+/// Two-column top surface for Home: compact stat stack on the left,
+/// mood/energy/focus check-in on the right. Stacks vertically below
+/// [_stackBreakpoint] so the sliders don't get squeezed on narrow
+/// devices — tested down to 320dp width.
+class _HomeHero extends StatelessWidget {
+  const _HomeHero({
+    required this.streak,
+    required this.completedToday,
+    required this.totalToday,
+    required this.disciplineScore,
+    required this.onTapDiscipline,
+    required this.mood,
+    required this.energy,
+    required this.focus,
+    required this.savedFlash,
+    required this.onMood,
+    required this.onEnergy,
+    required this.onFocus,
+    required this.onSliderEnd,
+  });
+
+  final int streak;
+  final int completedToday;
+  final int totalToday;
+  final int disciplineScore;
+  final VoidCallback onTapDiscipline;
+
+  final double mood;
+  final double energy;
+  final double focus;
+  final bool savedFlash;
+  final ValueChanged<double> onMood;
+  final ValueChanged<double> onEnergy;
+  final ValueChanged<double> onFocus;
+  final ValueChanged<double> onSliderEnd;
+
+  /// Below this width the sliders on the right column would sit
+  /// under ~200dp — too tight for a comfortable finger drag. Stack
+  /// to single-column instead so the sliders take the full width.
+  /// 380dp lands us above every 320-360dp phone (where stacking is
+  /// the right call) while still triggering two-column on standard
+  /// modern phones (400dp+).
+  static const _stackBreakpoint = 380.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, c) {
+      final wide = c.maxWidth >= _stackBreakpoint;
+      final stats = _CompactStatsColumn(
+        streak: streak,
+        completedToday: completedToday,
+        totalToday: totalToday,
+        disciplineScore: disciplineScore,
+        onTapDiscipline: onTapDiscipline,
+      );
+      final checkIn = _MoodHeroCard(
+        mood: mood,
+        energy: energy,
+        focus: focus,
+        savedFlash: savedFlash,
+        onMood: onMood,
+        onEnergy: onEnergy,
+        onFocus: onFocus,
+        onSliderEnd: onSliderEnd,
+      );
+      if (!wide) {
+        // Narrow: stats compact row (horizontal) + check-in below,
+        // full-width sliders as before the redesign.
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _StatsRow(
+              streak: streak,
+              completedToday: completedToday,
+              totalToday: totalToday,
+              disciplineScore: disciplineScore,
+              onTapDiscipline: onTapDiscipline,
+            ),
+            const SizedBox(height: 14),
+            checkIn,
+          ],
+        );
+      }
+      // Wide: 40 / 60 split. `IntrinsicHeight` so the stats column
+      // matches the check-in's height (they don't need to be equal —
+      // but this keeps the vertical spacer between stat tiles even
+      // as the check-in card grows/shrinks).
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(flex: 40, child: stats),
+            const SizedBox(width: 12),
+            Expanded(flex: 60, child: checkIn),
+          ],
+        ),
+      );
+    });
+  }
+}
+
+/// Vertical stack of three compact stat pills: Streak · Today ·
+/// Discipline. Deliberately smaller than the full StatCard so it
+/// pairs with the check-in on the right without dominating.
+class _CompactStatsColumn extends StatelessWidget {
+  const _CompactStatsColumn({
+    required this.streak,
+    required this.completedToday,
+    required this.totalToday,
+    required this.disciplineScore,
+    required this.onTapDiscipline,
+  });
+
+  final int streak;
+  final int completedToday;
+  final int totalToday;
+  final int disciplineScore;
+  final VoidCallback onTapDiscipline;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: _MiniStatTile(
+            emoji: '🔥',
+            value: '$streak',
+            label: 'Streak',
+            accent: AppColors.pinkLight,
+            onTap: null,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: _MiniStatTile(
+            emoji: '⚡',
+            value: '$completedToday / $totalToday',
+            label: 'Today',
+            accent: AppColors.blueAccent,
+            onTap: null,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: _MiniStatTile(
+            emoji: '🏆',
+            value: disciplineScore == 0 ? '—' : '$disciplineScore',
+            label: 'Discipline',
+            accent: AppColors.purpleLight,
+            onTap: onTapDiscipline,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MiniStatTile extends StatelessWidget {
+  const _MiniStatTile({
+    required this.emoji,
+    required this.value,
+    required this.label,
+    required this.accent,
+    required this.onTap,
+  });
+  final String emoji;
+  final String value;
+  final String label;
+  final Color accent;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: BrandColors.bgCard(context).withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: accent.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 26,
+            height: 26,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  accent.withValues(alpha: 0.35),
+                  accent.withValues(alpha: 0.05),
+                ],
+              ),
+            ),
+            child: Text(emoji, style: const TextStyle(fontSize: 13)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    height: 1.05,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  label.toUpperCase(),
+                  style: TextStyle(
+                    color: BrandColors.inkDim(context),
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (onTap == null) return content;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: content,
+      ),
+    );
+  }
+}
+
 class _MoodHeroCard extends StatelessWidget {
   const _MoodHeroCard({
     required this.mood,
@@ -1964,6 +2193,81 @@ class _MiniHabitRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Wraps a transient prompt/banner so it slides in on mount, hangs
+/// for [duration], then animates away. After the exit finishes we
+/// optionally call [onExpired] so the parent can suppress it from
+/// re-appearing this session (matching the existing manual-dismiss
+/// paths). Callers that don't need persistence can leave onExpired
+/// null — the banner still animates out and stays hidden as long
+/// as this widget instance lives.
+///
+/// Manual dismiss inside the child (e.g. a tap-to-close X) is
+/// unchanged — the child's own onDismiss handler fires as before.
+/// The auto-dismiss is a soft ceiling on top of it.
+class _AutoDismissBanner extends StatefulWidget {
+  const _AutoDismissBanner({
+    required this.child,
+    this.onExpired,
+    this.duration = const Duration(seconds: 7),
+  });
+
+  final Widget child;
+  final VoidCallback? onExpired;
+  final Duration duration;
+
+  @override
+  State<_AutoDismissBanner> createState() => _AutoDismissBannerState();
+}
+
+class _AutoDismissBannerState extends State<_AutoDismissBanner> {
+  bool _visible = true;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(widget.duration, _handleExpired);
+  }
+
+  void _handleExpired() {
+    if (!mounted || !_visible) return;
+    setState(() => _visible = false);
+    // Fire onExpired AFTER the collapse animation finishes so the
+    // parent's setState doesn't cut the exit short.
+    Future.delayed(const Duration(milliseconds: 340), () {
+      if (!mounted) return;
+      widget.onExpired?.call();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // AnimatedCrossFade handles both the opacity fade AND the size
+    // collapse in one primitive — the sibling gap disappears with
+    // the banner instead of leaving a hole.
+    return AnimatedCrossFade(
+      firstChild: widget.child
+          .animate()
+          .fadeIn(duration: 320.ms)
+          .slideY(begin: -0.05, end: 0, curve: Curves.easeOutCubic),
+      secondChild: const SizedBox.shrink(),
+      crossFadeState: _visible
+          ? CrossFadeState.showFirst
+          : CrossFadeState.showSecond,
+      duration: const Duration(milliseconds: 320),
+      sizeCurve: Curves.easeInOutCubic,
+      firstCurve: Curves.easeOutCubic,
+      secondCurve: Curves.easeInCubic,
     );
   }
 }
