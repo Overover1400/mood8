@@ -47,6 +47,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
   bool _postingComment = false;
   String? _commentRejection;
   final TextEditingController _commentController = TextEditingController();
+  /// Comments are lazy-mounted — the body starts with a "View
+  /// comments (N)" strip and only reveals the composer + full thread
+  /// after the user taps it or posts. Flipped true once and stays
+  /// there for the rest of the screen session.
+  bool _commentsExpanded = false;
 
   Timer? _deadlineTicker;
   Duration _untilDeadline = Duration.zero;
@@ -612,13 +617,31 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
+          // TOP: back arrow + ⋮ menu (Badges + Report + owner Delete
+          // + Join requests when isCreator). All secondary actions
+          // live here so the body reads calmly top-to-bottom.
           _TopBar(
+            isCreator: d.isCreator,
             onBack: () => Navigator.of(context).maybePop(),
             onReport: _report,
+            onDelete: d.isCreator ? _deleteChallenge : null,
+            onJoinRequests: d.isCreator
+                ? () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => JoinRequestsScreen(
+                          challengeId: d.id, title: d.title,
+                        ),
+                      ),
+                    );
+                    _load();
+                  }
+                : null,
           ),
-          const SizedBox(height: 6),
-          _CreatorRow(d: d),
-          const SizedBox(height: 18),
+          const SizedBox(height: 4),
+          // 1. Title (big, editorial) + compact creator row + a thin
+          //    meta line pulling category / duration / days-left into
+          //    one horizontal row instead of a card grid.
           Text(
             d.title,
             style: GoogleFonts.bricolageGrotesque(
@@ -627,7 +650,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
               height: 1.1,
             ),
           ),
+          const SizedBox(height: 12),
+          _CreatorRow(d: d),
           const SizedBox(height: 10),
+          _MetaLine(d: d),
+          const SizedBox(height: 18),
           Text(
             d.description,
             style: TextStyle(
@@ -636,10 +663,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
               height: 1.55,
             ),
           ),
-          const SizedBox(height: 18),
-          // Check-in FIRST — front and centre, above stats + engagement
-          // so an active participant (creator included) always sees
-          // the ticker as the primary affordance on this screen.
+          const SizedBox(height: 22),
+          // 2. HERO — check-in control. For active participants
+          //    (creator included) this is the single most prominent
+          //    element on the page.
           _ActionPanel(
             detail: d,
             joining: _joining,
@@ -648,75 +675,56 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
             onRequestJoin: _requestJoin,
             checkingIn: _checkingIn,
             onCheckin: _checkin,
-            onCreatorRequests: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => JoinRequestsScreen(
-                    challengeId: d.id, title: d.title,
-                  ),
-                ),
-              );
-              _load();
-            },
-            onCreatorDelete: _deleteChallenge,
+            // Creator-panel callbacks are unused post-refactor
+            // (moved to the ⋮ menu). Kept for backward compat with
+            // the widget's existing constructor.
+            onCreatorRequests: () {},
+            onCreatorDelete: () {},
           ),
           const SizedBox(height: 14),
-          // "Did it today" avatar row — reads today's check-in state
-          // straight off the participants list (server now includes
-          // p.checkedInToday). Tap to open the full participants view
-          // on the Active tab.
+          // 3. "Did it today" — compact avatar row.
           _TodayCheckinsRow(
             detail: d,
             onTap: () => _openParticipants(d, initialTab: 0),
           ),
-          const SizedBox(height: 14),
-          _DetailUpvoteRow(
-            detail: d,
-            busy: _upvoting,
-            onTap: _toggleUpvote,
-          ),
-          const SizedBox(height: 16),
-          _StatsRow(d: d),
-          const SizedBox(height: 14),
-          // Tap-through strip — opens the full participants screen.
-          // Replaces the previous inline _ParticipantHistory so the
-          // detail page stays short + scannable.
+          const SizedBox(height: 18),
+          // 4. Compact stats row — one thin line, no card tiles.
+          _CompactStatsLine(d: d),
+          const SizedBox(height: 12),
+          // 5. Participants — single row, opens the full list.
           _ParticipantsTapStrip(
             detail: d,
             onTap: () => _openParticipants(d, initialTab: 0),
           ),
-          if (d.isCreator) ...[
-            const SizedBox(height: 14),
-            // Creator-only management strip — the check-in above is
-            // the primary tap target, this is secondary. Compact so
-            // it doesn't dominate.
-            _CreatorManagementStrip(
-              onRequests: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => JoinRequestsScreen(
-                      challengeId: d.id, title: d.title,
-                    ),
-                  ),
-                );
-                _load();
-              },
-              onDelete: _deleteChallenge,
-            ),
-          ],
-          const SizedBox(height: 28),
-          _CommentsSection(
+          const SizedBox(height: 12),
+          // 6. Slim upvote + comment-count action row.
+          _EngagementRow(
             detail: d,
-            comments: _comments,
-            loading: _loadingComments,
-            error: _commentsError,
-            posting: _postingComment,
-            rejectionReason: _commentRejection,
-            controller: _commentController,
-            onPost: _postComment,
-            onDelete: _deleteComment,
-            onReport: _reportComment,
-            onTapUser: _openUserProfile,
+            upvoting: _upvoting,
+            onUpvote: _toggleUpvote,
+            onScrollToComments: () => setState(() => _commentsExpanded = true),
+          ),
+          const SizedBox(height: 18),
+          // 7. Comments — lazy-collapsed behind "View comments (N)"
+          //    until tapped. Once open, stays open for the rest of
+          //    the screen session so a scroll-back doesn't collapse
+          //    the user's own comment out of view.
+          _LazyComments(
+            expanded: _commentsExpanded,
+            onExpand: () => setState(() => _commentsExpanded = true),
+            child: _CommentsSection(
+              detail: d,
+              comments: _comments,
+              loading: _loadingComments,
+              error: _commentsError,
+              posting: _postingComment,
+              rejectionReason: _commentRejection,
+              controller: _commentController,
+              onPost: _postComment,
+              onDelete: _deleteComment,
+              onReport: _reportComment,
+              onTapUser: _openUserProfile,
+            ),
           ),
         ],
       ),
@@ -725,9 +733,24 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onBack, required this.onReport});
+  const _TopBar({
+    required this.isCreator,
+    required this.onBack,
+    required this.onReport,
+    this.onDelete,
+    this.onJoinRequests,
+  });
+
+  final bool isCreator;
   final VoidCallback onBack;
   final VoidCallback onReport;
+  /// Only wired for creators. When null the "Delete challenge" item
+  /// is omitted from the overflow menu.
+  final VoidCallback? onDelete;
+  /// Only wired for creators. When null the "Join requests" item is
+  /// omitted from the overflow menu.
+  final VoidCallback? onJoinRequests;
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -743,16 +766,39 @@ class _TopBar extends StatelessWidget {
               color: BrandColors.inkSoft(context)),
           color: BrandColors.bgCard(context),
           onSelected: (v) {
-            if (v == 'report') onReport();
-            if (v == 'legend') {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const BadgeLegendScreen(),
-                ),
-              );
+            switch (v) {
+              case 'legend':
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const BadgeLegendScreen(),
+                  ),
+                );
+                break;
+              case 'report':
+                onReport();
+                break;
+              case 'join_requests':
+                onJoinRequests?.call();
+                break;
+              case 'delete':
+                onDelete?.call();
+                break;
             }
           },
           itemBuilder: (ctx) => [
+            if (isCreator && onJoinRequests != null)
+              PopupMenuItem(
+                value: 'join_requests',
+                child: Row(
+                  children: [
+                    Icon(Icons.inbox_rounded,
+                        color: AppColors.pinkLight, size: 18),
+                    const SizedBox(width: 8),
+                    Text('Join requests',
+                        style: TextStyle(color: BrandColors.ink(context))),
+                  ],
+                ),
+              ),
             PopupMenuItem(
               value: 'legend',
               child: Row(
@@ -777,6 +823,26 @@ class _TopBar extends StatelessWidget {
                 ],
               ),
             ),
+            if (isCreator && onDelete != null) ...[
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    const Icon(Icons.delete_outline_rounded,
+                        color: Color(0xFFFF6B81), size: 18),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Delete challenge',
+                      style: TextStyle(
+                        color: Color(0xFFFF6B81),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ],
@@ -864,6 +930,282 @@ class _CreatorRow extends StatelessWidget {
   }
 }
 
+/// Thin meta line under the creator row: category · duration · days
+/// left. Replaces the old fat _StatsRow tile grid for the "what is
+/// this challenge" facts — those live in one row now, small.
+class _MetaLine extends StatelessWidget {
+  const _MetaLine({required this.d});
+  final ChallengeDetail d;
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = <String>[
+      prettyCategory(d.category),
+      '${d.durationDays}d',
+      d.status == 'active'
+          ? '${d.daysRemaining} days left'
+          : d.status.toLowerCase(),
+    ];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (var i = 0; i < parts.length; i++) ...[
+          Text(
+            parts[i],
+            style: TextStyle(
+              color: BrandColors.inkDim(context),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
+            ),
+          ),
+          if (i < parts.length - 1)
+            Text(
+              '·',
+              style: TextStyle(
+                color: BrandColors.inkFaint(context),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Slim inline "N active · M% gave up · N in" stats line — one row,
+/// no card tiles. Replaces the old boxy _StatsRow so the middle of
+/// the page reads calmer.
+class _CompactStatsLine extends StatelessWidget {
+  const _CompactStatsLine({required this.d});
+  final ChallengeDetail d;
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = d.summary;
+    return Row(
+      children: [
+        _StatChip(
+          value: '${summary.activePct.toStringAsFixed(0)}%',
+          label: 'active',
+          color: AppColors.blueAccent,
+        ),
+        const SizedBox(width: 10),
+        _StatChip(
+          value: '${summary.gaveUpPct.toStringAsFixed(0)}%',
+          label: 'gave up',
+          color: AppColors.pinkLight,
+        ),
+        const SizedBox(width: 10),
+        _StatChip(
+          value: '${summary.participantCount}',
+          label: summary.participantCount == 1 ? 'person' : 'people',
+          color: AppColors.purpleLight,
+        ),
+      ],
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+  final String value;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.bricolageGrotesque(
+            color: color,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: BrandColors.inkDim(context),
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Slim engagement row — upvote toggle on the left, comment count on
+/// the right. Tapping the comment count expands the lazy comments
+/// section below. Deliberately minimal so it doesn't compete with
+/// the check-in hero above.
+class _EngagementRow extends StatelessWidget {
+  const _EngagementRow({
+    required this.detail,
+    required this.upvoting,
+    required this.onUpvote,
+    required this.onScrollToComments,
+  });
+  final ChallengeDetail detail;
+  final bool upvoting;
+  final VoidCallback onUpvote;
+  final VoidCallback onScrollToComments;
+
+  @override
+  Widget build(BuildContext context) {
+    final up = detail.userUpvoted;
+    return Row(
+      children: [
+        InkWell(
+          onTap: upvoting ? null : onUpvote,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: up
+                  ? AppColors.pink.withValues(alpha: 0.16)
+                  : BrandColors.bgCard(context).withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: up
+                    ? AppColors.pinkLight.withValues(alpha: 0.60)
+                    : AppColors.purple.withValues(alpha: 0.22),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  up
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  color: up ? AppColors.pinkLight : BrandColors.inkSoft(context),
+                  size: 15,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '${detail.upvoteCount}',
+                  style: TextStyle(
+                    color: up
+                        ? AppColors.pinkLight
+                        : BrandColors.inkSoft(context),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        InkWell(
+          onTap: onScrollToComments,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: BrandColors.bgCard(context).withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppColors.purple.withValues(alpha: 0.22),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.mode_comment_outlined,
+                    color: BrandColors.inkSoft(context), size: 14),
+                const SizedBox(width: 6),
+                Text(
+                  '${detail.commentCount}',
+                  style: TextStyle(
+                    color: BrandColors.inkSoft(context),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Wraps [child] behind a "View comments (N)" tap strip. Renders the
+/// strip when [expanded] is false and swaps in [child] once expanded.
+/// [child] should be the full CommentsSection (composer + list).
+class _LazyComments extends StatelessWidget {
+  const _LazyComments({
+    required this.expanded,
+    required this.onExpand,
+    required this.child,
+  });
+  final bool expanded;
+  final VoidCallback onExpand;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (expanded) return child;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onExpand,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+          decoration: BoxDecoration(
+            color: BrandColors.bgCard(context).withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.purple.withValues(alpha: 0.20),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.mode_comment_outlined,
+                  color: AppColors.pinkLight, size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'View comments',
+                  style: TextStyle(
+                    color: BrandColors.inkSoft(context),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded,
+                  color: BrandColors.inkSoft(context), size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Superseded by _CompactStatsLine (thin inline row). Kept for one
+// release in case the compact version needs to A/B against the old
+// tile grid.
+// ignore: unused_element
 class _StatsRow extends StatelessWidget {
   const _StatsRow({required this.d});
   final ChallengeDetail d;
@@ -1599,6 +1941,10 @@ class _GlowingInsignia extends StatelessWidget {
 // Upvote pill in the detail header
 // ──────────────────────────────────────────────────────────────────
 
+// Superseded by _EngagementRow (upvote + comment count together).
+// Kept for reference — the standalone upvote row was factored out
+// so we could pair upvote + comment count into one slim strip.
+// ignore: unused_element
 class _DetailUpvoteRow extends StatelessWidget {
   const _DetailUpvoteRow({
     required this.detail,
@@ -1936,6 +2282,10 @@ class _StatusCount extends StatelessWidget {
 /// panel + participants strip when `d.isCreator` — auto-joined
 /// creators still get to check in, this is the secondary "manage the
 /// challenge you run" surface.
+// Superseded — creator management (Join requests + Delete) moved
+// into the ⋮ overflow menu in _TopBar so the detail body reads
+// calmly without creator-only chrome mid-scroll.
+// ignore: unused_element
 class _CreatorManagementStrip extends StatelessWidget {
   const _CreatorManagementStrip({
     required this.onRequests,

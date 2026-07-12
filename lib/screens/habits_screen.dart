@@ -23,6 +23,7 @@ import '../widgets/tutorial_targets.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/freeze_modal.dart';
 import '../widgets/habit_card.dart';
+import '../widgets/habit_completion_calendar.dart';
 import '../widgets/responsive_container.dart';
 import '../widgets/tutorial_overlay.dart';
 import '../widgets/upgrade_prompt_bar.dart';
@@ -224,12 +225,25 @@ class _HabitsScreenState extends State<HabitsScreen> {
                               onSortChanged: _setSortMode,
                             ),
                             const SizedBox(height: 14),
+                            // Concise single-line "N of M done today"
+                            // — no streak chip; Home/Insights already
+                            // surface the top streak.
+                            _TodaySummaryLine(
+                              completed: completedToday,
+                              total: scheduled.length,
+                            ),
+                            const SizedBox(height: 10),
+                            // Compact week strip (moved off Home) — 7
+                            // day circles for the current week tinted
+                            // by completion %, today ringed. Swipe
+                            // right = previous week; tap the expand
+                            // chevron = unfurl the full month grid.
+                            HabitCompletionCalendar(repo: _repo),
+                            const SizedBox(height: 12),
                             // Collapsible category picker — one pill
                             // showing the current filter ("All ▾" by
                             // default); tap to expand into the full
-                            // chip strip. Replaces the always-visible
-                            // horizontal chip row so the top of the
-                            // screen is quiet by default.
+                            // chip strip.
                             _CollapsibleCategoryPicker(
                               identities: identities,
                               packageIds: activePackageIds,
@@ -253,14 +267,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                             // no-op for premium users, auto-hidden
                             // for the 5-day cool-off after dismissal.
                             const UpgradePromptBar(),
-                            // Concise single-line "N of M done today"
-                            // — no streak chip; Home/Insights already
-                            // surface the top streak.
-                            _TodaySummaryLine(
-                              completed: completedToday,
-                              total: scheduled.length,
-                            ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             if (all.isEmpty)
                               EmptyState(
                                 icon: Icons.check_circle_outline_rounded,

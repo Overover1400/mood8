@@ -30,7 +30,6 @@ import '../services/notification_feed_service.dart';
 import '../services/weekly_recap_service.dart';
 import '../services/pattern_detection_service.dart';
 import '../models/pattern_alert.dart';
-import '../widgets/habit_completion_calendar.dart';
 import '../widgets/upgrade_prompt_bar.dart';
 import '../widgets/pattern_alert_card.dart';
 import 'notifications_screen.dart';
@@ -873,15 +872,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         builder: (context, _, _) =>
                             ValueListenableBuilder<Box<HabitLog>>(
                           valueListenable: _habits.watchLogs(),
-                          builder: (context, _, _) => _TodayHabits(
-                            habits: _habits
-                                .getHabitsForDate(DateTime.now())
-                                .take(3)
-                                .toList(),
-                            repo: _habits,
-                            onSeeAll: () => MainNavigation.goToTab(
-                                context, kHabitsTabIndex),
-                          ),
+                          builder: (context, _, _) {
+                            // Cap Home at 10 habits (preserving the
+                            // repo's sort/manual order). Anything above
+                            // 10 gets a "See all (N)" tail row that
+                            // jumps to the Habits tab.
+                            const homeCap = 10;
+                            final all = _habits
+                                .getHabitsForDate(DateTime.now());
+                            return _TodayHabits(
+                              habits: all.take(homeCap).toList(),
+                              totalCount: all.length,
+                              cap: homeCap,
+                              repo: _habits,
+                              onSeeAll: () => MainNavigation.goToTab(
+                                  context, kHabitsTabIndex),
+                            );
+                          },
                         ),
                       )
                           .animate()
@@ -911,23 +918,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 curve: Curves.easeOutCubic),
                         const SizedBox(height: 28),
                       ],
-                      // Habit-completion month heatmap. Always-on;
-                      // pulls from the same HabitLog box the streak +
-                      // habit screens read so the colour scale is
-                      // consistent with what the user sees elsewhere.
-                      ValueListenableBuilder<Box<HabitLog>>(
-                        valueListenable: _habits.watchLogs(),
-                        builder: (context, _, _) =>
-                            ValueListenableBuilder<Box<Habit>>(
-                          valueListenable: _habits.watchHabits(),
-                          builder: (context, _, _) =>
-                              HabitCompletionCalendar(repo: _habits),
-                        ),
-                      )
-                          .animate()
-                          .fadeIn(delay: 500.ms, duration: 500.ms)
-                          .slideY(
-                              begin: 0.1, end: 0, curve: Curves.easeOutCubic),
+                      // Calendar heatmap moved off Home — now lives
+                      // as a compact one-line week strip at the top
+                      // of the Habits tab (with an expand chevron
+                      // for the full month grid). See
+                      // lib/widgets/habit_completion_calendar.dart.
                       const SizedBox(height: 100),
                     ],
                   ),
@@ -1734,17 +1729,27 @@ class _UpNextSection extends StatelessWidget {
 class _TodayHabits extends StatelessWidget {
   const _TodayHabits({
     required this.habits,
+    required this.totalCount,
+    required this.cap,
     required this.repo,
     required this.onSeeAll,
   });
 
   final List<Habit> habits;
+  /// Full unfiltered count of today's habits from the repo — used to
+  /// decide whether to show the "See all (N)" tail row and what
+  /// number to show inside it. Always `>= habits.length`.
+  final int totalCount;
+  /// The cap we clipped [habits] to (currently 10). Only render the
+  /// tail row when the caller had strictly more than this.
+  final int cap;
   final HabitRepository repo;
   final VoidCallback onSeeAll;
 
   @override
   Widget build(BuildContext context) {
     if (habits.isEmpty) return const SizedBox.shrink();
+    final hasMore = totalCount > cap;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1775,7 +1780,73 @@ class _TodayHabits extends StatelessWidget {
           _MiniHabitRow(habit: habits[i], repo: repo),
           if (i < habits.length - 1) const SizedBox(height: 10),
         ],
+        // Tail row — only when the user has more than [cap] habits.
+        // Preserves the repo ordering; the extra ones are one tap
+        // away on the Habits tab.
+        if (hasMore) ...[
+          const SizedBox(height: 10),
+          _SeeAllHabitsRow(
+            totalCount: totalCount,
+            onTap: onSeeAll,
+          ),
+        ],
       ],
+    );
+  }
+}
+
+class _SeeAllHabitsRow extends StatelessWidget {
+  const _SeeAllHabitsRow({
+    required this.totalCount,
+    required this.onTap,
+  });
+  final int totalCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: BrandColors.bgCard(context).withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: AppColors.purple.withValues(alpha: 0.28),
+              style: BorderStyle.solid,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.expand_more_rounded,
+                color: AppColors.purpleLight,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'See all ($totalCount)',
+                style: TextStyle(
+                  color: BrandColors.ink(context),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: BrandColors.inkSoft(context),
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
