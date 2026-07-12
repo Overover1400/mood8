@@ -21,6 +21,8 @@ class ChallengeCreator {
     required this.creatorScore,
     required this.profileBadge,
     required this.avatarUrl,
+    required this.challengeScore,
+    required this.challengeTier,
   });
 
   final int? id;
@@ -28,6 +30,11 @@ class ChallengeCreator {
   final int creatorScore;
   final String? profileBadge;
   final String? avatarUrl;
+  /// Global Challenge Score for this creator (lifetime, all challenges).
+  /// Older backends omit this; default 0. Surfaced as a score prefix
+  /// chip next to the creator name in card previews and detail pages.
+  final int challengeScore;
+  final String challengeTier;
 
   factory ChallengeCreator.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
@@ -37,6 +44,8 @@ class ChallengeCreator {
         creatorScore: 0,
         profileBadge: null,
         avatarUrl: null,
+        challengeScore: 0,
+        challengeTier: 'Bronze',
       );
     }
     return ChallengeCreator(
@@ -45,6 +54,8 @@ class ChallengeCreator {
       creatorScore: (json['creator_score'] as num?)?.toInt() ?? 0,
       profileBadge: json['profile_badge'] as String?,
       avatarUrl: json['avatar_url'] as String?,
+      challengeScore: (json['challenge_score'] as num?)?.toInt() ?? 0,
+      challengeTier: (json['challenge_tier'] as String?) ?? 'Bronze',
     );
   }
 }
@@ -55,15 +66,21 @@ class ParticipantPreview {
     required this.id,
     required this.name,
     required this.avatarUrl,
+    required this.challengeScore,
+    required this.challengeTier,
   });
   final int id;
   final String name;
   final String? avatarUrl;
+  final int challengeScore;
+  final String challengeTier;
   factory ParticipantPreview.fromJson(Map<String, dynamic> json) =>
       ParticipantPreview(
         id: (json['id'] as num).toInt(),
         name: (json['name'] as String?) ?? 'Anonymous',
         avatarUrl: json['avatar_url'] as String?,
+        challengeScore: (json['challenge_score'] as num?)?.toInt() ?? 0,
+        challengeTier: (json['challenge_tier'] as String?) ?? 'Bronze',
       );
 }
 
@@ -359,6 +376,8 @@ class ChallengeComment {
     required this.userName,
     required this.userAvatarUrl,
     required this.userProfileBadge,
+    required this.userChallengeScore,
+    required this.userChallengeTier,
     required this.text,
     required this.createdAt,
   });
@@ -369,6 +388,8 @@ class ChallengeComment {
   final String userName;
   final String? userAvatarUrl;
   final String? userProfileBadge;
+  final int userChallengeScore;
+  final String userChallengeTier;
   final String text;
   final DateTime createdAt;
 
@@ -381,6 +402,8 @@ class ChallengeComment {
       userName: (user['name'] as String?) ?? 'Anonymous',
       userAvatarUrl: user['avatar_url'] as String?,
       userProfileBadge: user['profile_badge'] as String?,
+      userChallengeScore: (user['challenge_score'] as num?)?.toInt() ?? 0,
+      userChallengeTier: (user['challenge_tier'] as String?) ?? 'Bronze',
       text: (json['text'] as String?) ?? '',
       createdAt: _parseServerUtc(json['created_at']),
     );
@@ -424,6 +447,8 @@ class JoinRequest {
     required this.userAvatarUrl,
     required this.creatorScore,
     required this.profileBadge,
+    required this.challengeScore,
+    required this.challengeTier,
     required this.createdAt,
   });
 
@@ -433,6 +458,8 @@ class JoinRequest {
   final String? userAvatarUrl;
   final int creatorScore;
   final String? profileBadge;
+  final int challengeScore;
+  final String challengeTier;
   final DateTime createdAt;
 
   factory JoinRequest.fromJson(Map<String, dynamic> json) {
@@ -444,6 +471,8 @@ class JoinRequest {
       userAvatarUrl: user['avatar_url'] as String?,
       creatorScore: (user['creator_score'] as num?)?.toInt() ?? 0,
       profileBadge: user['profile_badge'] as String?,
+      challengeScore: (user['challenge_score'] as num?)?.toInt() ?? 0,
+      challengeTier: (user['challenge_tier'] as String?) ?? 'Bronze',
       createdAt: _parseServerUtc(json['created_at']),
     );
   }

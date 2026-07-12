@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../models/challenge.dart';
 import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/challenge_score_chip.dart';
 import '../../widgets/challenges/network_avatar.dart';
 import '../../widgets/challenges/rank_insignia.dart';
 import '../../widgets/responsive_container.dart';
@@ -298,7 +299,7 @@ class _ParticipantRow extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        _CompactScoreChip(
+                        ChallengeScoreChip(
                           score: p.challengeScore,
                           tier: p.challengeTier,
                         ),
@@ -341,54 +342,3 @@ class _ParticipantRow extends StatelessWidget {
   }
 }
 
-/// Compact tier-colored "1,250 pts" chip shown next to a participant
-/// name in the roster. Deliberately small so the primary read stays
-/// name + avatar + rank insignia. Renders nothing when the score is
-/// 0 so new users don't get a "Bronze · 0 pts" chip cluttering every
-/// row.
-class _CompactScoreChip extends StatelessWidget {
-  const _CompactScoreChip({required this.score, required this.tier});
-  final int score;
-  final String tier;
-
-  static String _formatScore(int s) {
-    if (s < 1000) return '$s';
-    // 1250 → "1.3k", 15000 → "15k". Terse so the chip stays narrow
-    // in rows that already carry name + rank insignia.
-    if (s < 10000) {
-      final k = s / 1000;
-      return '${k.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')}k';
-    }
-    return '${(s / 1000).round()}k';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (score <= 0) return const SizedBox.shrink();
-    final c = tierColor(tier);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: c.withValues(alpha: 0.50), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.emoji_events_rounded, color: c, size: 11),
-          const SizedBox(width: 3),
-          Text(
-            _formatScore(score),
-            style: TextStyle(
-              color: c,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

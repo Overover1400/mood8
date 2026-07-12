@@ -1459,14 +1459,12 @@ class _AddTile extends StatelessWidget {
   }
 }
 
-/// Compact check-in: heading + three sliders. No mood orb, no save
-/// button — the parent owns a 2-second debounced auto-save that fires
-/// when the user stops touching sliders. [savedFlash] briefly shows a
-/// "Saved ✓" stamp in the header after each silent save.
-/// Two-column top surface for Home: compact stat stack on the left,
-/// mood/energy/focus check-in on the right. Stacks vertically below
-/// [_stackBreakpoint] so the sliders don't get squeezed on narrow
-/// devices — tested down to 320dp width.
+/// Home top surface: one slim inline stats row above the full-width
+/// mood/energy/focus check-in. The previous two-column layout is
+/// gone — Streak · Today · Discipline now render as three small
+/// inline items (icon + value + tiny label) sharing one line, with
+/// no card containers behind them, reclaiming ~140dp of vertical
+/// space on Home.
 class _HomeHero extends StatelessWidget {
   const _HomeHero({
     required this.streak,
@@ -1499,76 +1497,40 @@ class _HomeHero extends StatelessWidget {
   final ValueChanged<double> onFocus;
   final ValueChanged<double> onSliderEnd;
 
-  /// Below this width the sliders on the right column would sit
-  /// under ~200dp — too tight for a comfortable finger drag. Stack
-  /// to single-column instead so the sliders take the full width.
-  /// 380dp lands us above every 320-360dp phone (where stacking is
-  /// the right call) while still triggering two-column on standard
-  /// modern phones (400dp+).
-  static const _stackBreakpoint = 380.0;
-
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, c) {
-      final wide = c.maxWidth >= _stackBreakpoint;
-      final stats = _CompactStatsColumn(
-        streak: streak,
-        completedToday: completedToday,
-        totalToday: totalToday,
-        disciplineScore: disciplineScore,
-        onTapDiscipline: onTapDiscipline,
-      );
-      final checkIn = _MoodHeroCard(
-        mood: mood,
-        energy: energy,
-        focus: focus,
-        savedFlash: savedFlash,
-        onMood: onMood,
-        onEnergy: onEnergy,
-        onFocus: onFocus,
-        onSliderEnd: onSliderEnd,
-      );
-      if (!wide) {
-        // Narrow: stats compact row (horizontal) + check-in below,
-        // full-width sliders as before the redesign.
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _StatsRow(
-              streak: streak,
-              completedToday: completedToday,
-              totalToday: totalToday,
-              disciplineScore: disciplineScore,
-              onTapDiscipline: onTapDiscipline,
-            ),
-            const SizedBox(height: 14),
-            checkIn,
-          ],
-        );
-      }
-      // Wide: 40 / 60 split. `IntrinsicHeight` so the stats column
-      // matches the check-in's height (they don't need to be equal —
-      // but this keeps the vertical spacer between stat tiles even
-      // as the check-in card grows/shrinks).
-      return IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(flex: 40, child: stats),
-            const SizedBox(width: 12),
-            Expanded(flex: 60, child: checkIn),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _InlineStatsRow(
+          streak: streak,
+          completedToday: completedToday,
+          totalToday: totalToday,
+          disciplineScore: disciplineScore,
+          onTapDiscipline: onTapDiscipline,
         ),
-      );
-    });
+        const SizedBox(height: 12),
+        _MoodHeroCard(
+          mood: mood,
+          energy: energy,
+          focus: focus,
+          savedFlash: savedFlash,
+          onMood: onMood,
+          onEnergy: onEnergy,
+          onFocus: onFocus,
+          onSliderEnd: onSliderEnd,
+        ),
+      ],
+    );
   }
 }
 
-/// Vertical stack of three compact stat pills: Streak · Today ·
-/// Discipline. Deliberately smaller than the full StatCard so it
-/// pairs with the check-in on the right without dominating.
-class _CompactStatsColumn extends StatelessWidget {
-  const _CompactStatsColumn({
+/// Ultra-compact single-line stats row: three inline items sharing
+/// one line. No card containers, no background boxes — just tinted
+/// icon glyphs, bold value, tiny uppercase label. Sized to fit at
+/// 320dp with generous ellipsis fallback on the label.
+class _InlineStatsRow extends StatelessWidget {
+  const _InlineStatsRow({
     required this.streak,
     required this.completedToday,
     required this.totalToday,
@@ -1584,11 +1546,10 @@ class _CompactStatsColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
       children: [
         Expanded(
-          child: _MiniStatTile(
+          child: _InlineStat(
             emoji: '🔥',
             value: '$streak',
             label: 'Streak',
@@ -1596,19 +1557,19 @@ class _CompactStatsColumn extends StatelessWidget {
             onTap: null,
           ),
         ),
-        const SizedBox(height: 8),
+        _InlineDivider(),
         Expanded(
-          child: _MiniStatTile(
+          child: _InlineStat(
             emoji: '⚡',
-            value: '$completedToday / $totalToday',
+            value: '$completedToday/$totalToday',
             label: 'Today',
             accent: AppColors.blueAccent,
             onTap: null,
           ),
         ),
-        const SizedBox(height: 8),
+        _InlineDivider(),
         Expanded(
-          child: _MiniStatTile(
+          child: _InlineStat(
             emoji: '🏆',
             value: disciplineScore == 0 ? '—' : '$disciplineScore',
             label: 'Discipline',
@@ -1621,8 +1582,20 @@ class _CompactStatsColumn extends StatelessWidget {
   }
 }
 
-class _MiniStatTile extends StatelessWidget {
-  const _MiniStatTile({
+class _InlineDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 22,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      color: BrandColors.inkDim(context).withValues(alpha: 0.18),
+    );
+  }
+}
+
+class _InlineStat extends StatelessWidget {
+  const _InlineStat({
     required this.emoji,
     required this.value,
     required this.label,
@@ -1637,60 +1610,40 @@ class _MiniStatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: BrandColors.bgCard(context).withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: accent.withValues(alpha: 0.28),
-        ),
-      ),
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 26,
-            height: 26,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  accent.withValues(alpha: 0.35),
-                  accent.withValues(alpha: 0.05),
+          Text(emoji, style: const TextStyle(fontSize: 14)),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: value,
+                    style: TextStyle(
+                      color: BrandColors.ink(context),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      height: 1.0,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                  TextSpan(
+                    text: '  ${label.toUpperCase()}',
+                    style: TextStyle(
+                      color: accent.withValues(alpha: 0.85),
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
                 ],
               ),
-            ),
-            child: Text(emoji, style: const TextStyle(fontSize: 13)),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: BrandColors.ink(context),
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w800,
-                    height: 1.05,
-                  ),
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  label.toUpperCase(),
-                  style: TextStyle(
-                    color: BrandColors.inkDim(context),
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ],
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -1701,7 +1654,7 @@ class _MiniStatTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         child: content,
       ),
     );
@@ -1822,59 +1775,6 @@ class _MoodHeroCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _StatsRow extends StatelessWidget {
-  const _StatsRow({
-    required this.streak,
-    required this.completedToday,
-    required this.totalToday,
-    required this.disciplineScore,
-    required this.onTapDiscipline,
-  });
-
-  final int streak;
-  final int completedToday;
-  final int totalToday;
-  final int disciplineScore;
-  final VoidCallback onTapDiscipline;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: StatCard(
-            label: 'Streak',
-            value: '$streak',
-            emoji: '🔥',
-            accent: AppColors.pinkLight,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: StatCard(
-            label: 'Today',
-            value: '$completedToday / $totalToday',
-            emoji: '⚡',
-            accent: AppColors.blueAccent,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: GestureDetector(
-            onTap: onTapDiscipline,
-            child: StatCard(
-              label: 'Discipline',
-              value: disciplineScore == 0 ? '—' : '$disciplineScore',
-              emoji: '🏆',
-              accent: AppColors.purpleLight,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../models/challenge.dart';
 import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
+import '../challenge_score_chip.dart';
 import 'network_avatar.dart';
 import 'user_badge_chip.dart';
 
@@ -192,9 +193,17 @@ class _CreatorRow extends StatelessWidget {
           size: 20,
         ),
         const SizedBox(width: 8),
+        if (creator.challengeScore > 0) ...[
+          ChallengeScoreChip(
+            score: creator.challengeScore,
+            tier: creator.challengeTier,
+            dense: true,
+          ),
+          const SizedBox(width: 6),
+        ],
         Flexible(
           child: Text(
-            'by ${creator.name}',
+            creator.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(

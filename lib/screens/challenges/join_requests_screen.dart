@@ -6,6 +6,7 @@ import '../../models/challenge.dart';
 import '../../services/challenge_service.dart';
 import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/challenge_score_chip.dart';
 import '../../widgets/challenges/network_avatar.dart';
 import '../../widgets/challenges/user_badge_chip.dart';
 import '../../widgets/responsive_container.dart';
@@ -226,13 +227,29 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          r.userName,
-                          style: TextStyle(
-                            color: BrandColors.ink(context),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        Row(
+                          children: [
+                            if (r.challengeScore > 0) ...[
+                              ChallengeScoreChip(
+                                score: r.challengeScore,
+                                tier: r.challengeTier,
+                                dense: true,
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            Flexible(
+                              child: Text(
+                                r.userName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: BrandColors.ink(context),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 3),
                         UserBadgeChip(

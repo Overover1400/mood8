@@ -11,6 +11,7 @@ import '../../services/auth_service.dart';
 import '../../services/challenge_service.dart';
 import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/challenge_score_chip.dart';
 import '../../widgets/challenges/network_avatar.dart';
 import '../../widgets/challenges/rank_insignia.dart';
 import '../../widgets/challenges/user_badge_chip.dart';
@@ -639,30 +640,16 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                 : null,
           ),
           const SizedBox(height: 4),
-          // 1. Title (big, editorial) + compact creator row + a thin
-          //    meta line pulling category / duration / days-left into
-          //    one horizontal row instead of a card grid.
-          Text(
-            d.title,
-            style: GoogleFonts.bricolageGrotesque(
-              color: BrandColors.ink(context),
-              fontSize: 30,
-              height: 1.1,
-            ),
-          ),
+          // 1. Title (gradient shader for a premium, editorial feel)
+          //    + compact creator row + glowing meta chips replacing
+          //    the old dot-separated text line.
+          _GradientTitle(text: d.title),
           const SizedBox(height: 12),
           _CreatorRow(d: d),
-          const SizedBox(height: 10),
-          _MetaLine(d: d),
+          const SizedBox(height: 12),
+          _MetaChips(d: d),
           const SizedBox(height: 18),
-          Text(
-            d.description,
-            style: TextStyle(
-              color: BrandColors.inkSoft(context),
-              fontSize: 14.5,
-              height: 1.55,
-            ),
-          ),
+          _DescriptionBlock(text: d.description),
           const SizedBox(height: 22),
           // 2. HERO — check-in control. For active participants
           //    (creator included) this is the single most prominent
@@ -886,13 +873,28 @@ class _CreatorRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  d.creator.name,
-                  style: TextStyle(
-                    color: BrandColors.ink(context),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
+                Row(
+                  children: [
+                    if (d.creator.challengeScore > 0) ...[
+                      ChallengeScoreChip(
+                        score: d.creator.challengeScore,
+                        tier: d.creator.challengeTier,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Flexible(
+                      child: Text(
+                        d.creator.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: BrandColors.ink(context),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 3),
                 UserBadgeChip(
@@ -930,48 +932,214 @@ class _CreatorRow extends StatelessWidget {
   }
 }
 
-/// Thin meta line under the creator row: category · duration · days
-/// left. Replaces the old fat _StatsRow tile grid for the "what is
-/// this challenge" facts — those live in one row now, small.
-class _MetaLine extends StatelessWidget {
-  const _MetaLine({required this.d});
+/// Editorial gradient-shader title. Uses the brand purple→pink→pink-
+/// light gradient masked over Bricolage Grotesque so the challenge
+/// name reads as the visual anchor of the page without needing a
+/// bg-card container. Falls back to solid ink if the shader can't
+/// resolve (never observed in practice; belt-and-suspenders).
+class _GradientTitle extends StatelessWidget {
+  const _GradientTitle({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return ShaderMask(
+      blendMode: BlendMode.srcIn,
+      shaderCallback: (bounds) => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          AppColors.pinkLight,
+          AppColors.pink,
+          AppColors.purpleLight,
+        ],
+      ).createShader(bounds),
+      child: Text(
+        text,
+        style: GoogleFonts.bricolageGrotesque(
+          color: Colors.white,
+          fontSize: 30,
+          height: 1.1,
+          letterSpacing: -0.2,
+        ),
+      ),
+    );
+  }
+}
+
+/// Fancy glowing pill chips for the challenge meta. The category chip
+/// carries a soft brand-gradient background + glow so it visually
+/// tags the challenge domain; duration + days-left use a calmer
+/// bordered-glass style with a subtle accent-tinted glow so the row
+/// stays hierarchical (category > duration > days-left). Wraps at
+/// narrow widths so 320dp stays safe.
+class _MetaChips extends StatelessWidget {
+  const _MetaChips({required this.d});
   final ChallengeDetail d;
 
   @override
   Widget build(BuildContext context) {
-    final parts = <String>[
-      prettyCategory(d.category),
-      '${d.durationDays}d',
-      d.status == 'active'
-          ? '${d.daysRemaining} days left'
-          : d.status.toLowerCase(),
-    ];
     return Wrap(
       spacing: 8,
-      runSpacing: 4,
-      crossAxisAlignment: WrapCrossAlignment.center,
+      runSpacing: 8,
       children: [
-        for (var i = 0; i < parts.length; i++) ...[
+        _CategoryPill(label: prettyCategory(d.category)),
+        _MetaPill(
+          icon: Icons.schedule_rounded,
+          label: '${d.durationDays}d',
+          accent: AppColors.blueAccent,
+        ),
+        _MetaPill(
+          icon: d.status == 'active'
+              ? Icons.timelapse_rounded
+              : Icons.check_circle_rounded,
+          label: d.status == 'active'
+              ? '${d.daysRemaining} days left'
+              : d.status.toLowerCase(),
+          accent: d.status == 'active'
+              ? AppColors.pinkLight
+              : AppColors.purpleLight,
+        ),
+      ],
+    );
+  }
+}
+
+class _CategoryPill extends StatelessWidget {
+  const _CategoryPill({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.purple.withValues(alpha: 0.35),
+            AppColors.pink.withValues(alpha: 0.30),
+            AppColors.pinkLight.withValues(alpha: 0.25),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: AppColors.pinkLight.withValues(alpha: 0.55),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.pink.withValues(alpha: 0.28),
+            blurRadius: 14,
+            spreadRadius: -4,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: BrandColors.ink(context),
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+}
+
+class _MetaPill extends StatelessWidget {
+  const _MetaPill({
+    required this.icon,
+    required this.label,
+    required this.accent,
+  });
+  final IconData icon;
+  final String label;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: accent.withValues(alpha: 0.42),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.18),
+            blurRadius: 10,
+            spreadRadius: -3,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: accent, size: 12),
+          const SizedBox(width: 5),
           Text(
-            parts[i],
+            label,
             style: TextStyle(
-              color: BrandColors.inkDim(context),
+              color: BrandColors.inkSoft(context),
               fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.3,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
             ),
           ),
-          if (i < parts.length - 1)
-            Text(
-              '·',
-              style: TextStyle(
-                color: BrandColors.inkFaint(context),
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
         ],
-      ],
+      ),
+    );
+  }
+}
+
+/// Soft-container description block. Adds a whisper of brand gradient
+/// on the left edge + comfortable reading padding so the description
+/// stops looking like a plain text dump under the meta line, without
+/// stealing focus from the check-in hero below.
+class _DescriptionBlock extends StatelessWidget {
+  const _DescriptionBlock({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    if (text.trim().isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.purple.withValues(alpha: 0.08),
+            AppColors.pink.withValues(alpha: 0.04),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.55, 1.0],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border(
+          left: BorderSide(
+            color: AppColors.pinkLight.withValues(alpha: 0.55),
+            width: 2.5,
+          ),
+        ),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: BrandColors.inkSoft(context),
+          fontSize: 14.5,
+          height: 1.55,
+        ),
+      ),
     );
   }
 }
@@ -2551,15 +2719,27 @@ class _CommentTile extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    GestureDetector(
-                      onTap: onTap,
-                      behavior: HitTestBehavior.opaque,
-                      child: Text(
-                        comment.userName,
-                        style: TextStyle(
-                          color: BrandColors.ink(context),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
+                    if (comment.userChallengeScore > 0) ...[
+                      ChallengeScoreChip(
+                        score: comment.userChallengeScore,
+                        tier: comment.userChallengeTier,
+                        dense: true,
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Flexible(
+                      child: GestureDetector(
+                        onTap: onTap,
+                        behavior: HitTestBehavior.opaque,
+                        child: Text(
+                          comment.userName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: BrandColors.ink(context),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ),

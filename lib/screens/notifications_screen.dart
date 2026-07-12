@@ -282,6 +282,8 @@ class _NotificationTile extends StatelessWidget {
             tone: AppColors.purpleLight);
       case 'challenge_upvote':
         return (icon: Icons.favorite_rounded, tone: AppColors.pink);
+      case 'challenge_thread_activity':
+        return (icon: Icons.forum_rounded, tone: AppColors.purpleLight);
       default:
         return (icon: Icons.notifications_rounded,
             tone: BrandColors.inkSoft(context));
