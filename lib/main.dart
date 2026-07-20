@@ -42,6 +42,22 @@ import 'theme/app_theme_light.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Boot work is best-effort. Every `await` in `_boot()` is a chance to
+  // throw — a corrupt Hive box, a migration on unexpected data, a plugin
+  // that isn't implemented on some platform. Before this guard, any one
+  // of those killed `main()` BEFORE `runApp` and the user got a blank
+  // white page with no way back and nothing on screen to explain it.
+  // Catch everything so the app always reaches its first frame: a
+  // degraded app beats no app.
+  try {
+    await _boot();
+  } catch (e, st) {
+    debugPrint('[Boot] startup failed, starting app anyway: $e\n$st');
+  }
+  runApp(const Mood8App());
+}
+
+Future<void> _boot() async {
   // Crash reporting FIRST so any exception thrown by the setup
   // below still gets recorded. `_initCrashlytics` is fully wrapped:
   // Firebase / Crashlytics failing (missing google-services.json,
@@ -152,7 +168,6 @@ Future<void> main() async {
     // ignore: discarded_futures
     TimezoneSyncService().syncIfNeeded();
   }
-  runApp(const Mood8App());
 }
 
 /// One-shot cleanup for users upgrading over a broken release build.
