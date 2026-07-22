@@ -355,6 +355,75 @@ class SubscriptionService extends ChangeNotifier {
       return null;
     }
   }
+
+  /// Redeem a free-access / comp code. Grants Premium server-side via the
+  /// SAME entitlement path Stripe uses (tagged source="promo"), so on
+  /// success we just refresh status and the whole app sees Premium.
+  ///
+  /// This is a FREE path only — it never touches checkout or prices, so
+  /// it's safe to surface inside the Android app (Play policy).
+  Future<PromoRedeemResult> redeemPromoCode(String code) async {
+    final trimmed = code.trim();
+    if (trimmed.isEmpty) {
+      return const PromoRedeemResult(
+        success: false, message: 'Enter a code to redeem.');
+    }
+    if (_bearer == null) {
+      return const PromoRedeemResult(
+        success: false, message: 'Please sign in to redeem a code.');
+    }
+    try {
+      final res = await _client
+          .post(
+            Uri.parse('$_baseUrl/promo/redeem'),
+            headers: {..._authHeaders, 'content-type': 'application/json'},
+            body: jsonEncode({'code': trimmed}),
+          )
+          .timeout(_timeout);
+      final body = _tryDecode(res.body);
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        // Pull the canonical entitlement so every gated surface flips to
+        // Premium immediately — no app restart, no manual refresh.
+        await refreshStatus();
+        final msg = body?['message'] as String? ?? 'Code redeemed 🎉';
+        return PromoRedeemResult(success: true, message: msg);
+      }
+      // Backend sends {"detail": {"error": ..., "message": ...}} for the
+      // friendly cases. Fall back to a generic line otherwise.
+      final detail = body?['detail'];
+      String message = 'That code could not be redeemed.';
+      if (detail is Map && detail['message'] is String) {
+        message = detail['message'] as String;
+      } else if (detail is String) {
+        message = detail;
+      }
+      return PromoRedeemResult(success: false, message: message);
+    } on TimeoutException {
+      return const PromoRedeemResult(
+        success: false, message: 'Timed out — check your connection.');
+    } catch (e) {
+      debugPrint('[Subscription] redeemPromoCode error: $e');
+      return const PromoRedeemResult(
+        success: false, message: 'Something went wrong. Try again.');
+    }
+  }
+
+  Map<String, dynamic>? _tryDecode(String body) {
+    try {
+      final v = jsonDecode(body);
+      return v is Map<String, dynamic> ? v : null;
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+/// Result of a promo-code redemption attempt. [message] is always
+/// user-facing copy (success celebration or a friendly error).
+class PromoRedeemResult {
+  const PromoRedeemResult({required this.success, required this.message});
+  final bool success;
+  final String message;
 }
 
 /// Stripe-computed quote for what an in-place cadence swap (monthly

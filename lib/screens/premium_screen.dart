@@ -95,6 +95,12 @@ class PremiumScreen extends StatelessWidget {
                         ),
                       ),
                     ),
+                    // "Have a code?" — free-access redemption. Deliberately
+                    // separate from all pricing/checkout above: it never
+                    // mentions money and never opens a purchase flow, so
+                    // it's safe to show inside the Android app.
+                    const SizedBox(height: 26),
+                    const _RedeemCodeCard(),
                   ],
                 ),
               ),
@@ -509,6 +515,221 @@ class _GradientCTA extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// "Have a code?" — redeem a comp / free-access code for Premium time.
+/// Free path only: no prices, no checkout, no store links (Play-safe on
+/// Android). On success the app's Premium status refreshes immediately.
+class _RedeemCodeCard extends StatefulWidget {
+  const _RedeemCodeCard();
+
+  @override
+  State<_RedeemCodeCard> createState() => _RedeemCodeCardState();
+}
+
+class _RedeemCodeCardState extends State<_RedeemCodeCard> {
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focus = FocusNode();
+  bool _busy = false;
+  String? _message;
+  bool _ok = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _redeem() async {
+    if (_busy) return;
+    final code = _controller.text.trim();
+    if (code.isEmpty) {
+      setState(() {
+        _ok = false;
+        _message = 'Enter a code to redeem.';
+      });
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    HapticService().light();
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+    final result = await SubscriptionService().redeemPromoCode(code);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _ok = result.success;
+      _message = result.message;
+    });
+    if (result.success) {
+      HapticService().reward();
+      _controller.clear();
+    } else {
+      HapticService().medium();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+      decoration: BoxDecoration(
+        color: BrandColors.bgCard(context).withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: AppColors.purple.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.redeem_rounded,
+                  color: AppColors.pinkLight, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                'Have a code?',
+                style: GoogleFonts.bricolageGrotesque(
+                  color: BrandColors.ink(context),
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Redeem a Mood8 access code for Premium.',
+            style: TextStyle(
+              color: BrandColors.inkSoft(context),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focus,
+                  enabled: !_busy,
+                  textCapitalization: TextCapitalization.characters,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _redeem(),
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Enter code',
+                    hintStyle: TextStyle(
+                      color: BrandColors.inkDim(context),
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                    filled: true,
+                    fillColor: BrandColors.bgDeep(context)
+                        .withValues(alpha: 0.5),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 14),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: AppColors.purple.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: AppColors.pinkLight.withValues(alpha: 0.6),
+                        width: 1.5,
+                      ),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              GestureDetector(
+                onTap: _busy ? null : _redeem,
+                child: Container(
+                  height: 52,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.buttonGradient,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.pink.withValues(alpha: 0.35),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: _busy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text(
+                          'Redeem',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
+          if (_message != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  _ok
+                      ? Icons.check_circle_rounded
+                      : Icons.error_outline_rounded,
+                  color: _ok
+                      ? const Color(0xFF34D399)
+                      : AppColors.pinkLight,
+                  size: 17,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _message!,
+                    style: TextStyle(
+                      color: _ok
+                          ? const Color(0xFF34D399)
+                          : BrandColors.inkSoft(context),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }
