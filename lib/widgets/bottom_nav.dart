@@ -52,6 +52,14 @@ const int kProgressTabIndex = kRoutineEnabled ? 5 : 4;
 // route correctly.
 const int kInsightsTabIndex = kProgressTabIndex;
 
+/// Live GlobalKeys for each visible bottom-nav tab, one per [kNavItems]
+/// (index == tab index). Overlays that need to spotlight a tab — the
+/// welcome tutorial — read the button's real on-screen RenderBox through
+/// these instead of recomputing nav geometry, so the highlight stays
+/// glued to the tab at any width, font scale, or platform.
+final List<GlobalKey> kNavTabKeys =
+    List<GlobalKey>.generate(kNavItems.length, (i) => GlobalKey());
+
 class MoodBottomNav extends StatelessWidget {
   const MoodBottomNav({
     super.key,
@@ -101,6 +109,7 @@ class MoodBottomNav extends StatelessWidget {
             for (var i = 0; i < kNavItems.length; i++)
               Expanded(
                 child: _NavButton(
+                  key: kNavTabKeys[i],
                   item: kNavItems[i],
                   selected: i == currentIndex,
                   onTap: () => onTap(i),
@@ -115,6 +124,7 @@ class MoodBottomNav extends StatelessWidget {
 
 class _NavButton extends StatelessWidget {
   const _NavButton({
+    super.key,
     required this.item,
     required this.selected,
     required this.onTap,

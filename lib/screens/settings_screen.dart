@@ -402,15 +402,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           subtitle: 'Coming soon',
                           onTap: () => _comingSoon('Sync'),
                         ),
-                        SettingsTile(
-                          icon: Icons.no_accounts_rounded,
-                          title: 'Delete account',
-                          subtitle: AuthService().isAuthenticated
-                              ? 'Permanently remove your account and all data'
-                              : 'Erase everything stored on this device',
-                          destructive: true,
-                          onTap: _openDeleteAccount,
-                        ),
+                        // Delete account intentionally lives at the very
+                        // bottom of Settings now (below the footer), as a
+                        // small quiet link — see _QuietDeleteAccountLink —
+                        // so it's not hit by accident.
                       ],
                     ),
                     SettingsSection(
@@ -1098,6 +1093,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 24),
+                    // Delete account — the very last thing on the screen and
+                    // deliberately quiet (small, muted destructive text) so
+                    // it's never tapped by accident. Behaviour is unchanged.
+                    Center(
+                      child: TextButton(
+                        onPressed: _openDeleteAccount,
+                        style: TextButton.styleFrom(
+                          foregroundColor:
+                              const Color(0xFFFF6B81).withValues(alpha: 0.7),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          'Delete account',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                   ],
                 ),
               );

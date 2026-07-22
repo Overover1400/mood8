@@ -220,10 +220,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _Header(
-                              sortMode: _sortMode,
-                              onSortChanged: _setSortMode,
-                            ),
+                            const _Header(),
                             const SizedBox(height: 14),
                             // Concise single-line "N of M done today"
                             // — no streak chip; Home/Insights already
@@ -243,7 +240,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
                             // Collapsible category picker — one pill
                             // showing the current filter ("All ▾" by
                             // default); tap to expand into the full
-                            // chip strip.
+                            // chip strip. This is now the PRIMARY control
+                            // at the top of the list; the sort/reorder
+                            // pencil sits just beneath it (right-aligned).
                             _CollapsibleCategoryPicker(
                               identities: identities,
                               packageIds: activePackageIds,
@@ -251,6 +250,20 @@ class _HabitsScreenState extends State<HabitsScreen> {
                               value: _filter,
                               onChanged: (v) =>
                                   setState(() => _filter = v),
+                            ),
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: _SortButton(
+                                current: _sortMode,
+                                onSelect: _setSortMode,
+                                manualActive: _manualReorderActive,
+                                onToggleReorder: () {
+                                  HapticService().selection();
+                                  setState(() => _manualReorderActive =
+                                      !_manualReorderActive);
+                                },
+                              ),
                             ),
                             if (_filter.startsWith(_kPackagePrefix)) ...[
                               const SizedBox(height: 10),
@@ -262,11 +275,6 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                     _confirmDeletePackage(visible),
                               ),
                             ],
-                            const SizedBox(height: 12),
-                            // Free-tier upgrade nudge — dismissible,
-                            // no-op for premium users, auto-hidden
-                            // for the 5-day cool-off after dismissal.
-                            const UpgradePromptBar(),
                             const SizedBox(height: 12),
                             if (all.isEmpty)
                               EmptyState(
@@ -292,15 +300,10 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                 ),
                               )
                             else if (_sortMode == HabitSortMode.manual) ...[
-                              _ManualLockBar(
-                                active: _manualReorderActive,
-                                onToggle: () {
-                                  HapticService().selection();
-                                  setState(() => _manualReorderActive =
-                                      !_manualReorderActive);
-                                },
-                              ),
-                              const SizedBox(height: 10),
+                              // Lock/Reorder bar removed from the surface —
+                              // the reorder toggle now lives in the pencil
+                              // (sort) menu. Drag handles show while
+                              // _manualReorderActive is on.
                               _ManualList(
                                 habits: visible,
                                 active: _manualReorderActive,
@@ -360,6 +363,14 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                 ],
                                 const SizedBox(height: 18),
                               ],
+                            // Free-tier upgrade nudge — moved to the BOTTOM
+                            // of the list. Dismissible, no-op for premium
+                            // users (renders nothing at all), and auto-
+                            // hidden for the 5-day cool-off after dismissal.
+                            if (all.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              const UpgradePromptBar(),
+                            ],
                           ],
                         ),
                       );
@@ -645,19 +656,14 @@ class _BackgroundGlow extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({
-    required this.sortMode,
-    required this.onSortChanged,
-  });
-  final HabitSortMode sortMode;
-  final ValueChanged<HabitSortMode> onSortChanged;
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
-    // Single title row: serif "Habits" left, Packages + icon-only sort
-    // trigger right. Compact, no more streak/freeze indicator eating
-    // that spot — the collapsible category picker below takes over as
-    // the primary top-of-screen affordance. Subtitle sits underneath.
+    // Title row: serif "Habits" left, Packages right. The sort/reorder
+    // pencil moved OUT of here — it now sits below the category picker
+    // (see the Habits build) so "All" is the primary top control and the
+    // header stays clean.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -676,8 +682,6 @@ class _Header extends StatelessWidget {
               ),
             ),
             _PackagesButton(),
-            const SizedBox(width: 8),
-            _SortButton(current: sortMode, onSelect: onSortChanged),
           ],
         ),
         const SizedBox(height: 2),
@@ -748,9 +752,19 @@ class _PackagesButton extends StatelessWidget {
 }
 
 class _SortButton extends StatelessWidget {
-  const _SortButton({required this.current, required this.onSelect});
+  const _SortButton({
+    required this.current,
+    required this.onSelect,
+    required this.manualActive,
+    required this.onToggleReorder,
+  });
   final HabitSortMode current;
   final ValueChanged<HabitSortMode> onSelect;
+  // Whether drag-to-reorder is currently on (only meaningful in Manual
+  // mode). The Reorder / Done toggle used to be a bar on the surface;
+  // it now lives inside this menu.
+  final bool manualActive;
+  final VoidCallback onToggleReorder;
 
   static const Map<HabitSortMode, String> _labels = {
     HabitSortMode.dateAdded: 'Date added',
@@ -768,7 +782,10 @@ class _SortButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<HabitSortMode>(
+    // Use per-item onTap (not onSelected) so the sort items and the
+    // Manual-only "Reorder" toggle can coexist without sharing a value
+    // type. onTap fires after the menu closes.
+    return PopupMenuButton<int>(
       tooltip: 'Sort',
       color: BrandColors.bgCard(context),
       shape: RoundedRectangleBorder(
@@ -777,11 +794,10 @@ class _SortButton extends StatelessWidget {
           color: AppColors.purple.withValues(alpha: 0.30),
         ),
       ),
-      onSelected: onSelect,
       itemBuilder: (_) => [
         for (final m in HabitSortMode.values)
-          PopupMenuItem<HabitSortMode>(
-            value: m,
+          PopupMenuItem<int>(
+            onTap: () => onSelect(m),
             child: Row(
               children: [
                 Icon(_icons[m],
@@ -809,6 +825,33 @@ class _SortButton extends StatelessWidget {
               ],
             ),
           ),
+        // Reorder toggle — only in Manual mode. Replaces the old on-screen
+        // lock/Reorder bar.
+        if (current == HabitSortMode.manual) ...[
+          const PopupMenuDivider(),
+          PopupMenuItem<int>(
+            onTap: onToggleReorder,
+            child: Row(
+              children: [
+                Icon(
+                  manualActive
+                      ? Icons.check_circle_rounded
+                      : Icons.drag_indicator_rounded,
+                  color: AppColors.pinkLight,
+                  size: 16,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  manualActive ? 'Done reordering' : 'Reorder habits',
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
       // Icon-only trigger — small round pencil that opens the sort
       // menu. Frees the top row from the "Date added" text label so
@@ -963,103 +1006,6 @@ class _ManualList extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-/// Top pill in the Habits list when sort mode is Manual — toggles
-/// between "Reorder" (locked, drag disabled) and "Done" (unlocked,
-/// drag handles visible). Persists the active state in screen scope
-/// only; the underlying habit order itself is always synced via
-/// `sortOrder`.
-class _ManualLockBar extends StatelessWidget {
-  const _ManualLockBar({required this.active, required this.onToggle});
-  final bool active;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
-      decoration: BoxDecoration(
-        gradient: active
-            ? LinearGradient(
-                colors: [
-                  AppColors.purple.withValues(alpha: 0.32),
-                  AppColors.pink.withValues(alpha: 0.20),
-                ],
-              )
-            : null,
-        color: active
-            ? null
-            : BrandColors.bgCard(context).withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: active
-              ? AppColors.pinkLight.withValues(alpha: 0.55)
-              : AppColors.purple.withValues(alpha: 0.30),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            active
-                ? Icons.drag_indicator_rounded
-                : Icons.lock_outline_rounded,
-            color: active
-                ? AppColors.pinkLight
-                : BrandColors.inkSoft(context),
-            size: 18,
-          ),
-          const SizedBox(width: 10),
-          // Helper text intentionally omitted — the lock/drag icon plus
-          // the Reorder / Done button carry the affordance; drag-to-
-          // reorder still works exactly as before.
-          const Spacer(),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: onToggle,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                gradient: active
-                    ? AppColors.buttonGradient
-                    : LinearGradient(
-                        colors: [
-                          BrandColors.bgCard(context),
-                          BrandColors.bgCard(context),
-                        ],
-                      ),
-                borderRadius: BorderRadius.circular(20),
-                border: active
-                    ? null
-                    : Border.all(
-                        color: AppColors.pinkLight.withValues(alpha: 0.55),
-                      ),
-                boxShadow: active
-                    ? [
-                        BoxShadow(
-                          color: AppColors.pink.withValues(alpha: 0.45),
-                          blurRadius: 14,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Text(
-                active ? 'Done' : 'Reorder',
-                style: TextStyle(
-                  color: active ? Colors.white : AppColors.pinkLight,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -271,8 +271,18 @@ void showTutorial(BuildContext context) async {
   // so the tutorial spotlight isn't buried under confetti / orbs.
   await OverlayCoordinator().whenIdle();
   if (!context.mounted) return;
+  // The tutorial drives + spotlights the bottom-nav tabs, so it MUST render
+  // over MainNavigation. When launched from a PUSHED route — most commonly
+  // "Replay tutorial" inside Settings — that route sits on top of the tabs,
+  // and the overlay would dim Settings while its GlobalKey targets resolve
+  // to Home/Habits widgets hidden behind it (highlights landing on empty
+  // space — exactly the reported breakage). Pop back to the root route so
+  // the overlay always sits above the live tab screens.
+  final navigator = Navigator.of(context, rootNavigator: true);
+  navigator.popUntil((route) => route.isFirst);
+  final overlay = navigator.overlay;
+  if (overlay == null) return;
   HapticService().light();
-  final overlay = Overlay.of(context, rootOverlay: true);
   late OverlayEntry entry;
   entry = OverlayEntry(
     builder: (ctx) => _TutorialOverlay(
@@ -390,11 +400,18 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
   }
 
   /// Spotlight rect for the current step. Prefers the step's
-  /// [TutorialTargets] GlobalKey when its widget is mounted AND on-screen;
-  /// falls back to the bottom-nav tab geometry otherwise.
+  /// [TutorialTargets] GlobalKey when its widget is mounted AND on-screen.
+  /// Otherwise anchors on the LIVE bottom-nav tab button (read from its
+  /// GlobalKey), and only if that isn't mounted yet falls back to computed
+  /// nav geometry as a last resort.
   Rect _spotlightRectFor(BuildContext context, _TutorialStep step) {
     final keyed = _rectForKey(step.targetKey);
     if (keyed != null && _isRectVisible(keyed)) return keyed;
+    final navKey = (step.tabIndex >= 0 && step.tabIndex < kNavTabKeys.length)
+        ? kNavTabKeys[step.tabIndex]
+        : null;
+    final navRect = _rectForKey(navKey);
+    if (navRect != null) return navRect;
     return _navTabRect(context, step.tabIndex);
   }
 
@@ -520,34 +537,42 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
               child: _SpotlightRing(),
             ),
           ),
-          // Step header + Skip
+          // Step header + Skip — centered within the same max width as the
+          // card so on wide web the Skip control sits by the card, not in a
+          // far corner.
           Positioned(
-            top: MediaQuery.of(context).padding.top + 12,
+            top: MediaQuery.of(context).padding.top + 8,
             left: 16,
-            right: 8,
-            child: Row(
-              children: [
-                Text(
-                  'TUTORIAL  ·  ${_index + 1} / ${_kSteps.length}',
-                  style: TextStyle(
-                    color: AppColors.pinkLight,
-                    fontSize: 11,
-                    letterSpacing: 2.0,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: _skip,
-                  child: Text(
-                    'Skip',
-                    style: TextStyle(
-                      color: BrandColors.ink(context),
-                      fontWeight: FontWeight.w700,
+            right: 16,
+            child: Align(
+              alignment: Alignment.center,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: Row(
+                  children: [
+                    Text(
+                      'TUTORIAL  ·  ${_index + 1} / ${_kSteps.length}',
+                      style: TextStyle(
+                        color: AppColors.pinkLight,
+                        fontSize: 11,
+                        letterSpacing: 2.0,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: _skip,
+                      child: Text(
+                        'Skip',
+                        style: TextStyle(
+                          color: BrandColors.ink(context),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
           // Explanation card. Default position is just above the
@@ -601,6 +626,9 @@ class _PositionedStepCard extends StatelessWidget {
   // Floor for the card height: enough for the header row, dots, and the
   // button row even when the body is fully scrolled away.
   static const double _minCardHeight = 150.0;
+  // Cap the card width so it reads as a card (not a full-bleed banner) on
+  // wide web / tablet / desktop. Centered within the 16px side margins.
+  static const double _maxCardWidth = 460.0;
 
   @override
   Widget build(BuildContext context) {
@@ -616,9 +644,12 @@ class _PositionedStepCard extends StatelessWidget {
 
     final avail = placeBelow ? spaceBelow : spaceAbove;
     final maxH = avail.clamp(_minCardHeight, h * 0.72);
-    final constrained = ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: maxH),
-      child: child,
+    final constrained = Align(
+      alignment: Alignment.center,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxH, maxWidth: _maxCardWidth),
+        child: child,
+      ),
     );
 
     if (placeBelow) {
