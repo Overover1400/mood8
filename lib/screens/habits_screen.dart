@@ -46,6 +46,19 @@ const String _kAiManagedFilter = '__ai_managed__';
 /// string is the package id (e.g. "__pkg__pkg.morning_calm").
 const String _kPackagePrefix = '__pkg__';
 
+/// Human label for a category filter id (shown on the header trigger pill
+/// and used to be inside the old collapsible picker).
+String _filterLabel(String id) {
+  if (id == _kAllFilter) return 'All';
+  if (id == _kAvoidFilter) return 'Bad habits';
+  if (id == _kAiManagedFilter) return 'Mood8 AI Habits';
+  if (id.startsWith(_kPackagePrefix)) {
+    final p = habitPackageById(id.substring(_kPackagePrefix.length));
+    return p?.name ?? 'Package';
+  }
+  return id;
+}
+
 class HabitsScreen extends StatefulWidget {
   const HabitsScreen({super.key});
 
@@ -70,6 +83,10 @@ class _HabitsScreenState extends State<HabitsScreen> {
       _repo.watchLogs();
 
   String _filter = _kAllFilter;
+  // The category picker's chip strip now drops down BELOW the header row
+  // (the trigger pill lives inline in the header). State is owned here so
+  // the header trigger and the expanded strip stay in sync.
+  bool _categoryExpanded = false;
   HabitSortMode _sortMode = HabitSortMode.dateAdded;
   /// When Manual sort is selected, drag-to-reorder is OFF by default
   /// (handles hidden, list locked). The user explicitly taps
@@ -220,7 +237,44 @@ class _HabitsScreenState extends State<HabitsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const _Header(),
+                            // Header row: "Habits" title + the category
+                            // ("All") trigger + sort pencil + Packages, all
+                            // on one line to reclaim vertical space. The
+                            // title truncates before any control is pushed
+                            // off-screen on narrow widths.
+                            _HabitsHeader(
+                              filterLabel: _filterLabel(_filter),
+                              categoryExpanded: _categoryExpanded,
+                              onToggleCategory: () {
+                                HapticService().selection();
+                                setState(() =>
+                                    _categoryExpanded = !_categoryExpanded);
+                              },
+                              sortMode: _sortMode,
+                              onSortChanged: _setSortMode,
+                              manualReorderActive: _manualReorderActive,
+                              onToggleReorder: () {
+                                HapticService().selection();
+                                setState(() => _manualReorderActive =
+                                    !_manualReorderActive);
+                              },
+                            ),
+                            // Category chip strip drops down directly under
+                            // the header when the "All" trigger is tapped;
+                            // picking a chip applies it and collapses again.
+                            if (_categoryExpanded) ...[
+                              const SizedBox(height: 10),
+                              _IdentityFilter(
+                                identities: identities,
+                                packageIds: activePackageIds,
+                                showAiManaged: hasAiManaged,
+                                value: _filter,
+                                onChanged: (v) => setState(() {
+                                  _filter = v;
+                                  _categoryExpanded = false;
+                                }),
+                              ),
+                            ],
                             const SizedBox(height: 14),
                             // Concise single-line "N of M done today"
                             // — no streak chip; Home/Insights already
@@ -237,36 +291,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                             // chevron = unfurl the full month grid.
                             HabitCompletionCalendar(repo: _repo),
                             const SizedBox(height: 12),
-                            // Collapsible category picker — one pill
-                            // showing the current filter ("All ▾" by
-                            // default); tap to expand into the full
-                            // chip strip. This is now the PRIMARY control
-                            // at the top of the list; the sort/reorder
-                            // pencil sits just beneath it (right-aligned).
-                            _CollapsibleCategoryPicker(
-                              identities: identities,
-                              packageIds: activePackageIds,
-                              showAiManaged: hasAiManaged,
-                              value: _filter,
-                              onChanged: (v) =>
-                                  setState(() => _filter = v),
-                            ),
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: _SortButton(
-                                current: _sortMode,
-                                onSelect: _setSortMode,
-                                manualActive: _manualReorderActive,
-                                onToggleReorder: () {
-                                  HapticService().selection();
-                                  setState(() => _manualReorderActive =
-                                      !_manualReorderActive);
-                                },
-                              ),
-                            ),
                             if (_filter.startsWith(_kPackagePrefix)) ...[
-                              const SizedBox(height: 10),
                               _DeleteCategoryBar(
                                 packageId: _filter.substring(
                                     _kPackagePrefix.length),
@@ -274,8 +299,8 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                 onDelete: () =>
                                     _confirmDeletePackage(visible),
                               ),
+                              const SizedBox(height: 12),
                             ],
-                            const SizedBox(height: 12),
                             if (all.isEmpty)
                               EmptyState(
                                 icon: Icons.check_circle_outline_rounded,
@@ -655,32 +680,66 @@ class _BackgroundGlow extends StatelessWidget {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header();
+class _HabitsHeader extends StatelessWidget {
+  const _HabitsHeader({
+    required this.filterLabel,
+    required this.categoryExpanded,
+    required this.onToggleCategory,
+    required this.sortMode,
+    required this.onSortChanged,
+    required this.manualReorderActive,
+    required this.onToggleReorder,
+  });
+
+  final String filterLabel;
+  final bool categoryExpanded;
+  final VoidCallback onToggleCategory;
+  final HabitSortMode sortMode;
+  final ValueChanged<HabitSortMode> onSortChanged;
+  final bool manualReorderActive;
+  final VoidCallback onToggleReorder;
 
   @override
   Widget build(BuildContext context) {
-    // Title row: serif "Habits" left, Packages right. The sort/reorder
-    // pencil moved OUT of here — it now sits below the category picker
-    // (see the Habits build) so "All" is the primary top control and the
-    // header stays clean.
+    // One line: serif "Habits" (flexes + truncates first), then the
+    // category ("All") trigger, the sort pencil, and Packages. The title
+    // and the pill are both Flexible so on 320dp they shrink/ellipsize
+    // instead of shoving the fixed controls (pencil, Packages) off-screen.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Expanded(
+            Flexible(
+              flex: 3,
               child: Text(
                 'Habits',
                 maxLines: 1,
-                overflow: TextOverflow.visible,
+                overflow: TextOverflow.ellipsis,
                 softWrap: false,
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
                       fontSize: 32,
                     ),
               ),
             ),
+            const SizedBox(width: 8),
+            Flexible(
+              flex: 2,
+              child: _CategoryTriggerPill(
+                label: filterLabel,
+                expanded: categoryExpanded,
+                onTap: onToggleCategory,
+              ),
+            ),
+            const SizedBox(width: 8),
+            _SortButton(
+              current: sortMode,
+              onSelect: onSortChanged,
+              manualActive: manualReorderActive,
+              onToggleReorder: onToggleReorder,
+            ),
+            const SizedBox(width: 8),
             _PackagesButton(),
           ],
         ),
@@ -695,6 +754,72 @@ class _Header extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The collapsed category-filter trigger that lives inline in the header
+/// row. Shows the current filter label (e.g. "All", "Bad habits", a
+/// package name) with a chevron; tapping drops the chip strip down below
+/// the header. The label is Flexible + ellipsised so a long package name
+/// can't blow out the header on narrow screens.
+class _CategoryTriggerPill extends StatelessWidget {
+  const _CategoryTriggerPill({
+    required this.label,
+    required this.expanded,
+    required this.onTap,
+  });
+  final String label;
+  final bool expanded;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          gradient: AppColors.buttonGradient,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.pink.withValues(alpha: 0.30),
+              blurRadius: 12,
+              spreadRadius: -4,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.tune_rounded, color: Colors.white, size: 13),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ),
+            const SizedBox(width: 3),
+            Icon(
+              expanded
+                  ? Icons.keyboard_arrow_up_rounded
+                  : Icons.keyboard_arrow_down_rounded,
+              color: Colors.white,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1006,140 +1131,6 @@ class _ManualList extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-/// Wraps [_IdentityFilter] with a collapsed/expanded state so the top
-/// of the Habits screen is quiet by default: a single pill shows the
-/// current filter (e.g. "All ▾" or "Athlete ▾"), tapping expands to
-/// reveal the full chip strip; picking a chip applies the filter and
-/// collapses again. Trims visual noise without losing any of the
-/// existing filter options.
-class _CollapsibleCategoryPicker extends StatefulWidget {
-  const _CollapsibleCategoryPicker({
-    required this.identities,
-    required this.packageIds,
-    required this.showAiManaged,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final List<String> identities;
-  final List<String> packageIds;
-  final bool showAiManaged;
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  @override
-  State<_CollapsibleCategoryPicker> createState() =>
-      _CollapsibleCategoryPickerState();
-}
-
-class _CollapsibleCategoryPickerState
-    extends State<_CollapsibleCategoryPicker> {
-  bool _expanded = false;
-
-  String _labelFor(String id) {
-    if (id == _kAllFilter) return 'All';
-    if (id == _kAvoidFilter) return 'Bad habits';
-    if (id == _kAiManagedFilter) return 'Mood8 AI Habits';
-    if (id.startsWith(_kPackagePrefix)) {
-      final p = habitPackageById(id.substring(_kPackagePrefix.length));
-      return p?.name ?? 'Package';
-    }
-    return id;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 220),
-      alignment: Alignment.topLeft,
-      curve: Curves.easeOutCubic,
-      child: _expanded
-          ? Column(
-              key: const ValueKey('expanded'),
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _IdentityFilter(
-                  identities: widget.identities,
-                  packageIds: widget.packageIds,
-                  showAiManaged: widget.showAiManaged,
-                  value: widget.value,
-                  onChanged: (v) {
-                    widget.onChanged(v);
-                    // Collapse right after the user picks so the top
-                    // row goes quiet again immediately.
-                    setState(() => _expanded = false);
-                  },
-                ),
-                const SizedBox(height: 6),
-                Center(
-                  child: InkWell(
-                    onTap: () {
-                      HapticService().selection();
-                      setState(() => _expanded = false);
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 6),
-                      child: Icon(
-                        Icons.keyboard_arrow_up_rounded,
-                        color: BrandColors.inkDim(context),
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            )
-          : Align(
-              key: const ValueKey('collapsed'),
-              alignment: Alignment.centerLeft,
-              child: GestureDetector(
-                onTap: () {
-                  HapticService().selection();
-                  setState(() => _expanded = true);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    gradient: AppColors.buttonGradient,
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.pink.withValues(alpha: 0.30),
-                        blurRadius: 14,
-                        spreadRadius: -4,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.tune_rounded,
-                          color: Colors.white, size: 13),
-                      const SizedBox(width: 6),
-                      Text(
-                        _labelFor(widget.value),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.keyboard_arrow_down_rounded,
-                          color: Colors.white, size: 16),
-                    ],
-                  ),
-                ),
-              ),
-            ),
     );
   }
 }
