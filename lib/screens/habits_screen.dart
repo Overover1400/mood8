@@ -1012,24 +1012,10 @@ class _ManualLockBar extends StatelessWidget {
             size: 18,
           ),
           const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  active
-                      ? 'Reordering — drag handles to move habits'
-                      : 'Manual order — tap Reorder to rearrange',
-                  style: TextStyle(
-                    color: BrandColors.inkSoft(context),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    height: 1.25,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Helper text intentionally omitted — the lock/drag icon plus
+          // the Reorder / Done button carry the affordance; drag-to-
+          // reorder still works exactly as before.
+          const Spacer(),
           const SizedBox(width: 8),
           GestureDetector(
             onTap: onToggle,

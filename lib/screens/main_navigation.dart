@@ -18,8 +18,20 @@ const String _kTabPrefKey = 'mood8.currentTab';
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
 
+  /// The currently-mounted navigation state. Held statically so callers
+  /// that live OUTSIDE the navigation subtree can still drive it — most
+  /// importantly the welcome tutorial, which mounts in the root overlay
+  /// (a sibling of the app content, not a descendant of MainNavigation).
+  /// An ancestor lookup from there resolves to null, which silently broke
+  /// tab switching mid-tutorial — every step rendered over the Home tab.
+  static _MainNavigationState? _current;
+
   static void goToTab(BuildContext context, int index) {
-    final state = context.findAncestorStateOfType<_MainNavigationState>();
+    // Prefer the ancestor state when the caller is inside the subtree
+    // (keeps behaviour identical for in-app call sites); fall back to the
+    // static reference for out-of-tree callers like the tutorial overlay.
+    final state = context.findAncestorStateOfType<_MainNavigationState>() ??
+        _current;
     state?._onTab(index);
   }
 
@@ -34,8 +46,15 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   void initState() {
     super.initState();
+    MainNavigation._current = this;
     _loadTab();
     _maybeShowTutorial();
+  }
+
+  @override
+  void dispose() {
+    if (MainNavigation._current == this) MainNavigation._current = null;
+    super.dispose();
   }
 
   static bool _tutorialCheckedThisSession = false;

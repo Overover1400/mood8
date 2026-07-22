@@ -103,6 +103,7 @@ class _TutorialStep {
     required this.title,
     required this.body,
     this.targetKey,
+    this.requiresTarget = false,
   });
   /// Tab to switch to before showing this step. Also the fallback
   /// spotlight target (the bottom-nav button for this tab) if
@@ -117,6 +118,14 @@ class _TutorialStep {
   /// rect from the RenderBox; otherwise we degrade to the tab-nav
   /// spotlight so the step still reads.
   final GlobalKey? targetKey;
+
+  /// When true this step only makes sense pointing at [targetKey] — the
+  /// generic bottom-nav fallback would highlight the wrong thing. If the
+  /// target isn't mounted and on-screen when the step runs (e.g. a CTA
+  /// scrolled below the fold), the step is skipped gracefully rather than
+  /// spotlighting empty space. Nav-level steps (no meaningful in-screen
+  /// anchor) leave this false so they fall back to their tab button.
+  final bool requiresTarget;
 }
 
 List<_TutorialStep> get _kSteps => <_TutorialStep>[
@@ -127,7 +136,7 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
         label: 'TODAY',
         title: 'Your daily moment.',
         body:
-            'Check in with your mood and energy, glance at your completion calendar, and feel the shape of your day.',
+            'Check in with your mood, energy, and focus, and feel the shape of your day at a glance.',
       ),
       _TutorialStep(
         tabIndex: 0,
@@ -137,6 +146,7 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
         body:
             'Adjust Mood, Energy, and Focus — Mood8 saves automatically a moment after you stop.',
         targetKey: TutorialTargets.moodSliders,
+        requiresTarget: true,
       ),
       _TutorialStep(
         tabIndex: 0,
@@ -144,8 +154,9 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
         label: 'INTENTION + GRATITUDE',
         title: 'The “+” adds depth.',
         body:
-            'Tap the plus next to your name to set today’s intention or log three gratitudes.',
-        targetKey: TutorialTargets.settingsButton,
+            'Tap the plus in the header to set today’s intention or log three gratitudes.',
+        targetKey: TutorialTargets.addButton,
+        requiresTarget: true,
       ),
       // ── Habits ──────────────────────────────────────────────────────
       _TutorialStep(
@@ -164,6 +175,7 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
         body:
             'The + button opens a quick sheet: name, identity, cadence. That’s the whole flow.',
         targetKey: TutorialTargets.addHabit,
+        requiresTarget: true,
       ),
       // ── Routine ─────────────────────────────────────────────────────
       // Hidden behind kRoutineEnabled — both Routine steps drop out
@@ -187,6 +199,7 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
           body:
               'Tap + to drop a new ritual into your timeline — meditate, write, walk, anything.',
           targetKey: TutorialTargets.addRoutine,
+          requiresTarget: true,
         ),
       ],
       // ── Challenge ───────────────────────────────────────────────────
@@ -222,7 +235,9 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
         label: 'INSIGHTS',
         title: 'Patterns made visible.',
         body:
-            'Tap “Insights” at the top of Progress to see what lifts you, what drains you, and what to try next.',
+            'Flip to “Insights” at the top of Progress to see what lifts you, what drains you, and what to try next.',
+        targetKey: TutorialTargets.insightsToggle,
+        requiresTarget: true,
       ),
       _TutorialStep(
         tabIndex: kProgressTabIndex,
@@ -232,6 +247,7 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
         body:
             'Export a beautiful card of your week — for your story, feed, or fridge.',
         targetKey: TutorialTargets.shareProgress,
+        requiresTarget: true,
       ),
       // ── Settings ────────────────────────────────────────────────────
       _TutorialStep(
@@ -242,6 +258,7 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
         body:
             'Tap your avatar to customize the experience, manage your account, and upgrade to Premium.',
         targetKey: TutorialTargets.settingsButton,
+        requiresTarget: true,
       ),
     ];
 
@@ -286,6 +303,10 @@ class _TutorialOverlay extends StatefulWidget {
 
 class _TutorialOverlayState extends State<_TutorialOverlay> {
   int _index = 0;
+  // Navigation direction of the last move (+1 = forward, -1 = back). Used
+  // when a step has to be skipped because its target isn't on screen, so
+  // we skip in the direction the user was already heading.
+  int _dir = 1;
 
   @override
   void initState() {
@@ -300,17 +321,53 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
   void _switchToCurrentTab() {
     final step = _kSteps[_index];
     MainNavigation.goToTab(context, step.tabIndex);
-    // Force one more rebuild on the next frame so the freshly-mounted
-    // tab's TutorialTargets GlobalKeys have a RenderBox to read from.
-    // Without this, the first frame after a tab switch falls back to
-    // the nav-bar geometry even when an in-screen target is available.
+    // Give the freshly-mounted tab a frame to build so its
+    // TutorialTargets GlobalKeys have a RenderBox, rebuild to pick up
+    // that geometry, then — once it's settled — decide whether the step
+    // is actually anchorable or should be skipped.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      setState(() {});
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _resolveOrSkip();
+      });
     });
+  }
+
+  /// If the current step needs an in-screen target that isn't mounted /
+  /// on-screen (e.g. a CTA below the fold), skip past it in the current
+  /// navigation direction instead of spotlighting empty space.
+  void _resolveOrSkip() {
+    final step = _kSteps[_index];
+    if (!step.requiresTarget) return;
+    if (_isTargetVisible(step)) return;
+    if (_dir >= 0) {
+      if (_index >= _kSteps.length - 1) {
+        widget.onFinish();
+        return;
+      }
+      setState(() => _index++);
+    } else {
+      if (_index <= 0) {
+        // Nothing earlier to fall back to — search forward so we never
+        // dead-end on the very first step.
+        _dir = 1;
+        if (_index >= _kSteps.length - 1) {
+          widget.onFinish();
+          return;
+        }
+        setState(() => _index++);
+      } else {
+        setState(() => _index--);
+      }
+    }
+    _switchToCurrentTab();
   }
 
   void _next() {
     HapticService().selection();
+    _dir = 1;
     if (_index >= _kSteps.length - 1) {
       widget.onFinish();
       return;
@@ -322,6 +379,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
   void _back() {
     if (_index <= 0) return;
     HapticService().selection();
+    _dir = -1;
     setState(() => _index--);
     _switchToCurrentTab();
   }
@@ -332,12 +390,43 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
   }
 
   /// Spotlight rect for the current step. Prefers the step's
-  /// [TutorialTargets] GlobalKey when its widget is mounted; falls back
-  /// to the bottom-nav tab geometry when the target isn't on-screen yet.
+  /// [TutorialTargets] GlobalKey when its widget is mounted AND on-screen;
+  /// falls back to the bottom-nav tab geometry otherwise.
   Rect _spotlightRectFor(BuildContext context, _TutorialStep step) {
     final keyed = _rectForKey(step.targetKey);
-    if (keyed != null) return keyed;
+    if (keyed != null && _isRectVisible(keyed)) return keyed;
     return _navTabRect(context, step.tabIndex);
+  }
+
+  /// The usable viewport for judging whether a target is "on screen":
+  /// the full size minus the top safe-area (where the tutorial header
+  /// sits) and the bottom nav bar (which floats over content).
+  Rect _viewport() {
+    final media = MediaQuery.of(context);
+    const navReserve = 66.0 + 12.0; // nav height + outer bottom padding
+    return Rect.fromLTRB(
+      0,
+      media.padding.top,
+      media.size.width,
+      media.size.height - navReserve - media.padding.bottom,
+    );
+  }
+
+  bool _isTargetVisible(_TutorialStep step) {
+    final r = _rectForKey(step.targetKey);
+    return r != null && _isRectVisible(r);
+  }
+
+  /// True when a majority of [r] falls inside the usable viewport. A CTA
+  /// scrolled below the fold (only a sliver peeking up behind the nav)
+  /// reads as not visible, so its step is skipped rather than anchoring
+  /// the spotlight to empty space.
+  bool _isRectVisible(Rect r) {
+    final fullArea = r.width * r.height;
+    if (fullArea <= 0) return false;
+    final shown = r.intersect(_viewport());
+    if (shown.isEmpty || shown.width <= 0 || shown.height <= 0) return false;
+    return (shown.width * shown.height) >= fullArea * 0.6;
   }
 
   Rect? _rectForKey(GlobalKey? key) {
@@ -360,8 +449,12 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
 
   /// Fallback geometry: rect of the bottom-nav tab button for [tabIndex].
   /// Bottom nav is a 66px-tall Container with 12px L/R + 12px bottom outer
-  /// padding, holding 6 equal-width tabs. Each tab has 2px horizontal
-  /// margin so the actual highlight is slightly inset.
+  /// padding, holding [kNavItems.length] equal-width tabs. Each tab has 2px
+  /// horizontal margin so the actual highlight is slightly inset.
+  ///
+  /// The tab count is read live from [kNavItems] rather than hardcoded:
+  /// the Routine tab is currently hidden (5 tabs, not 6), and a stale
+  /// constant here shifted every nav-anchored spotlight to the wrong tab.
   Rect _navTabRect(BuildContext context, int tabIndex) {
     final media = MediaQuery.of(context);
     final w = media.size.width;
@@ -369,12 +462,14 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
     final bottomInset = media.padding.bottom;
     const navOuterPad = 12.0;
     const navHeight = 66.0;
-    const tabCount = 6;
+    final tabCount = kNavItems.length;
+    // Clamp so a gated/out-of-range tab index can never point off the bar.
+    final idx = tabIndex.clamp(0, tabCount - 1);
     final innerW = w - navOuterPad * 2;
     final tabW = innerW / tabCount;
     final navTop = h - navHeight - navOuterPad - bottomInset;
     return Rect.fromLTWH(
-      navOuterPad + tabIndex * tabW + 2,
+      navOuterPad + idx * tabW + 2,
       navTop + 7,
       tabW - 4,
       navHeight - 14,
@@ -386,7 +481,17 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
     final step = _kSteps[_index];
     final isLast = _index == _kSteps.length - 1;
     final spotlight = _spotlightRectFor(context, step);
-    return Material(
+    // Cap the effective text scale for the overlay only. The step card is
+    // a fixed-position element with finite room; letting an accessibility
+    // font scale of 2× through would push the Next / Back buttons off the
+    // bottom. The card body also scrolls (below), so nothing is lost —
+    // this just keeps the controls on screen.
+    final mq = MediaQuery.of(context);
+    return MediaQuery(
+      data: mq.copyWith(
+        textScaler: mq.textScaler.clamp(maxScaleFactor: 1.3),
+      ),
+      child: Material(
       type: MaterialType.transparency,
       child: Stack(
         children: [
@@ -476,13 +581,15 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
           ),
         ],
       ),
+      ),
     );
   }
 }
 
-/// Places the explanation card relative to the spotlight: above if the
-/// spotlight is in the lower half of the screen, below if it's in the
-/// upper half. Either side clamps to safe area + 16px breathing room.
+/// Places the explanation card on whichever side of the spotlight has
+/// more room (below if the spotlight is high, above if it's low), and
+/// constrains the card's height to that available space so its Next /
+/// Back buttons can never spill off-screen or land under the highlight.
 class _PositionedStepCard extends StatelessWidget {
   const _PositionedStepCard({
     required this.spotlight,
@@ -491,25 +598,37 @@ class _PositionedStepCard extends StatelessWidget {
   final Rect spotlight;
   final Widget child;
 
+  // Floor for the card height: enough for the header row, dots, and the
+  // button row even when the body is fully scrolled away.
+  static const double _minCardHeight = 150.0;
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final h = media.size.height;
-    final placeAbove = spotlight.top > h * 0.40;
-    if (placeAbove) {
-      return Positioned(
-        left: 16,
-        right: 16,
-        bottom: (h - spotlight.top + 16).clamp(16.0, h * 0.95),
-        child: child,
-      );
-    }
-    return Positioned(
-      left: 16,
-      right: 16,
-      top: (spotlight.bottom + 16).clamp(media.padding.top + 56, h - 200),
+    final topReserve = media.padding.top + 52; // tutorial header + skip row
+    final botReserve = media.padding.bottom + 12;
+    const gap = 14.0;
+
+    final spaceBelow = h - botReserve - (spotlight.bottom + gap);
+    final spaceAbove = (spotlight.top - gap) - topReserve;
+    final placeBelow = spaceBelow >= spaceAbove;
+
+    final avail = placeBelow ? spaceBelow : spaceAbove;
+    final maxH = avail.clamp(_minCardHeight, h * 0.72);
+    final constrained = ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxH),
       child: child,
     );
+
+    if (placeBelow) {
+      final top = (spotlight.bottom + gap)
+          .clamp(topReserve, h - botReserve - _minCardHeight);
+      return Positioned(left: 16, right: 16, top: top, child: constrained);
+    }
+    final bottom = (h - (spotlight.top - gap))
+        .clamp(botReserve, h - topReserve - _minCardHeight);
+    return Positioned(left: 16, right: 16, bottom: bottom, child: constrained);
   }
 }
 
@@ -653,21 +772,34 @@ class _StepCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Text(
-            step.title,
-            style: GoogleFonts.bricolageGrotesque(
-              color: BrandColors.ink(context),
-              fontSize: 28,
-              height: 1.1,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            step.body,
-            style: TextStyle(
-              color: BrandColors.inkSoft(context),
-              fontSize: 14.5,
-              height: 1.55,
+          // Title + body scroll if the card is height-constrained (short
+          // screens, large fonts) so the pinned dots + buttons below never
+          // get pushed off-screen.
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    step.title,
+                    style: GoogleFonts.bricolageGrotesque(
+                      color: BrandColors.ink(context),
+                      fontSize: 28,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    step.body,
+                    style: TextStyle(
+                      color: BrandColors.inkSoft(context),
+                      fontSize: 14.5,
+                      height: 1.55,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 14),

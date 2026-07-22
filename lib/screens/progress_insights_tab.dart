@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../services/analytics_service.dart';
 import '../services/haptic_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/tutorial_targets.dart';
 import '../widgets/upgrade_prompt_bar.dart';
 import 'insights_screen.dart';
 import 'progress_screen.dart';
@@ -62,6 +63,7 @@ class ProgressInsightsTabState extends State<ProgressInsightsTab> {
                     children: [
                       Expanded(
                         child: _SegmentedToggle(
+                          key: TutorialTargets.insightsToggle,
                           selected: _index,
                           onChanged: _select,
                         ),
@@ -96,7 +98,8 @@ class ProgressInsightsTabState extends State<ProgressInsightsTab> {
 }
 
 class _SegmentedToggle extends StatelessWidget {
-  const _SegmentedToggle({required this.selected, required this.onChanged});
+  const _SegmentedToggle(
+      {super.key, required this.selected, required this.onChanged});
   final int selected;
   final ValueChanged<int> onChanged;
 

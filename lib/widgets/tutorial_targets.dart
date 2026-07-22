@@ -11,11 +11,20 @@ import 'package:flutter/material.dart';
 class TutorialTargets {
   TutorialTargets._();
 
-  /// Settings icon in the Home screen header.
+  /// Avatar in the Home screen header — opens Settings.
   static final GlobalKey settingsButton = GlobalKey(debugLabel: 'tut.settings');
+
+  /// The "+" button in the Home header that opens the intention /
+  /// gratitude sheet. Distinct from [settingsButton] (the avatar) — the
+  /// two sit side by side and the tutorial points at each separately.
+  static final GlobalKey addButton = GlobalKey(debugLabel: 'tut.add');
 
   /// The block of three mood / energy / focus sliders on Today.
   static final GlobalKey moodSliders = GlobalKey(debugLabel: 'tut.moodSliders');
+
+  /// Progress | Insights segmented toggle at the top of the Progress tab.
+  static final GlobalKey insightsToggle =
+      GlobalKey(debugLabel: 'tut.insightsToggle');
 
   /// Gratitude card on Today.
   static final GlobalKey gratitudeCard = GlobalKey(debugLabel: 'tut.gratitude');

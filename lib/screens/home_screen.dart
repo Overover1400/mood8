@@ -1067,7 +1067,10 @@ class _Header extends StatelessWidget {
             // visual feedback lives where the user's finger is.
             _HeaderBellButton(onTap: onOpenNotifications),
             const SizedBox(width: 6),
-            _HeaderAddButton(onTap: onAddTap),
+            _HeaderAddButton(
+              key: TutorialTargets.addButton,
+              onTap: onAddTap,
+            ),
             const SizedBox(width: 8),
             // Listen on the AuthUser notifier so an avatar upload
             // ripples into the header immediately — Hive UserProfile
@@ -1173,7 +1176,7 @@ class _CompactStreakChip extends StatelessWidget {
 // glyph next to its label.
 
 class _HeaderAddButton extends StatelessWidget {
-  const _HeaderAddButton({required this.onTap});
+  const _HeaderAddButton({super.key, required this.onTap});
   final VoidCallback onTap;
 
   @override
