@@ -15,6 +15,8 @@ class HabitCard extends StatelessWidget {
     required this.onIncrement,
     required this.onDecrement,
     required this.onToggle,
+    this.readOnly = false,
+    this.onLockedTap,
   });
 
   final Habit habit;
@@ -24,6 +26,12 @@ class HabitCard extends StatelessWidget {
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
   final VoidCallback onToggle;
+  // Free-mode read-only pause: the habit is over the free limit after the
+  // grace window closed. Visible + never deleted, but can't be completed
+  // or edited until the user picks it or subscribes. [onLockedTap] routes
+  // to the "choose your habits" flow.
+  final bool readOnly;
+  final VoidCallback? onLockedTap;
 
   @override
   Widget build(BuildContext context) {
@@ -35,13 +43,13 @@ class HabitCard extends StatelessWidget {
     // slip logged is data, not failure.
     final locked = !isReduce && todayValue >= habit.effectiveTarget;
     return AnimatedOpacity(
-      opacity: locked ? 0.55 : 1.0,
+      opacity: readOnly ? 0.5 : (locked ? 0.55 : 1.0),
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeOut,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
+          onTap: readOnly ? (onLockedTap ?? onTap) : onTap,
           borderRadius: BorderRadius.circular(20),
           child: Container(
             padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
@@ -113,16 +121,33 @@ class HabitCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    IgnorePointer(
-                      ignoring: locked,
-                      child: _LogControl(
-                        habit: habit,
-                        todayValue: todayValue,
-                        onIncrement: onIncrement,
-                        onDecrement: onDecrement,
-                        onToggle: onToggle,
+                    if (readOnly)
+                      Container(
+                        width: 34,
+                        height: 34,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: BrandColors.bgCard(context)
+                              .withValues(alpha: 0.7),
+                          border: Border.all(
+                            color: AppColors.purple.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Icon(Icons.lock_outline_rounded,
+                            size: 16, color: BrandColors.inkDim(context)),
+                      )
+                    else
+                      IgnorePointer(
+                        ignoring: locked,
+                        child: _LogControl(
+                          habit: habit,
+                          todayValue: todayValue,
+                          onIncrement: onIncrement,
+                          onDecrement: onDecrement,
+                          onToggle: onToggle,
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 12),

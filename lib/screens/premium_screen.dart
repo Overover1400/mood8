@@ -85,16 +85,18 @@ class PremiumScreen extends StatelessWidget {
                     const SizedBox(height: 22),
                     _CTAStack(tier: tier),
                     const SizedBox(height: 18),
-                    Center(
-                      child: Text(
-                        'Secure checkout by Stripe · cancel anytime',
-                        style: TextStyle(
-                          color: BrandColors.inkDim(context),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                    // Checkout footer hidden during the promo (no upsell).
+                    if (!svc.freeModeActive)
+                      Center(
+                        child: Text(
+                          'Secure checkout by Stripe · cancel anytime',
+                          style: TextStyle(
+                            color: BrandColors.inkDim(context),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
                     // "Have a code?" — free-access redemption. Deliberately
                     // separate from all pricing/checkout above: it never
                     // mentions money and never opens a purchase flow, so
@@ -389,6 +391,11 @@ class _CTAStack extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canPurchaseInApp = PurchaseService().supportsInAppPurchase;
+    // During the free-mode promo, suppress the upgrade CTA for non-payers
+    // and show a single tasteful line instead (no checkout surface).
+    if (!tier.isPaid && SubscriptionService().freeModeActive) {
+      return const _FreeModeNotice();
+    }
     if (!tier.isPaid) {
       // Free user. On web → normal "See plans" opens the paywall
       // with a live checkout button. On native mobile (Play Billing
@@ -515,6 +522,59 @@ class _GradientCTA extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Shown in place of the upgrade CTA during the free-mode promo. Purely
+/// informational — no prices, no checkout, Play-safe on Android.
+class _FreeModeNotice extends StatelessWidget {
+  const _FreeModeNotice();
+
+  static const List<String> _months = [
+    'January', 'February', 'March', 'April', 'May', 'June', 'July',
+    'August', 'September', 'October', 'November', 'December',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final ends = SubscriptionService().freeModeEndsAt;
+    final line = ends == null
+        ? 'Every Premium feature is free right now — enjoy 💜'
+        : 'Every Premium feature is free until '
+            '${_months[ends.month - 1]} ${ends.day} — enjoy 💜';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.purple.withValues(alpha: 0.18),
+            AppColors.pink.withValues(alpha: 0.12),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.pinkLight.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.auto_awesome_rounded,
+              color: Color(0xFFF472B6), size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              line,
+              style: TextStyle(
+                color: BrandColors.ink(context),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

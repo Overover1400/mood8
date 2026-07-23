@@ -22,11 +22,14 @@ import '../widgets/badge_unlock_modal.dart';
 import '../widgets/tutorial_targets.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/freeze_modal.dart';
+import '../widgets/grace_banner.dart';
 import '../widgets/habit_card.dart';
 import '../widgets/habit_completion_calendar.dart';
 import '../widgets/responsive_container.dart';
 import '../widgets/tutorial_overlay.dart';
 import '../widgets/upgrade_prompt_bar.dart';
+import '../services/subscription_service.dart';
+import 'choose_habits_screen.dart';
 import 'habit_detail_screen.dart';
 import 'habit_packages_screen.dart';
 
@@ -172,6 +175,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                     builder: (context, logBox, _) {
                       final today = DateTime.now();
                       final all = _repo.getActiveHabits();
+                      final readOnlyIds = _computeReadOnlyIds(all);
                       final user = _userRepo.getCurrentUser();
                       final identities = <String>{
                         for (final h in all) h.identity,
@@ -291,6 +295,10 @@ class _HabitsScreenState extends State<HabitsScreen> {
                             // chevron = unfurl the full month grid.
                             HabitCompletionCalendar(repo: _repo),
                             const SizedBox(height: 12),
+                            // Free-mode wind-down: grace warning (dismissible)
+                            // or the read-only prompt. Renders nothing outside
+                            // those states.
+                            const GraceBanner(),
                             if (_filter.startsWith(_kPackagePrefix)) ...[
                               _DeleteCategoryBar(
                                 packageId: _filter.substring(
@@ -369,6 +377,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                     habit: entry.value[i],
                                     todayValue: _todayValue(entry.value[i]),
                                     last7: _last7(entry.value[i]),
+                                    readOnly: readOnlyIds
+                                        .contains(entry.value[i].id),
+                                    onLockedTap: _openChooseHabits,
                                     onTap: () => _openDetail(entry.value[i]),
                                     onIncrement: () =>
                                         _increment(entry.value[i]),
@@ -422,6 +433,36 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
   int _todayValue(Habit h) =>
       _repo.getLogForDate(h.id, DateTime.now())?.value ?? 0;
+
+  /// After the free-mode grace window closes, habits beyond the free limit
+  /// go read-only. The KEPT set is the server-stored choice, or — until
+  /// the user picks — the most-recently-active [limit] habits. Everything
+  /// else is locked (visible, never deleted).
+  Set<String> _computeReadOnlyIds(List<Habit> active) {
+    final svc = SubscriptionService();
+    if (!svc.restrictionsActive) return const <String>{};
+    final limit = svc.habitLimit ?? 3;
+    var keep = svc.activeHabitIds
+        .where((id) => active.any((h) => h.id == id))
+        .toSet();
+    if (keep.isEmpty) {
+      final sorted = [...active]
+        ..sort((a, b) => (b.updatedAt ?? b.createdAt)
+            .compareTo(a.updatedAt ?? a.createdAt));
+      keep = sorted.take(limit).map((h) => h.id).toSet();
+    }
+    return active
+        .where((h) => !keep.contains(h.id))
+        .map((h) => h.id)
+        .toSet();
+  }
+
+  Future<void> _openChooseHabits() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const ChooseHabitsScreen()),
+    );
+    if (mounted) setState(() {});
+  }
 
   List<HabitLog> _last7(Habit h) {
     final today = DateTime.now();

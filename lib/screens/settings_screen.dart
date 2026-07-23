@@ -1638,10 +1638,12 @@ class _PremiumHeroCard extends StatelessWidget {
     return ListenableBuilder(
       listenable: SubscriptionService(),
       builder: (context, _) {
-        final premium = SubscriptionService().isPremium;
-        return premium
-            ? _PremiumActiveCard(onManage: onManage)
-            : _PremiumUpgradeCard(onTap: onUpgrade);
+        final svc = SubscriptionService();
+        if (svc.isPremium) return _PremiumActiveCard(onManage: onManage);
+        // During the promo, hide the upgrade hero entirely — the free-mode
+        // line surfaces elsewhere; Settings just doesn't nag.
+        if (svc.freeModeActive) return const SizedBox.shrink();
+        return _PremiumUpgradeCard(onTap: onUpgrade);
       },
     );
   }

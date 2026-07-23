@@ -21,6 +21,11 @@ class SubscriptionService extends ChangeNotifier {
 
   static const String _kTierKey = 'mood8.subscriptionTier';
   static const String _kExpiresKey = 'mood8.subscriptionExpiresAt';
+  // Free-mode mirror (server-authoritative) so the first frame after a
+  // cold start reflects the promo before /status returns.
+  static const String _kFreeModeKey = 'mood8.freeModeActive';
+  static const String _kFreeModeEndsKey = 'mood8.freeModeEndsAt';
+  static const String _kHabitLimitKey = 'mood8.habitLimit'; // -1 == unlimited
   // Flipped to true while a Stripe checkout flow is mid-air (the user
   // has tapped "Start Premium" and we've launched the checkout URL).
   // On the next AppLifecycleState.resumed we force a status refresh
@@ -39,6 +44,20 @@ class SubscriptionService extends ChangeNotifier {
   SubscriptionTier _tier = SubscriptionTier.free;
   DateTime? _expiresAt;
   bool _loaded = false;
+
+  // ── Free mode / entitlement (server-authoritative) ──────────────────
+  // The client renders what /status reports; it never decides entitlement
+  // locally. `isPremium` above stays REAL premium; these carry the promo
+  // layer so features unlock + upsell hides without mislabelling a
+  // non-payer as a subscriber.
+  bool _freeModeActive = false;
+  DateTime? _freeModeEndsAt;
+  bool _featuresPremium = false; // server: real premium OR free-mode
+  int? _habitLimit; // null = unlimited; server-provided
+  int _habitsOverLimit = 0;
+  DateTime? _graceEndsAt; // set only while in a grace window
+  bool _restrictionsActive = false; // grace expired + over limit
+  List<String> _activeHabitIds = const [];
 
   SubscriptionTier get tier => _tier;
   bool get isPremium => _tier.isPaid && !_isExpired();
@@ -70,23 +89,56 @@ class SubscriptionService extends ChangeNotifier {
   //   the 10 curated habit packages, AI-designed habit packages
   //   (Coach can add habits directly), priority support.
 
-  bool get hasUnlimitedAi => isPremium;
-  bool get hasAdvancedInsights => isPremium;
-  bool get hasMultiDeviceSync => isPremium;
-  bool get hasUnlimitedHabits => isPremium;
-  bool get hasUnlimitedRoutines => isPremium;
-  bool get hasPremiumEffects => isPremium;
-  bool get hasCustomThemes => isPremium;
-  bool get hasWeeklyRecapEmail => isPremium;
+  // ── Free-mode entitlement getters ───────────────────────────────────
+  /// True during the promotional period (server-driven).
+  bool get freeModeActive => _freeModeActive;
+  DateTime? get freeModeEndsAt => _freeModeEndsAt;
+
+  /// Features (packages, AI packages, premium effects, unlimited habits…)
+  /// are unlocked for REAL premium OR anyone during free mode.
+  bool get featuresUnlocked => isPremium || _featuresPremium || _freeModeActive;
+
+  /// Whether to show ANY premium-upsell surface (upgrade bar, paywall
+  /// CTAs, "Premium" badges). Hidden during free mode and for payers.
+  bool get showPremiumUpsell => !isPremium && !_freeModeActive;
+
+  int? get habitLimit => _habitLimit;
+  int get habitsOverLimit => _habitsOverLimit;
+  DateTime? get graceEndsAt => _graceEndsAt;
+  bool get inGrace => _graceEndsAt != null;
+  bool get restrictionsActive => _restrictionsActive;
+  List<String> get activeHabitIds => _activeHabitIds;
+
+  int? get graceDaysRemaining {
+    if (_graceEndsAt == null) return null;
+    final d = _graceEndsAt!.difference(DateTime.now()).inDays;
+    return d < 0 ? 0 : d;
+  }
+
+  // ── Feature gates (route through featuresUnlocked) ───────────────────
+  bool get hasUnlimitedAi => featuresUnlocked;
+  bool get hasAdvancedInsights => featuresUnlocked;
+  bool get hasMultiDeviceSync => featuresUnlocked;
+  bool get hasUnlimitedHabits => featuresUnlocked;
+  bool get hasUnlimitedRoutines => featuresUnlocked;
+  bool get hasPremiumEffects => featuresUnlocked;
+  bool get hasCustomThemes => featuresUnlocked;
+  bool get hasWeeklyRecapEmail => featuresUnlocked;
   bool get hasExport => true; // free for now
   /// Habit Packages (the 10 curated + AI-designed) are unlocked for
-  /// every paying user now that Premium is the only tier.
-  bool get hasHabitPackages => isPremium;
+  /// every paying user, and everyone during free mode.
+  bool get hasHabitPackages => featuresUnlocked;
 
-  int get maxHabits => isPremium ? -1 : 3;
-  int get maxRoutines => isPremium ? -1 : 5;
-  int get aiMessagesPerDay => isPremium ? -1 : 5;
-  int get maxIdentitiesOnProgress => isPremium ? -1 : 1;
+  /// Habit cap: server-provided during free mode / grace (null =
+  /// unlimited). Falls back to premium=unlimited / free=3 before /status.
+  int get maxHabits {
+    if (isPremium || _freeModeActive) return -1;
+    return _habitLimit ?? 3;
+  }
+
+  int get maxRoutines => featuresUnlocked ? -1 : 5;
+  int get aiMessagesPerDay => featuresUnlocked ? -1 : 5;
+  int get maxIdentitiesOnProgress => featuresUnlocked ? -1 : 1;
 
   bool habitLimitReached(int current) =>
       maxHabits != -1 && current >= maxHabits;
@@ -109,6 +161,12 @@ class SubscriptionService extends ChangeNotifier {
       final expRaw = prefs.getInt(_kExpiresKey);
       _expiresAt =
           expRaw == null ? null : DateTime.fromMillisecondsSinceEpoch(expRaw);
+      _freeModeActive = prefs.getBool(_kFreeModeKey) ?? false;
+      final fmEnds = prefs.getString(_kFreeModeEndsKey);
+      _freeModeEndsAt = fmEnds == null ? null : DateTime.tryParse(fmEnds);
+      final hl = prefs.getInt(_kHabitLimitKey);
+      _habitLimit = (hl == null || hl < 0) ? null : hl;
+      _featuresPremium = _freeModeActive;
     } catch (e) {
       debugPrint('[Subscription] load failed: $e');
     } finally {
@@ -133,6 +191,14 @@ class SubscriptionService extends ChangeNotifier {
     debugPrint('[Subscription] clearForLogout');
     _tier = SubscriptionTier.free;
     _expiresAt = null;
+    _freeModeActive = false;
+    _freeModeEndsAt = null;
+    _featuresPremium = false;
+    _habitLimit = null;
+    _habitsOverLimit = 0;
+    _graceEndsAt = null;
+    _restrictionsActive = false;
+    _activeHabitIds = const [];
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_kTierKey);
@@ -153,6 +219,14 @@ class SubscriptionService extends ChangeNotifier {
       } else {
         await prefs.setInt(_kExpiresKey, _expiresAt!.millisecondsSinceEpoch);
       }
+      await prefs.setBool(_kFreeModeKey, _freeModeActive);
+      if (_freeModeEndsAt == null) {
+        await prefs.remove(_kFreeModeEndsKey);
+      } else {
+        await prefs.setString(
+            _kFreeModeEndsKey, _freeModeEndsAt!.toIso8601String());
+      }
+      await prefs.setInt(_kHabitLimitKey, _habitLimit ?? -1);
     } catch (e) {
       debugPrint('[Subscription] persist failed: $e');
     }
@@ -204,6 +278,20 @@ class SubscriptionService extends ChangeNotifier {
         _tier = SubscriptionTier.premium;
         _expiresAt = expiresIso != null ? DateTime.tryParse(expiresIso) : null;
       }
+      // ── Free-mode / entitlement block ──────────────────────────────
+      _freeModeActive = body['free_mode_active'] as bool? ?? false;
+      final fmEnds = body['free_mode_ends_at'] as String?;
+      _freeModeEndsAt = fmEnds != null ? DateTime.tryParse(fmEnds) : null;
+      _featuresPremium = body['features_premium'] as bool? ?? false;
+      _habitLimit = body['habit_limit'] as int?; // null = unlimited
+      _habitsOverLimit = (body['habits_over_limit'] as num?)?.toInt() ?? 0;
+      final graceIso = body['grace_ends_at'] as String?;
+      _graceEndsAt = graceIso != null ? DateTime.tryParse(graceIso) : null;
+      _restrictionsActive = body['restrictions_active'] as bool? ?? false;
+      _activeHabitIds = (body['active_habit_ids'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [];
       await _persist();
       notifyListeners();
       debugPrint(
@@ -405,6 +493,38 @@ class SubscriptionService extends ChangeNotifier {
       debugPrint('[Subscription] redeemPromoCode error: $e');
       return const PromoRedeemResult(
         success: false, message: 'Something went wrong. Try again.');
+    }
+  }
+
+  /// Persist the user's chosen active habits once restrictions apply (the
+  /// rest go read-only). The server trims to the free limit + echoes it in
+  /// /status; we refresh so the UI reflects the new active set immediately.
+  Future<bool> setActiveHabits(List<String> habitIds) async {
+    if (_bearer == null) return false;
+    try {
+      final res = await _client
+          .post(
+            Uri.parse('$_baseUrl/entitlement/active-habits'),
+            headers: _authHeaders,
+            body: jsonEncode({'habit_ids': habitIds}),
+          )
+          .timeout(_timeout);
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        debugPrint('[Subscription] setActiveHabits ${res.statusCode}');
+        return false;
+      }
+      final body = _tryDecode(res.body);
+      _activeHabitIds = (body?['active_habit_ids'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          habitIds;
+      notifyListeners();
+      // Pull canonical entitlement (habits_over_limit, restrictions) again.
+      await refreshStatus();
+      return true;
+    } catch (e) {
+      debugPrint('[Subscription] setActiveHabits error: $e');
+      return false;
     }
   }
 

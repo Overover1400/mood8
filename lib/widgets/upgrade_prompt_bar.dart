@@ -59,16 +59,19 @@ class _UpgradePromptBarState extends State<UpgradePromptBar> {
   }
 
   void _onSubChange() {
-    // If the user upgrades in another screen, hide immediately.
-    if (SubscriptionService().isPremium && _shouldShow == true) {
+    // If the user upgrades OR free mode turns on, hide the upsell
+    // immediately. The free-mode line (rendered in build) reacts too.
+    if (!SubscriptionService().showPremiumUpsell && _shouldShow == true) {
       if (mounted) setState(() => _shouldShow = false);
     } else {
       _refresh();
     }
+    if (mounted) setState(() {}); // pick up free-mode line changes
   }
 
   Future<void> _refresh() async {
-    if (SubscriptionService().isPremium) {
+    // Suppressed for real premium AND during the free-mode promo.
+    if (!SubscriptionService().showPremiumUpsell) {
       if (mounted) setState(() => _shouldShow = false);
       return;
     }
@@ -115,6 +118,11 @@ class _UpgradePromptBarState extends State<UpgradePromptBar> {
 
   @override
   Widget build(BuildContext context) {
+    final sub = SubscriptionService();
+    // During the promo, replace the upsell with a single tasteful line.
+    if (sub.freeModeActive) {
+      return _FreeModeLine(endsAt: sub.freeModeEndsAt);
+    }
     if (_shouldShow != true) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -204,6 +212,63 @@ class _UpgradePromptBarState extends State<UpgradePromptBar> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The single tasteful line shown in place of the upsell while the
+/// free-mode promo is active. Reads the end date from the server; never
+/// a purchase surface (Play-safe).
+class _FreeModeLine extends StatelessWidget {
+  const _FreeModeLine({required this.endsAt});
+  final DateTime? endsAt;
+
+  static const List<String> _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final d = endsAt;
+    final until = d == null
+        ? 'Everything is free right now'
+        : 'Everything is free until ${_months[d.month - 1]} ${d.day}';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.purple.withValues(alpha: 0.16),
+              AppColors.pink.withValues(alpha: 0.10),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: AppColors.pinkLight.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.auto_awesome_rounded,
+                color: Color(0xFFF472B6), size: 15),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                until,
+                style: TextStyle(
+                  color: BrandColors.inkSoft(context),
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
