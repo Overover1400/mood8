@@ -294,6 +294,29 @@ class AuthService {
     }
   }
 
+  /// Establish a signed-in session directly from a raw JWT — used by the
+  /// Wear OS device-linking flow, where the watch receives a freshly
+  /// minted token from the pairing endpoint instead of logging in with
+  /// credentials. Persists the token, then fetches the user via
+  /// `/auth/me` so [currentUserNotifier] flips and the (wear) AuthGate
+  /// routes into the app. Returns failure (and clears the token) if the
+  /// token is rejected.
+  Future<AuthResult> establishSessionFromToken(String jwt) async {
+    if (jwt.isEmpty) return AuthResult.fail('Empty token.');
+    debugPrint('[AuthService] establishSessionFromToken (len=${jwt.length})');
+    _token = jwt;
+    await _saveToken(jwt);
+    // refreshMe() reads /auth/me: on 401 it logs out; on success it saves
+    // the user + flips the notifier. Either way the session is coherent.
+    final r = await refreshMe();
+    if (!r.success) return r;
+    return AuthResult.ok(
+      message: 'Device linked.',
+      user: currentUserNotifier.value,
+      token: jwt,
+    );
+  }
+
   /// Permanently delete the current account + every row of user data
   /// on the server. On success the local auth state is cleared and
   /// the caller should immediately route the user back to the

@@ -35,6 +35,7 @@ import 'badges_screen.dart';
 import 'past_recaps_screen.dart';
 import 'patterns_screen.dart';
 import 'paywall_screen.dart';
+import 'link_device_screen.dart';
 import 'premium_screen.dart';
 import 'share_progress_screen.dart';
 import 'year_in_review_screen.dart';
@@ -406,6 +407,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         // bottom of Settings now (below the footer), as a
                         // small quiet link — see _QuietDeleteAccountLink —
                         // so it's not hit by accident.
+                      ],
+                    ),
+                    SettingsSection(
+                      title: 'Devices',
+                      children: [
+                        SettingsTile(
+                          icon: Icons.watch_outlined,
+                          title: 'Connect your watch',
+                          subtitle:
+                              'Enter the code shown on your Wear OS watch',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const LinkDeviceScreen(),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                     SettingsSection(

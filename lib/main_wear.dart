@@ -14,8 +14,8 @@ import 'wear/wear_app.dart';
 ///
 /// Wear OS apps are standalone installs (not a companion process of
 /// the phone APK), so we can't share SharedPreferences/Hive across
-/// devices. The watch needs its own sign-in. That's wired through
-/// [WearApp] → WearSignInScreen when no token is present.
+/// devices. The watch links to an account via a pairing code — wired
+/// through [WearApp] → WearLinkScreen when no token is present.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DatabaseService.instance.init();

@@ -141,6 +141,11 @@ class _WearHomeScreenState extends State<WearHomeScreen> {
                   ],
                   const SizedBox(height: 10),
                   _StreakCard(streak: streak),
+                  const SizedBox(height: 10),
+                  // Small, quiet "Sign out" — the watch's whole settings
+                  // surface. Clears the token; the WearAuthGate then routes
+                  // back to the pairing screen.
+                  _SignOutButton(onSignOut: _signOut),
                   const SizedBox(height: 8),
                 ],
               ),
@@ -148,6 +153,45 @@ class _WearHomeScreenState extends State<WearHomeScreen> {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _signOut() async {
+    HapticFeedback.mediumImpact();
+    await AuthService().logout();
+    // No navigation here — the WearAuthGate's ValueListenableBuilder sees
+    // currentUser go null and swaps in the pairing screen.
+  }
+}
+
+class _SignOutButton extends StatelessWidget {
+  const _SignOutButton({required this.onSignOut});
+  final VoidCallback onSignOut;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onSignOut,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.logout_rounded,
+                size: 11, color: BrandColors.inkDim(context)),
+            const SizedBox(width: 5),
+            Text(
+              'Sign out',
+              style: TextStyle(
+                color: BrandColors.inkDim(context),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

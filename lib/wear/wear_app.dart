@@ -5,7 +5,7 @@ import '../services/auth_service.dart';
 import '../services/sync_service.dart';
 import '../theme/app_theme.dart';
 import 'screens/wear_home.dart';
-import 'screens/wear_sign_in.dart';
+import 'screens/wear_link.dart';
 
 class WearApp extends StatelessWidget {
   const WearApp({super.key});
@@ -43,7 +43,7 @@ class _WearAuthGateState extends State<_WearAuthGate> {
       builder: (context, user, _) {
         if (user == null) {
           _lastUserId = null;
-          return const WearSignInScreen();
+          return const WearLinkScreen();
         }
         if (user.id != _lastUserId) {
           final isFirstSignIn = _lastUserId == null;
