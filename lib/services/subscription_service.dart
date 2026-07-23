@@ -133,7 +133,11 @@ class SubscriptionService extends ChangeNotifier {
   /// unlimited). Falls back to premium=unlimited / free=3 before /status.
   int get maxHabits {
     if (isPremium || _freeModeActive) return -1;
-    return _habitLimit ?? 3;
+    // Server-driven: a null habit_limit means UNLIMITED (e.g. a
+    // grandfathered user, or during grace before restrictions). We never
+    // hardcode a cap when the server said there isn't one. Before the
+    // first /status fetch, [load] seeds a safe free default of 3.
+    return _habitLimit == null ? -1 : _habitLimit!;
   }
 
   int get maxRoutines => featuresUnlocked ? -1 : 5;
@@ -165,7 +169,9 @@ class SubscriptionService extends ChangeNotifier {
       final fmEnds = prefs.getString(_kFreeModeEndsKey);
       _freeModeEndsAt = fmEnds == null ? null : DateTime.tryParse(fmEnds);
       final hl = prefs.getInt(_kHabitLimitKey);
-      _habitLimit = (hl == null || hl < 0) ? null : hl;
+      // No pref (never fetched) → safe free default of 3; -1 → unlimited
+      // (server said null); N → N. /status overrides on next refresh.
+      _habitLimit = hl == null ? 3 : (hl < 0 ? null : hl);
       _featuresPremium = _freeModeActive;
     } catch (e) {
       debugPrint('[Subscription] load failed: $e');

@@ -182,14 +182,16 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
       return;
     }
     if (!_isEditing) {
+      // Single server-driven gate: habitLimitReached() already returns
+      // false for premium AND during free mode / unlimited (maxHabits==-1),
+      // so we never special-case isPremium here — the app renders whatever
+      // /status decided.
       final subs = SubscriptionService();
-      if (!subs.isPremium) {
-        final active = _repo.getActiveHabits().length;
-        if (subs.habitLimitReached(active)) {
-          final tookAction = await _showHabitLimitDialog();
-          if (!mounted) return;
-          if (tookAction != true) return;
-        }
+      final active = _repo.getActiveHabits().length;
+      if (subs.habitLimitReached(active)) {
+        final tookAction = await _showHabitLimitDialog();
+        if (!mounted) return;
+        if (tookAction != true) return;
       }
     }
     setState(() {

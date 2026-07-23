@@ -123,6 +123,42 @@ class DeviceLinkService {
     }
   }
 
+  /// Phone/web: list the user's linked standalone devices (watches).
+  Future<List<LinkedDevice>> listDevices() async {
+    final auth = AuthService().authHeader;
+    if (auth == null) return const [];
+    try {
+      final res = await _client
+          .get(Uri.parse('$_baseUrl/devices'), headers: {'authorization': auth})
+          .timeout(_timeout);
+      if (res.statusCode < 200 || res.statusCode >= 300) return const [];
+      final list = jsonDecode(res.body) as List;
+      return list
+          .whereType<Map<String, dynamic>>()
+          .map(LinkedDevice.fromJson)
+          .toList();
+    } catch (e) {
+      debugPrint('[DeviceLink] listDevices error: $e');
+      return const [];
+    }
+  }
+
+  /// Phone/web: unlink a device (revokes its token immediately, server-side).
+  Future<bool> unlinkDevice(String id) async {
+    final auth = AuthService().authHeader;
+    if (auth == null) return false;
+    try {
+      final res = await _client
+          .post(Uri.parse('$_baseUrl/devices/$id/unlink'),
+              headers: {'authorization': auth})
+          .timeout(_timeout);
+      return res.statusCode >= 200 && res.statusCode < 300;
+    } catch (e) {
+      debugPrint('[DeviceLink] unlinkDevice error: $e');
+      return false;
+    }
+  }
+
   DeviceLinkState _stateFrom(String raw) {
     switch (raw) {
       case 'approved':
@@ -168,4 +204,27 @@ class DeviceLinkApproveResult {
   const DeviceLinkApproveResult({required this.success, required this.message});
   final bool success;
   final String message;
+}
+
+class LinkedDevice {
+  const LinkedDevice({
+    required this.id,
+    required this.deviceType,
+    required this.name,
+    required this.linkedAt,
+    required this.lastSeenAt,
+  });
+  final String id;
+  final String deviceType;
+  final String? name;
+  final DateTime? linkedAt;
+  final DateTime? lastSeenAt;
+
+  factory LinkedDevice.fromJson(Map<String, dynamic> j) => LinkedDevice(
+        id: j['id'] as String,
+        deviceType: j['device_type'] as String? ?? 'device',
+        name: j['name'] as String?,
+        linkedAt: DateTime.tryParse(j['linked_at'] as String? ?? ''),
+        lastSeenAt: DateTime.tryParse(j['last_seen_at'] as String? ?? ''),
+      );
 }

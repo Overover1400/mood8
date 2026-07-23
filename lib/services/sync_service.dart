@@ -276,6 +276,35 @@ class SyncService extends ChangeNotifier {
     await pullChanges();
   }
 
+  /// Timestamp of the last successful sync (for the Settings "Sync across
+  /// devices" section). Null if never synced.
+  Future<DateTime?> lastSyncAt() => _lastSyncAt();
+
+  /// Manual "Sync now" for Settings. pushChanges/pullChanges swallow their
+  /// own errors, so we confirm reachability with a lightweight authed probe
+  /// and report it, then run the real push+pull. Returns true on success.
+  Future<bool> manualSync() async {
+    if (_bearer() == null) return false;
+    bool reachable = false;
+    try {
+      final now = DateTime.now().toUtc().toIso8601String();
+      final res = await _client
+          .get(
+            Uri.parse('$_baseUrl/sync/pull'
+                '?since=${Uri.encodeQueryComponent(now)}'),
+            headers: _authHeaders(),
+          )
+          .timeout(_timeout);
+      reachable = res.statusCode >= 200 && res.statusCode < 300;
+    } catch (_) {
+      reachable = false;
+    }
+    if (!reachable) return false;
+    await pushChanges();
+    await pullChanges();
+    return true;
+  }
+
   /// Returns true if Hive has any synced user data locally. Used to
   /// distinguish "fresh install" from "existing session" at login.
   bool hasLocalUserData() {

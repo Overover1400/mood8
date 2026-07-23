@@ -37,6 +37,7 @@ import 'patterns_screen.dart';
 import 'paywall_screen.dart';
 import 'link_device_screen.dart';
 import 'premium_screen.dart';
+import 'sync_devices_screen.dart';
 import 'share_progress_screen.dart';
 import 'year_in_review_screen.dart';
 import 'challenges/challenges_list_screen.dart';
@@ -400,8 +401,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         SettingsTile(
                           icon: Icons.sync_rounded,
                           title: 'Sync across devices',
-                          subtitle: 'Coming soon',
-                          onTap: () => _comingSoon('Sync'),
+                          subtitle: 'Sync status, manual sync + linked devices',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const SyncDevicesScreen(),
+                            ),
+                          ),
                         ),
                         // Delete account intentionally lives at the very
                         // bottom of Settings now (below the footer), as a
