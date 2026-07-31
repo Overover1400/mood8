@@ -215,6 +215,119 @@ class ChallengeService {
     _throwIfHttpError(res);
   }
 
+  // ── Leave (voluntary give-up; may auto-close the challenge) ────────
+
+  /// Voluntarily leave a challenge you're an active participant in.
+  /// Returns true when leaving emptied the challenge and the server
+  /// auto-closed it.
+  Future<bool> leave(int challengeId) async {
+    final res = await _client
+        .post(
+          Uri.parse('$_baseUrl/challenges/$challengeId/leave'),
+          headers: _headers,
+          body: '{}',
+        )
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return body['challenge_closed'] as bool? ?? false;
+  }
+
+  // ── Friends (follow) + invites ────────────────────────────────────
+
+  /// Search users to follow / invite by display name (>= 2 chars).
+  Future<List<ChallengeUser>> searchUsers(String query) async {
+    final q = query.trim();
+    if (q.length < 2) return const [];
+    final res = await _client
+        .get(
+          Uri.parse(
+              '$_baseUrl/users/search?q=${Uri.encodeQueryComponent(q)}'),
+          headers: _headers,
+        )
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((body['results'] as List?) ?? const [])
+        .map((r) => ChallengeUser.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// The people you follow — your invite candidates.
+  Future<List<ChallengeUser>> friends() async {
+    final res = await _client
+        .get(Uri.parse('$_baseUrl/friends'), headers: _headers)
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((body['friends'] as List?) ?? const [])
+        .map((r) => ChallengeUser.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> follow(int userId) async {
+    final res = await _client
+        .post(Uri.parse('$_baseUrl/users/$userId/follow'), headers: _headers)
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+  }
+
+  Future<void> unfollow(int userId) async {
+    final res = await _client
+        .delete(Uri.parse('$_baseUrl/users/$userId/follow'), headers: _headers)
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+  }
+
+  /// Invite users (by id) to a challenge. Returns how many invites the
+  /// server actually sent (skips already-joined / already-invited).
+  Future<int> invite(int challengeId, List<int> inviteeIds) async {
+    if (inviteeIds.isEmpty) return 0;
+    final res = await _client
+        .post(
+          Uri.parse('$_baseUrl/challenges/$challengeId/invite'),
+          headers: _headers,
+          body: jsonEncode({'invitee_ids': inviteeIds}),
+        )
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return (body['invited'] as num?)?.toInt() ?? 0;
+  }
+
+  // ── Push token registration (real OS push) ────────────────────────
+
+  /// Register this device's push token so the backend can send daily
+  /// challenge reminders + invite pushes. Best-effort — never throws.
+  Future<void> registerPushToken(String token, {String? platform}) async {
+    try {
+      final res = await _client
+          .post(
+            Uri.parse('$_baseUrl/push/register'),
+            headers: _headers,
+            body: jsonEncode({'token': token, 'platform': platform}),
+          )
+          .timeout(_timeout);
+      _throwIfHttpError(res);
+    } catch (e) {
+      debugPrint('registerPushToken failed: $e');
+    }
+  }
+
+  Future<void> unregisterPushToken(String token) async {
+    try {
+      await _client
+          .post(
+            Uri.parse('$_baseUrl/push/unregister'),
+            headers: _headers,
+            body: jsonEncode({'token': token}),
+          )
+          .timeout(_timeout);
+    } catch (e) {
+      debugPrint('unregisterPushToken failed: $e');
+    }
+  }
+
   // ── Upvotes ────────────────────────────────────────────────────────
 
   /// Toggle the signed-in user's upvote. Returns the new state +

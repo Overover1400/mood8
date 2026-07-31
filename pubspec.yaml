@@ -41,6 +41,7 @@ dependencies:
   # config never blocks app startup. See lib/main.dart::_initCrashlytics.
   firebase_core: ^3.6.0
   firebase_crashlytics: ^4.1.3
+  firebase_messaging: ^15.2.10
 
 dev_dependencies:
   flutter_test:

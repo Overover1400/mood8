@@ -72,8 +72,15 @@ class MoodBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Respect the bottom system-bar inset (gesture pill OR 3-button nav).
+    // MainNavigation's Scaffold body is a Stack with no SafeArea, so
+    // without this the pill sits UNDER the phone's navigation bar on
+    // devices like the Samsung S24 and its tabs become unreachable.
+    // viewPadding (not padding) is used so the inset is honoured even
+    // when a keyboard or other SafeArea has already consumed it.
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      padding: EdgeInsets.fromLTRB(12, 0, 12, 12 + bottomInset),
       child: Container(
         height: 66,
         decoration: BoxDecoration(

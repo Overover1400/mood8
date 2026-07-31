@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/challenge.dart';
 import '../../services/challenge_service.dart';
@@ -45,11 +46,37 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
   String _lastQuery = '';
   static const _searchDebounceMs = 260;
 
+  /// Whether the "How challenges work" explainer has been dismissed.
+  /// Defaults to dismissed (hidden) until prefs load so it never flashes
+  /// for a returning user who already closed it.
+  static const _kHelpDismissedKey = 'challenges_help_dismissed';
+  bool _helpDismissed = true;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _loadHelpState();
     _searchCtl.addListener(_onSearchChanged);
+  }
+
+  Future<void> _loadHelpState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final dismissed = prefs.getBool(_kHelpDismissedKey) ?? false;
+      if (mounted) setState(() => _helpDismissed = dismissed);
+    } catch (_) {
+      if (mounted) setState(() => _helpDismissed = false);
+    }
+  }
+
+  Future<void> _dismissHelp() async {
+    HapticService().selection();
+    setState(() => _helpDismissed = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kHelpDismissedKey, true);
+    } catch (_) {}
   }
 
   @override
@@ -199,6 +226,11 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
                 current: _category,
                 onSelect: _selectCategory,
               ),
+              if (!_helpDismissed)
+                _HowItWorksBanner(
+                  onDismiss: _dismissHelp,
+                  onCreate: _openCreate,
+                ),
               const SizedBox(height: 8),
               Expanded(child: _buildBody()),
             ],
@@ -414,6 +446,147 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
+/// Dismissible three-step explainer. Answers the #1 confusion — "what
+/// is this section and how do I use it?" — right where a new user lands.
+class _HowItWorksBanner extends StatelessWidget {
+  const _HowItWorksBanner({required this.onDismiss, required this.onCreate});
+  final VoidCallback onDismiss;
+  final VoidCallback onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 2),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 14, 12, 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.purple.withValues(alpha: 0.16),
+              AppColors.pink.withValues(alpha: 0.12),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.purple.withValues(alpha: 0.28)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.flag_rounded, color: AppColors.pinkLight, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'How challenges work',
+                    style: TextStyle(
+                      color: BrandColors.ink(context),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: onDismiss,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(Icons.close_rounded,
+                        color: BrandColors.inkSoft(context), size: 18),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            const _Step(
+              n: '1',
+              text: 'Join a challenge below — or tap + to start your own.',
+            ),
+            const SizedBox(height: 8),
+            const _Step(
+              n: '2',
+              text: 'Check in once a day before the deadline to keep '
+                  'your rank climbing.',
+            ),
+            const SizedBox(height: 8),
+            const _Step(
+              n: '3',
+              text: 'Invite friends and rise from Recruit to Legend '
+                  'together.',
+            ),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: onCreate,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                decoration: BoxDecoration(
+                  gradient: AppColors.buttonGradient,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: const Text(
+                  'Start a challenge',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Step extends StatelessWidget {
+  const _Step({required this.n, required this.text});
+  final String n;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.purple.withValues(alpha: 0.35),
+          ),
+          child: Text(
+            n,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              text,
+              style: TextStyle(
+                color: BrandColors.inkSoft(context),
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState({
     required this.onCreate,
@@ -433,10 +606,12 @@ class _EmptyState extends StatelessWidget {
         : Icons.flag_rounded;
     final title = searching
         ? 'No challenges found'
-        : 'No challenges yet.';
+        : 'Be the first to start one.';
     final subtitle = searching
-        ? 'Nothing matched "$searchQuery". Create one?'
-        : 'Start one — or hold tight while we wait for someone to.';
+        ? 'Nothing matched "$searchQuery". Want to create it?'
+        : 'A challenge is a shared goal: everyone checks in once a day '
+            'and climbs the ranks together. Create one, then invite '
+            'friends to join you.';
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),

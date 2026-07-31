@@ -230,7 +230,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
             child: topHabits.isEmpty
                 ? _EmptyHint(text: 'Log habits to surface your top streaks.')
                 : SizedBox(
-                    height: 168,
+                    // Tall enough for icon + name + ring + streak without
+                    // clipping. Card content is also overflow-proofed (see
+                    // _HabitRingCard) so large font scales degrade cleanly.
+                    height: 190,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: topHabits.length,
@@ -637,8 +640,14 @@ class _HabitRingCard extends StatelessWidget {
             color: color.withValues(alpha: 0.22),
           ),
         ),
+        // Icon + name pinned at the top, ring centred, streak pinned at the
+        // bottom. The name gets its own Flexible row so a long title
+        // ellipsizes instead of stealing the ring's space, and the ring
+        // itself flexes down if the card is ever shorter than its content
+        // (large font scales) — so nothing clips.
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.max,
           children: [
             Text(stats.habit.icon, style: const TextStyle(fontSize: 22)),
             const SizedBox(height: 8),
@@ -646,23 +655,30 @@ class _HabitRingCard extends StatelessWidget {
               stats.habit.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              softWrap: false,
               style: TextStyle(
                 color: BrandColors.ink(context),
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 10),
-            Center(
-              child: HabitRing(
-                value: stats.completionRate,
-                size: 72,
-                color: color,
+            Expanded(
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: HabitRing(
+                    value: stats.completionRate,
+                    size: 72,
+                    color: color,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 8),
             Text(
               '🔥 ${stats.streak}d streak',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
               style: TextStyle(
                 color: BrandColors.inkDim(context),
                 fontSize: 11,

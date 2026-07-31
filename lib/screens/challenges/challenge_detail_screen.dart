@@ -12,6 +12,7 @@ import '../../services/challenge_service.dart';
 import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/challenge_score_chip.dart';
+import '../../widgets/challenges/invite_friends_sheet.dart';
 import '../../widgets/challenges/network_avatar.dart';
 import '../../widgets/challenges/rank_insignia.dart';
 import '../../widgets/challenges/user_badge_chip.dart';
@@ -293,6 +294,78 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
             e is ChallengeError ? e.message : 'Could not delete challenge.',
           ),
         ),
+      );
+    }
+  }
+
+  Future<void> _leave() async {
+    final d = _detail;
+    if (d == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text(
+          'Leave "${d.title}"?',
+          style: TextStyle(color: BrandColors.ink(context)),
+        ),
+        content: Text(
+          "You'll give up your spot and your rank in this challenge. "
+          "You can request to join again later. If everyone leaves, "
+          "the challenge closes automatically.",
+          style: TextStyle(color: BrandColors.inkSoft(context), height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Leave',
+              style: TextStyle(
+                color: Color(0xFFFF6B81),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    HapticService().medium();
+    try {
+      final closed = await ChallengeService().leave(widget.challengeId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(closed
+              ? 'You left — the challenge closed (everyone gave up).'
+              : 'You left the challenge.'),
+        ),
+      );
+      Navigator.of(context).pop(true); // back to list, which reloads
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          e is ChallengeError ? e.message : 'Could not leave challenge.',
+        )),
+      );
+    }
+  }
+
+  Future<void> _openInvite() async {
+    final d = _detail;
+    if (d == null) return;
+    HapticService().light();
+    final invited = await showInviteFriendsSheet(context, challengeId: d.id);
+    if (invited != null && invited > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          invited == 1 ? '1 invite sent.' : '$invited invites sent.',
+        )),
       );
     }
   }
@@ -625,6 +698,16 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
             isCreator: d.isCreator,
             onBack: () => Navigator.of(context).maybePop(),
             onReport: _report,
+            // Invite is available to anyone in the challenge (creator or
+            // active participant). Leave is for active participants who
+            // aren't the creator — the creator ends a challenge via
+            // Delete, not Leave.
+            onInvite: (d.isCreator || d.me?.status == 'active')
+                ? _openInvite
+                : null,
+            onLeave: (!d.isCreator && d.me?.status == 'active')
+                ? _leave
+                : null,
             onDelete: d.isCreator ? _deleteChallenge : null,
             onJoinRequests: d.isCreator
                 ? () async {
@@ -724,6 +807,8 @@ class _TopBar extends StatelessWidget {
     required this.isCreator,
     required this.onBack,
     required this.onReport,
+    this.onInvite,
+    this.onLeave,
     this.onDelete,
     this.onJoinRequests,
   });
@@ -731,6 +816,12 @@ class _TopBar extends StatelessWidget {
   final bool isCreator;
   final VoidCallback onBack;
   final VoidCallback onReport;
+  /// Shown to anyone in the challenge. When null the "Invite friends"
+  /// item is omitted.
+  final VoidCallback? onInvite;
+  /// Shown to active non-creator participants. When null the "Leave
+  /// challenge" item is omitted.
+  final VoidCallback? onLeave;
   /// Only wired for creators. When null the "Delete challenge" item
   /// is omitted from the overflow menu.
   final VoidCallback? onDelete;
@@ -764,6 +855,12 @@ class _TopBar extends StatelessWidget {
               case 'report':
                 onReport();
                 break;
+              case 'invite':
+                onInvite?.call();
+                break;
+              case 'leave':
+                onLeave?.call();
+                break;
               case 'join_requests':
                 onJoinRequests?.call();
                 break;
@@ -773,6 +870,19 @@ class _TopBar extends StatelessWidget {
             }
           },
           itemBuilder: (ctx) => [
+            if (onInvite != null)
+              PopupMenuItem(
+                value: 'invite',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_add_alt_1_rounded,
+                        color: AppColors.pinkLight, size: 18),
+                    const SizedBox(width: 8),
+                    Text('Invite friends',
+                        style: TextStyle(color: BrandColors.ink(context))),
+                  ],
+                ),
+              ),
             if (isCreator && onJoinRequests != null)
               PopupMenuItem(
                 value: 'join_requests',
@@ -810,6 +920,26 @@ class _TopBar extends StatelessWidget {
                 ],
               ),
             ),
+            if (onLeave != null) ...[
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'leave',
+                child: Row(
+                  children: [
+                    const Icon(Icons.logout_rounded,
+                        color: Color(0xFFFF6B81), size: 18),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Leave challenge',
+                      style: TextStyle(
+                        color: Color(0xFFFF6B81),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             if (isCreator && onDelete != null) ...[
               const PopupMenuDivider(),
               PopupMenuItem(

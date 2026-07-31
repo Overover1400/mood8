@@ -269,7 +269,17 @@ List<_TutorialStep> get _kSteps => <_TutorialStep>[
 void showTutorial(BuildContext context) async {
   // Wait for any in-flight reward/celebration overlay to dismiss FIRST
   // so the tutorial spotlight isn't buried under confetti / orbs.
-  await OverlayCoordinator().whenIdle();
+  //
+  // Guarded by a timeout: the first run is the busiest moment for
+  // celebration overlays, and if a producer ever leaks its counter
+  // (push without a matching pop — e.g. an overlay torn down by a
+  // route change) whenIdle() would hang forever and the tutorial would
+  // silently never appear. That is the "doesn't reliably show to first
+  // users" failure. After the grace period we show regardless.
+  await OverlayCoordinator().whenIdle().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {},
+      );
   if (!context.mounted) return;
   // The tutorial drives + spotlights the bottom-nav tabs, so it MUST render
   // over MainNavigation. When launched from a PUSHED route — most commonly
@@ -297,6 +307,12 @@ void showTutorial(BuildContext context) async {
     ),
   );
   overlay.insert(entry);
+  // Mark as seen the instant it's committed to render — not only on
+  // Finish/Skip. If the user force-quits the app mid-walkthrough, the
+  // tutorial has still been "shown once" and must not reappear on the
+  // next launch (item: show exactly once per user). The onFinish/onSkip
+  // handlers still call this; markTutorialCompleted is idempotent.
+  markTutorialCompleted();
 }
 
 class _TutorialOverlay extends StatefulWidget {

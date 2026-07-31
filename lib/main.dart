@@ -28,6 +28,7 @@ import 'services/haptic_service.dart';
 import 'services/intention_repository.dart';
 import 'services/notification_feed_service.dart';
 import 'services/notification_service.dart';
+import 'services/push_registration_service.dart';
 import 'services/reminder_service.dart';
 import 'services/sync_service.dart';
 import 'widgets/tutorial_overlay.dart';
@@ -141,6 +142,12 @@ Future<void> _boot() async {
   // Web is a no-op — the existing ?checkout=success query handler covers it.
   // ignore: discarded_futures
   DeepLinkService().initialize();
+  // Register this device's FCM push token so the backend can send daily
+  // challenge reminders + invite pushes. Fire-and-forget + fully
+  // defensive: no-op on web, when signed out, or when Firebase/FCM isn't
+  // configured yet (see PushRegistrationService).
+  // ignore: discarded_futures
+  PushRegistrationService().registerIfPossible();
   // Cloud sync: open the tombstone box, then schedule a pull + periodic
   // sync if the user is already signed in. Fresh-install logins run
   // fullRestore via AuthGate's post-login flow instead.

@@ -84,6 +84,47 @@ class ParticipantPreview {
       );
 }
 
+/// A user you can follow / invite, from `/api/users/search` and
+/// `/api/friends`.
+class ChallengeUser {
+  const ChallengeUser({
+    required this.id,
+    required this.name,
+    required this.avatarUrl,
+    required this.profileBadge,
+    required this.challengeScore,
+    required this.challengeTier,
+    required this.isFollowing,
+  });
+  final int id;
+  final String name;
+  final String? avatarUrl;
+  final String? profileBadge;
+  final int challengeScore;
+  final String challengeTier;
+  final bool isFollowing;
+
+  factory ChallengeUser.fromJson(Map<String, dynamic> json) => ChallengeUser(
+        id: (json['id'] as num).toInt(),
+        name: (json['name'] as String?) ?? 'Anonymous',
+        avatarUrl: json['avatar_url'] as String?,
+        profileBadge: json['profile_badge'] as String?,
+        challengeScore: (json['challenge_score'] as num?)?.toInt() ?? 0,
+        challengeTier: (json['challenge_tier'] as String?) ?? 'Bronze',
+        isFollowing: json['is_following'] as bool? ?? false,
+      );
+
+  ChallengeUser copyWith({bool? isFollowing}) => ChallengeUser(
+        id: id,
+        name: name,
+        avatarUrl: avatarUrl,
+        profileBadge: profileBadge,
+        challengeScore: challengeScore,
+        challengeTier: challengeTier,
+        isFollowing: isFollowing ?? this.isFollowing,
+      );
+}
+
 /// Summary as returned by `/api/challenges/list` and `/mine`.
 class ChallengeSummary {
   const ChallengeSummary({
