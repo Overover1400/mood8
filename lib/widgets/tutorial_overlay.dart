@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -327,21 +329,49 @@ class _TutorialOverlay extends StatefulWidget {
   State<_TutorialOverlay> createState() => _TutorialOverlayState();
 }
 
-class _TutorialOverlayState extends State<_TutorialOverlay> {
+class _TutorialOverlayState extends State<_TutorialOverlay>
+    with WidgetsBindingObserver {
   int _index = 0;
   // Navigation direction of the last move (+1 = forward, -1 = back). Used
   // when a step has to be skipped because its target isn't on screen, so
   // we skip in the direction the user was already heading.
   int _dir = 1;
 
+  // Re-measures the spotlight a few times a second while the overlay is
+  // up. The target's on-screen rect is NOT static after the first paint:
+  // on web the google_fonts webfonts load asynchronously and the
+  // flutter_animate entrance animations settle a beat later, both of
+  // which reflow the layout and move the target out from under a
+  // once-measured spotlight — the reported "misaligned on web" bug.
+  // Continuously re-reading the live RenderBox keeps the highlight and
+  // tooltip glued to the real element as it settles (and on resize).
+  Timer? _remeasure;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Sync the visible tab with the first step the moment the overlay
     // appears so the user sees Home behind the dim layer.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _switchToCurrentTab();
     });
+    _remeasure = Timer.periodic(const Duration(milliseconds: 120), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _remeasure?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    // Window resize / rotation (common on web) — re-measure immediately.
+    if (mounted) setState(() {});
   }
 
   void _switchToCurrentTab() {
@@ -468,7 +498,16 @@ class _TutorialOverlayState extends State<_TutorialOverlay> {
     if (ctx == null) return null;
     final render = ctx.findRenderObject();
     if (render is! RenderBox || !render.attached) return null;
-    final offset = render.localToGlobal(Offset.zero);
+    var offset = render.localToGlobal(Offset.zero);
+    // Translate the target's global (FlutterView-relative) position into
+    // THIS overlay's own coordinate space, which is what the spotlight
+    // painter and Positioned tooltip draw in. At the root this is the
+    // identity; if the overlay is ever nested under a transform/offset
+    // it keeps the highlight aligned instead of shifted.
+    final self = context.findRenderObject();
+    if (self is RenderBox && self.attached) {
+      offset = self.globalToLocal(offset);
+    }
     final size = render.size;
     // Pad the rect a touch so the spotlight reads as breathing room
     // around the target, not skin-tight to its edge.

@@ -5,6 +5,7 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../models/challenge.dart';
 import '../../services/auth_service.dart';
@@ -351,6 +352,30 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(
           e is ChallengeError ? e.message : 'Could not leave challenge.',
+        )),
+      );
+    }
+  }
+
+  Future<void> _shareInviteLink() async {
+    final d = _detail;
+    if (d == null) return;
+    HapticService().light();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Creating invite link…'), duration: Duration(milliseconds: 800)),
+    );
+    try {
+      final url = await ChallengeService().inviteLink(d.id);
+      if (!mounted || url.isEmpty) return;
+      await Share.share(
+        'Join me in “${d.title}” on Mood8 — no account needed:\n$url',
+        subject: 'Join my Mood8 challenge',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          e is ChallengeError ? e.message : 'Could not create invite link.',
         )),
       );
     }
@@ -705,6 +730,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
             onInvite: (d.isCreator || d.me?.status == 'active')
                 ? _openInvite
                 : null,
+            onShareLink: d.isCreator ? _shareInviteLink : null,
             onLeave: (!d.isCreator && d.me?.status == 'active')
                 ? _leave
                 : null,
@@ -808,6 +834,7 @@ class _TopBar extends StatelessWidget {
     required this.onBack,
     required this.onReport,
     this.onInvite,
+    this.onShareLink,
     this.onLeave,
     this.onDelete,
     this.onJoinRequests,
@@ -819,6 +846,8 @@ class _TopBar extends StatelessWidget {
   /// Shown to anyone in the challenge. When null the "Invite friends"
   /// item is omitted.
   final VoidCallback? onInvite;
+  /// Creator-only public shareable link. When null the item is omitted.
+  final VoidCallback? onShareLink;
   /// Shown to active non-creator participants. When null the "Leave
   /// challenge" item is omitted.
   final VoidCallback? onLeave;
@@ -858,6 +887,9 @@ class _TopBar extends StatelessWidget {
               case 'invite':
                 onInvite?.call();
                 break;
+              case 'share_link':
+                onShareLink?.call();
+                break;
               case 'leave':
                 onLeave?.call();
                 break;
@@ -879,6 +911,19 @@ class _TopBar extends StatelessWidget {
                         color: AppColors.pinkLight, size: 18),
                     const SizedBox(width: 8),
                     Text('Invite friends',
+                        style: TextStyle(color: BrandColors.ink(context))),
+                  ],
+                ),
+              ),
+            if (onShareLink != null)
+              PopupMenuItem(
+                value: 'share_link',
+                child: Row(
+                  children: [
+                    Icon(Icons.link_rounded,
+                        color: AppColors.pinkLight, size: 18),
+                    const SizedBox(width: 8),
+                    Text('Share invite link',
                         style: TextStyle(color: BrandColors.ink(context))),
                   ],
                 ),

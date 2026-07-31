@@ -6,6 +6,7 @@ import '../services/notification_feed_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/responsive_container.dart';
 import 'challenges/challenge_detail_screen.dart';
+import 'challenges/join_requests_screen.dart';
 
 /// Two-tab layout — **Active** (unread) and **History** (read).
 /// Marking a notification as read moves it out of Active into History
@@ -44,8 +45,17 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       NotificationFeedService().markRead(n.id);
     }
     if (n.relatedId == null) return;
-    // All current types relate to a challenge.
     final id = n.relatedId!;
+    // A join request opens the creator's approve/deny screen directly;
+    // every other challenge notification opens the challenge itself.
+    if (n.type == 'join_request') {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => JoinRequestsScreen(challengeId: id, title: 'Join requests'),
+        ),
+      );
+      return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ChallengeDetailScreen(challengeId: id),

@@ -233,6 +233,21 @@ class ChallengeService {
     return body['challenge_closed'] as bool? ?? false;
   }
 
+  /// Creator-only: generate (or fetch) the public shareable invite link
+  /// for a challenge. Anyone with this URL can join as a guest — no login.
+  Future<String> inviteLink(int challengeId) async {
+    final res = await _client
+        .post(
+          Uri.parse('$_baseUrl/challenges/$challengeId/invite-link'),
+          headers: _headers,
+          body: '{}',
+        )
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return body['url'] as String? ?? '';
+  }
+
   // ── Friends (follow) + invites ────────────────────────────────────
 
   /// Search users to follow / invite by display name (>= 2 chars).

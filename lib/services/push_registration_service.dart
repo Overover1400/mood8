@@ -2,7 +2,11 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
+import '../main.dart' show rootNavigatorKey;
+import '../screens/challenges/challenge_detail_screen.dart';
+import '../screens/challenges/join_requests_screen.dart';
 import 'auth_service.dart';
 import 'challenge_service.dart';
 
@@ -49,9 +53,39 @@ class PushRegistrationService {
           _lastToken = t;
           ChallengeService().registerPushToken(t, platform: _platform());
         });
+        _wireTapRouting();
       }
     } catch (e) {
       debugPrint('PushRegistrationService.registerIfPossible failed: $e');
+    }
+  }
+
+  /// Routes a tapped push to the right screen. join_request → the
+  /// creator's approve/deny screen; everything else with a challenge id
+  /// → that challenge. Covers both cold start (getInitialMessage) and
+  /// background→foreground (onMessageOpenedApp).
+  void _wireTapRouting() {
+    FirebaseMessaging.instance.getInitialMessage().then((m) {
+      if (m != null) _routeFromData(m.data);
+    });
+    FirebaseMessaging.onMessageOpenedApp.listen((m) => _routeFromData(m.data));
+  }
+
+  void _routeFromData(Map<String, dynamic> data) {
+    final type = data['type']?.toString();
+    final challengeId = int.tryParse(data['challenge_id']?.toString() ?? '');
+    if (challengeId == null) return;
+    final nav = rootNavigatorKey.currentState;
+    if (nav == null) return;
+    if (type == 'join_request') {
+      nav.push(MaterialPageRoute<void>(
+        builder: (_) =>
+            JoinRequestsScreen(challengeId: challengeId, title: 'Join requests'),
+      ));
+    } else {
+      nav.push(MaterialPageRoute<void>(
+        builder: (_) => ChallengeDetailScreen(challengeId: challengeId),
+      ));
     }
   }
 
