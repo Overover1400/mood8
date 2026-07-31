@@ -15,7 +15,15 @@ import 'badge_legend_screen.dart';
 import 'ranking_screen.dart';
 import 'challenge_detail_screen.dart';
 import 'create_challenge_screen.dart';
+import 'friends_screen.dart';
 import 'my_challenges_screen.dart';
+
+/// Vertical space the floating bottom nav occupies when this screen is
+/// shown as a tab (`embedded`). Container height (66) + its bottom margin
+/// (12) + a little breathing room. The device's bottom safe-area inset is
+/// added on top at call sites via MediaQuery. Centered empty/error states
+/// reserve this so their CTA never hides under the nav.
+const double _kNavClearance = 96;
 
 class ChallengesListScreen extends StatefulWidget {
   const ChallengesListScreen({super.key, this.embedded = false});
@@ -204,6 +212,14 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
     _load();
   }
 
+  Future<void> _openFriends() async {
+    HapticService().light();
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const FriendsScreen()),
+    );
+    _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -216,6 +232,7 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
               _Header(
                 onMine: _openMine,
                 onCreate: _openCreate,
+                onFriends: _openFriends,
                 embedded: widget.embedded,
               ),
               _SearchBar(
@@ -254,13 +271,19 @@ class _ChallengesListScreenState extends State<ChallengesListScreen> {
       );
     }
     if (_error != null && _challenges == null) {
-      return _ErrorState(message: _error!, onRetry: _load);
+      return _ErrorState(
+        message: _error!,
+        onRetry: _load,
+        embedded: widget.embedded,
+      );
     }
     final list = _challenges ?? const <ChallengeSummary>[];
     if (list.isEmpty) {
       return _EmptyState(
         onCreate: _openCreate,
+        onFriends: _openFriends,
         searchQuery: _searchCtl.text.trim(),
+        embedded: widget.embedded,
       );
     }
     return RefreshIndicator(
@@ -299,10 +322,12 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.onMine,
     required this.onCreate,
+    required this.onFriends,
     required this.embedded,
   });
   final VoidCallback onMine;
   final VoidCallback onCreate;
+  final VoidCallback onFriends;
   final bool embedded;
 
   @override
@@ -324,6 +349,8 @@ class _Header extends StatelessWidget {
               padding: EdgeInsets.only(left: embedded ? 0 : 0),
               child: Text(
                 'Challenges',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: brandFont(
                   color: BrandColors.ink(context),
                   fontSize: 30,
@@ -333,6 +360,12 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+          IconButton(
+            tooltip: 'Friends',
+            onPressed: onFriends,
+            icon: Icon(Icons.group_rounded,
+                color: BrandColors.inkSoft(context)),
           ),
           IconButton(
             tooltip: 'Ranking',
@@ -590,13 +623,19 @@ class _Step extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   const _EmptyState({
     required this.onCreate,
+    required this.onFriends,
     required this.searchQuery,
+    required this.embedded,
   });
   final VoidCallback onCreate;
+  final VoidCallback onFriends;
   /// When non-empty, the empty state is a "no results for X" screen
   /// (search didn't match anything) rather than a "no challenges
   /// yet" screen (list actually empty).
   final String searchQuery;
+  /// True when shown as a tab (floating nav overlays the bottom). Adds
+  /// nav clearance so the CTA sits fully above the nav bar.
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
@@ -612,9 +651,11 @@ class _EmptyState extends StatelessWidget {
         : 'A challenge is a shared goal: everyone checks in once a day '
             'and climbs the ranks together. Create one, then invite '
             'friends to join you.';
+    final bottomClear =
+        embedded ? _kNavClearance + MediaQuery.viewPaddingOf(context).bottom : 0.0;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+        padding: EdgeInsets.fromLTRB(32, 0, 32, bottomClear),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -664,6 +705,23 @@ class _EmptyState extends StatelessWidget {
                     fontSize: 14,
                     letterSpacing: 0.3,
                   ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Secondary path so the friends feature is reachable even
+            // with zero challenges: find + follow people first, then
+            // invite them from any challenge you create/join.
+            TextButton.icon(
+              onPressed: onFriends,
+              icon: Icon(Icons.group_rounded,
+                  color: AppColors.pinkLight, size: 18),
+              label: Text(
+                'Find friends',
+                style: TextStyle(
+                  color: AppColors.pinkLight,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13.5,
                 ),
               ),
             ),
@@ -741,15 +799,22 @@ class _SearchBar extends StatelessWidget {
 }
 
 class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.message, required this.onRetry});
+  const _ErrorState({
+    required this.message,
+    required this.onRetry,
+    this.embedded = false,
+  });
   final String message;
   final VoidCallback onRetry;
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
+    final bottomClear =
+        embedded ? _kNavClearance + MediaQuery.viewPaddingOf(context).bottom : 0.0;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: EdgeInsets.fromLTRB(24, 0, 24, bottomClear),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
