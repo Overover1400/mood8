@@ -6,6 +6,7 @@ import '../../services/haptic_service.dart';
 import '../../services/profile_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/responsive_container.dart';
+import '../challenges/follow_list_screen.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -22,6 +23,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _avatarUploading = false;
   String? _avatarUrl;
   String? _bioRejection;
+  int _followers = 0;
+  int _following = 0;
 
   @override
   void initState() {
@@ -32,6 +35,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _showWellbeing = me.showWellbeingPublic;
       _leaderboardHidden = me.leaderboardHidden;
       _avatarUrl = me.avatarAbsoluteUrl();
+      final myId = int.tryParse(me.id);
+      if (myId != null) _loadCounts(myId);
     }
     // Refresh /me in the background so cached values get freshened.
     // ignore: discarded_futures
@@ -52,6 +57,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void dispose() {
     _bio.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCounts(int myId) async {
+    try {
+      final p = await ProfileService().fetchPublic(myId);
+      if (!mounted) return;
+      setState(() {
+        _followers = p.followersCount;
+        _following = p.followingCount;
+      });
+    } catch (_) {/* counts are best-effort */}
+  }
+
+  void _openFollowList(FollowListMode mode) {
+    final me = AuthService().currentUser;
+    final myId = me == null ? null : int.tryParse(me.id);
+    if (myId == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FollowListScreen(userId: myId, mode: mode),
+      ),
+    ).then((_) {
+      if (mounted) _loadCounts(myId);
+    });
   }
 
   Future<void> _pickAvatar() async {
@@ -269,6 +298,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 20),
+              // Social graph — tappable follower/following counts.
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _CountPill(
+                    count: _followers,
+                    label: 'Followers',
+                    onTap: () => _openFollowList(FollowListMode.followers),
+                  ),
+                  const SizedBox(width: 10),
+                  _CountPill(
+                    count: _following,
+                    label: 'Following',
+                    onTap: () => _openFollowList(FollowListMode.following),
+                  ),
+                ],
+              ),
               const SizedBox(height: 28),
               _SectionLabel('BIO'),
               const SizedBox(height: 8),
@@ -461,6 +508,59 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       onChanged: _toggleLeaderboardHidden,
                     ),
                   ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CountPill extends StatelessWidget {
+  const _CountPill({
+    required this.count,
+    required this.label,
+    required this.onTap,
+  });
+  final int count;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+          decoration: BoxDecoration(
+            color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.purple.withValues(alpha: 0.30)),
+          ),
+          child: Column(
+            children: [
+              Text(
+                '$count',
+                style: brandFont(
+                  color: BrandColors.ink(context),
+                  fontSize: 20,
+                  weight: FontWeight.w800,
+                  height: 1.0,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  color: BrandColors.inkDim(context),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
                 ),
               ),
             ],

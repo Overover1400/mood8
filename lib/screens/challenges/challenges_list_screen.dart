@@ -361,32 +361,9 @@ class _Header extends StatelessWidget {
               ),
             ),
           ),
-          IconButton(
-            tooltip: 'Friends',
-            onPressed: onFriends,
-            icon: Icon(Icons.group_rounded,
-                color: BrandColors.inkSoft(context)),
-          ),
-          IconButton(
-            tooltip: 'Ranking',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const RankingScreen(),
-              ),
-            ),
-            icon: Icon(Icons.emoji_events_rounded,
-                color: AppColors.pinkLight),
-          ),
-          IconButton(
-            tooltip: 'Badges & ranks',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const BadgeLegendScreen(),
-              ),
-            ),
-            icon: Icon(Icons.info_outline_rounded,
-                color: BrandColors.inkSoft(context)),
-          ),
+          // Two primary actions stay visible; the reference screens
+          // (Ranking, Badges) move into an overflow menu so the header
+          // reads calmly instead of as a wall of five icons.
           IconButton(
             tooltip: 'My challenges',
             onPressed: onMine,
@@ -394,10 +371,59 @@ class _Header extends StatelessWidget {
                 color: BrandColors.inkSoft(context)),
           ),
           IconButton(
+            tooltip: 'Friends',
+            onPressed: onFriends,
+            icon: Icon(Icons.group_rounded,
+                color: BrandColors.inkSoft(context)),
+          ),
+          IconButton(
             tooltip: 'Create',
             onPressed: onCreate,
             icon: Icon(Icons.add_circle_outline_rounded,
                 color: AppColors.pinkLight),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'More',
+            icon: Icon(Icons.more_vert_rounded,
+                color: BrandColors.inkSoft(context)),
+            color: BrandColors.bgCard(context),
+            onSelected: (v) {
+              if (v == 'ranking') {
+                Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const RankingScreen(),
+                ));
+              } else if (v == 'badges') {
+                Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const BadgeLegendScreen(),
+                ));
+              }
+            },
+            itemBuilder: (ctx) => [
+              PopupMenuItem(
+                value: 'ranking',
+                child: Row(
+                  children: [
+                    Icon(Icons.emoji_events_rounded,
+                        color: AppColors.pinkLight, size: 18),
+                    const SizedBox(width: 8),
+                    Text('Ranking',
+                        style: TextStyle(color: BrandColors.ink(context))),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'badges',
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded,
+                        color: BrandColors.inkSoft(context), size: 18),
+                    const SizedBox(width: 8),
+                    Text('Badges & ranks',
+                        style: TextStyle(color: BrandColors.ink(context))),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

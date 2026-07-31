@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../models/challenge.dart';
 import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
-import '../challenge_score_chip.dart';
 import 'network_avatar.dart';
 import 'user_badge_chip.dart';
 
@@ -40,40 +39,29 @@ class ChallengeCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
           decoration: BoxDecoration(
+            // Cleaner, flatter card: a calm card fill with just a
+            // whisper of the category accent, one soft shadow. Less
+            // visual noise, more breathing room.
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                accent.withValues(alpha: 0.16),
+                accent.withValues(alpha: 0.10),
                 BrandColors.bgCard(context).withValues(alpha: 0.92),
-                BrandColors.bg(context).withValues(alpha: 0.78),
               ],
-              stops: const [0.0, 0.55, 1.0],
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: accent.withValues(alpha: 0.45),
-              width: 1.2,
+              color: accent.withValues(alpha: 0.28),
             ),
             boxShadow: [
-              // Soft accent halo — the "glow" the brief asked for.
-              // Spread negative so it sits as an aura around the card,
-              // not as a heavy drop shadow.
               BoxShadow(
-                color: accent.withValues(alpha: 0.32),
-                blurRadius: 18,
-                spreadRadius: -6,
+                color: Colors.black.withValues(alpha: 0.22),
+                blurRadius: 16,
+                spreadRadius: -8,
                 offset: const Offset(0, 6),
-              ),
-              // A second purple layer keyed to the brand keeps every
-              // card in the list visually unified even though each
-              // category recolours the primary halo.
-              BoxShadow(
-                color: AppColors.purple.withValues(alpha: 0.18),
-                blurRadius: 22,
-                spreadRadius: -10,
               ),
             ],
           ),
@@ -90,48 +78,37 @@ class ChallengeCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          challenge.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.bricolageGrotesque(
-                            color: BrandColors.ink(context),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            height: 1.1,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        _CategoryChip(
-                          label: prettyCategory(challenge.category),
-                          color: accent,
-                        ),
-                      ],
+                    child: Text(
+                      challenge.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.bricolageGrotesque(
+                        color: BrandColors.ink(context),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                        letterSpacing: -0.2,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   _DurationPill(
                     durationDays: challenge.durationDays,
                     daysRemaining: challenge.daysRemaining,
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               // Row 2 — creator chip (avatar + name + badge inline).
               _CreatorRow(creator: challenge.creator),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               // Row 3 — stats bar.
               _StatsBar(
                 activePct: challenge.activePct,
                 gaveUpPct: challenge.gaveUpPct,
                 accent: accent,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               // Row 4 — avatar stack on the left, engagement on the
               // right, so the card ends in one clean horizontal beat
               // instead of two stacked rows. Compact avatars (22px,
@@ -193,22 +170,14 @@ class _CreatorRow extends StatelessWidget {
           size: 20,
         ),
         const SizedBox(width: 8),
-        if (creator.challengeScore > 0) ...[
-          ChallengeScoreChip(
-            score: creator.challengeScore,
-            tier: creator.challengeTier,
-            dense: true,
-          ),
-          const SizedBox(width: 6),
-        ],
         Flexible(
           child: Text(
-            creator.name,
+            'by ${creator.name}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: BrandColors.inkSoft(context),
-              fontSize: 11.5,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -259,34 +228,6 @@ class _CategoryBubble extends StatelessWidget {
         _iconFor(category),
         color: Colors.white,
         size: 16,
-      ),
-    );
-  }
-}
-
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({required this.label, required this.color});
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    if (label.isEmpty) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.32)),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          color: BrandColors.inkSoft(context),
-          fontSize: 9,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.2,
-        ),
       ),
     );
   }

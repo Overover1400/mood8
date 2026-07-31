@@ -7,6 +7,7 @@ import '../../models/challenge.dart';
 import '../../services/challenge_service.dart';
 import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/challenges/pick_friends_sheet.dart';
 import '../../widgets/responsive_container.dart';
 
 /// Visual vocabulary intentionally mirrors `add_habit_sheet.dart` —
@@ -36,6 +37,9 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
   bool _submitting = false;
   String? _rejection;
   String? _formError;
+  // Friends the creator chose to invite as part of creating the
+  // challenge. Invites are sent right after the challenge is created.
+  Set<int> _invitees = {};
 
   @override
   void initState() {
@@ -52,6 +56,17 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
     _maxCtrl.dispose();
     _titleFocus.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickInvitees() async {
+    HapticService().light();
+    final picked = await showPickFriendsSheet(
+      context,
+      initialSelected: _invitees,
+    );
+    if (picked != null && mounted) {
+      setState(() => _invitees = picked);
+    }
   }
 
   Future<void> _pickDeadline() async {
@@ -113,7 +128,16 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
         });
         return;
       }
-      Navigator.of(context).pop<int>(result.challengeId);
+      // Fire off invites chosen during creation. Best-effort: a failed
+      // invite must not fail the (already successful) creation.
+      final newId = result.challengeId;
+      if (_invitees.isNotEmpty && newId != null) {
+        try {
+          await ChallengeService().invite(newId, _invitees.toList());
+        } catch (_) {/* creation already succeeded */}
+      }
+      if (!mounted) return;
+      Navigator.of(context).pop<int>(newId);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -274,6 +298,13 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                         setState(() => _limitParticipants = v);
                       },
                     ),
+                    const SizedBox(height: 18),
+                    const _Label('Invite friends'),
+                    const SizedBox(height: 8),
+                    _InviteFriendsTile(
+                      count: _invitees.length,
+                      onTap: _pickInvitees,
+                    ),
                     if (_formError != null) ...[
                       const SizedBox(height: 14),
                       Text(
@@ -317,6 +348,54 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InviteFriendsTile extends StatelessWidget {
+  const _InviteFriendsTile({required this.count, required this.onTap});
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          decoration: BoxDecoration(
+            color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.purple.withValues(alpha: 0.30)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.group_add_rounded,
+                  color: AppColors.pinkLight, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  count == 0
+                      ? 'Invite people to join (optional)'
+                      : '$count friend${count == 1 ? '' : 's'} will be invited',
+                  style: TextStyle(
+                    color: count == 0
+                        ? BrandColors.inkSoft(context)
+                        : BrandColors.ink(context),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded,
+                  color: BrandColors.inkDim(context), size: 20),
+            ],
           ),
         ),
       ),

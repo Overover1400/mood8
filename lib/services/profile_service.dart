@@ -160,6 +160,10 @@ class PublicProfile {
     required this.wellbeing,
     required this.challengeScore,
     required this.challengeTier,
+    required this.followersCount,
+    required this.followingCount,
+    required this.isFollowing,
+    required this.isMe,
   });
 
   final int id;
@@ -172,6 +176,13 @@ class PublicProfile {
   final int streak;
   final DateTime? joinedAt;
   final WellbeingSnapshot? wellbeing;
+  final int followersCount;
+  final int followingCount;
+  /// Whether the viewer currently follows this user (false when viewing
+  /// your own profile).
+  final bool isFollowing;
+  /// Whether this profile is the viewer's own.
+  final bool isMe;
   /// Global Challenge Ranking — always public. The `leaderboard_hidden`
   /// toggle only removes the user from the top-100 listing; their
   /// score + tier stay on their own profile because otherwise a
@@ -198,6 +209,34 @@ class PublicProfile {
             : null,
         challengeScore: (json['challenge_score'] as num?)?.toInt() ?? 0,
         challengeTier: (json['challenge_tier'] as String?) ?? 'Bronze',
+        followersCount: (json['followers_count'] as num?)?.toInt() ?? 0,
+        followingCount: (json['following_count'] as num?)?.toInt() ?? 0,
+        isFollowing: json['is_following'] as bool? ?? false,
+        isMe: json['is_me'] as bool? ?? false,
+      );
+
+  PublicProfile copyWith({
+    int? followersCount,
+    int? followingCount,
+    bool? isFollowing,
+  }) =>
+      PublicProfile(
+        id: id,
+        name: name,
+        avatarUrl: avatarUrl,
+        bio: bio,
+        profileBadge: profileBadge,
+        creatorScore: creatorScore,
+        challengesCompleted: challengesCompleted,
+        streak: streak,
+        joinedAt: joinedAt,
+        wellbeing: wellbeing,
+        challengeScore: challengeScore,
+        challengeTier: challengeTier,
+        followersCount: followersCount ?? this.followersCount,
+        followingCount: followingCount ?? this.followingCount,
+        isFollowing: isFollowing ?? this.isFollowing,
+        isMe: isMe,
       );
 
   /// Absolute URL for the avatar image — backend stores it as

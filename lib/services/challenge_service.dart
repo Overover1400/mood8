@@ -253,6 +253,25 @@ class ChallengeService {
         .toList();
   }
 
+  /// Users who follow [userId]. Each row's `isFollowing` = whether the
+  /// signed-in viewer follows that person (for a follow-back button).
+  Future<List<ChallengeUser>> followers(int userId) =>
+      _followList('$_baseUrl/users/$userId/followers');
+
+  /// Users that [userId] follows.
+  Future<List<ChallengeUser>> following(int userId) =>
+      _followList('$_baseUrl/users/$userId/following');
+
+  Future<List<ChallengeUser>> _followList(String url) async {
+    final res =
+        await _client.get(Uri.parse(url), headers: _headers).timeout(_timeout);
+    _throwIfHttpError(res);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((body['users'] as List?) ?? const [])
+        .map((r) => ChallengeUser.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
   /// The people you follow — your invite candidates.
   Future<List<ChallengeUser>> friends() async {
     final res = await _client

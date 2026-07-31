@@ -3,10 +3,13 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/challenge.dart' show tierColor;
+import '../../services/challenge_service.dart';
+import '../../services/haptic_service.dart';
 import '../../services/profile_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/challenges/user_badge_chip.dart';
 import '../../widgets/responsive_container.dart';
+import '../challenges/follow_list_screen.dart';
 
 class PublicProfileScreen extends StatefulWidget {
   const PublicProfileScreen({super.key, required this.userId, this.initialName});
@@ -50,6 +53,45 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
         _error = e is ProfileError ? e.message : 'Could not load profile.';
       });
     }
+  }
+
+  Future<void> _toggleFollow() async {
+    final p = _profile;
+    if (p == null || p.isMe) return;
+    HapticService().selection();
+    final wasFollowing = p.isFollowing;
+    setState(() {
+      _profile = p.copyWith(
+        isFollowing: !wasFollowing,
+        followersCount:
+            (p.followersCount + (wasFollowing ? -1 : 1)).clamp(0, 1 << 30),
+      );
+    });
+    try {
+      if (wasFollowing) {
+        await ChallengeService().unfollow(p.id);
+      } else {
+        await ChallengeService().follow(p.id);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _profile = p); // rollback
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          e is ChallengeError ? e.message : "Couldn't update follow.",
+        )),
+      );
+    }
+  }
+
+  void _openList(FollowListMode mode) {
+    final p = _profile;
+    if (p == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FollowListScreen(userId: p.id, mode: mode),
+      ),
+    ).then((_) => _load());
   }
 
   @override
@@ -103,7 +145,11 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                     ),
                   )
                 else
-                  _Body(profile: _profile!),
+                  _Body(
+                    profile: _profile!,
+                    onToggleFollow: _toggleFollow,
+                    onOpenList: _openList,
+                  ),
               ],
             ),
           ),
@@ -114,8 +160,14 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.profile});
+  const _Body({
+    required this.profile,
+    required this.onToggleFollow,
+    required this.onOpenList,
+  });
   final PublicProfile profile;
+  final VoidCallback onToggleFollow;
+  final void Function(FollowListMode) onOpenList;
 
   @override
   Widget build(BuildContext context) {
@@ -188,6 +240,31 @@ class _Body extends StatelessWidget {
             score: profile.challengeScore,
           ),
         ),
+        const SizedBox(height: 16),
+        // Social graph — tappable follower/following counts.
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _CountPill(
+              count: profile.followersCount,
+              label: 'Followers',
+              onTap: () => onOpenList(FollowListMode.followers),
+            ),
+            const SizedBox(width: 10),
+            _CountPill(
+              count: profile.followingCount,
+              label: 'Following',
+              onTap: () => onOpenList(FollowListMode.following),
+            ),
+          ],
+        ),
+        if (!profile.isMe) ...[
+          const SizedBox(height: 14),
+          Center(child: _FollowButton(
+            isFollowing: profile.isFollowing,
+            onTap: onToggleFollow,
+          )),
+        ],
         if (profile.bio != null && profile.bio!.trim().isNotEmpty) ...[
           const SizedBox(height: 18),
           Container(
@@ -252,6 +329,106 @@ class _Body extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _CountPill extends StatelessWidget {
+  const _CountPill({
+    required this.count,
+    required this.label,
+    required this.onTap,
+  });
+  final int count;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.purple.withValues(alpha: 0.30)),
+          ),
+          child: Column(
+            children: [
+              Text(
+                '$count',
+                style: brandFont(
+                  color: BrandColors.ink(context),
+                  fontSize: 20,
+                  weight: FontWeight.w800,
+                  height: 1.0,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  color: BrandColors.inkDim(context),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FollowButton extends StatelessWidget {
+  const _FollowButton({required this.isFollowing, required this.onTap});
+  final bool isFollowing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: isFollowing ? null : AppColors.buttonGradient,
+          color: isFollowing
+              ? BrandColors.bgCard(context).withValues(alpha: 0.7)
+              : null,
+          borderRadius: BorderRadius.circular(24),
+          border: isFollowing
+              ? Border.all(color: AppColors.purple.withValues(alpha: 0.4))
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isFollowing
+                  ? Icons.check_rounded
+                  : Icons.person_add_alt_1_rounded,
+              color: isFollowing ? BrandColors.inkSoft(context) : Colors.white,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              isFollowing ? 'Following' : 'Follow',
+              style: TextStyle(
+                color: isFollowing ? BrandColors.inkSoft(context) : Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
