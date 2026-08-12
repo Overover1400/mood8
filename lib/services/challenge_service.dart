@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../models/challenge.dart';
 import 'auth_service.dart';
@@ -55,6 +56,58 @@ class ChallengeService {
     return ChallengeCreateResult.fromJson(
       jsonDecode(res.body) as Map<String, dynamic>,
     );
+  }
+
+  /// Upload (or replace) a challenge's cover photo. Creator-only on
+  /// the backend. Mirrors ProfileService.uploadAvatar — bytes work on
+  /// every platform including web. Returns the new `image_url`.
+  Future<String> uploadCoverImage({
+    required int challengeId,
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    final token = AuthService().token;
+    if (token == null) {
+      throw ChallengeError(401, 'Sign in to add a cover photo.');
+    }
+    final lower = filename.toLowerCase();
+    MediaType mime;
+    if (lower.endsWith('.png')) {
+      mime = MediaType('image', 'png');
+    } else if (lower.endsWith('.webp')) {
+      mime = MediaType('image', 'webp');
+    } else {
+      mime = MediaType('image', 'jpeg');
+    }
+    final req = http.MultipartRequest(
+      'POST',
+      Uri.parse('$_baseUrl/challenges/$challengeId/image'),
+    )
+      ..headers['authorization'] = 'Bearer $token'
+      ..files.add(http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: filename,
+        contentType: mime,
+      ));
+    final streamed = await req.send().timeout(const Duration(seconds: 40));
+    final res = await http.Response.fromStream(streamed);
+    _throwIfHttpError(res);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    final url = body['image_url'] as String?;
+    if (url == null || url.isEmpty) {
+      throw ChallengeError(500, 'Server returned no image URL.');
+    }
+    return url;
+  }
+
+  /// Remove a challenge's cover photo (creator-only).
+  Future<void> removeCoverImage(int challengeId) async {
+    final res = await _client
+        .delete(Uri.parse('$_baseUrl/challenges/$challengeId/image'),
+            headers: _headers)
+        .timeout(_timeout);
+    _throwIfHttpError(res);
   }
 
   // ── List + mine + detail ──────────────────────────────────────────

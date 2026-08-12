@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../models/challenge.dart';
 import '../../services/challenge_service.dart';
@@ -40,6 +41,11 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
   // Friends the creator chose to invite as part of creating the
   // challenge. Invites are sent right after the challenge is created.
   Set<int> _invitees = {};
+  // Optional cover photo (e.g. the book you're reading). Uploaded
+  // right after the challenge is created, same best-effort contract
+  // as invites.
+  Uint8List? _coverBytes;
+  String? _coverName;
 
   @override
   void initState() {
@@ -66,6 +72,27 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
     );
     if (picked != null && mounted) {
       setState(() => _invitees = picked);
+    }
+  }
+
+  Future<void> _pickCover() async {
+    HapticService().light();
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _coverBytes = bytes;
+        _coverName = picked.name;
+      });
+    } catch (_) {
+      // Picker unavailable (e.g. permission denied) — quietly skip;
+      // the cover is optional.
     }
   }
 
@@ -134,6 +161,16 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
       if (_invitees.isNotEmpty && newId != null) {
         try {
           await ChallengeService().invite(newId, _invitees.toList());
+        } catch (_) {/* creation already succeeded */}
+      }
+      // Same best-effort contract for the cover photo.
+      if (_coverBytes != null && newId != null) {
+        try {
+          await ChallengeService().uploadCoverImage(
+            challengeId: newId,
+            bytes: _coverBytes!,
+            filename: _coverName ?? 'cover.jpg',
+          );
         } catch (_) {/* creation already succeeded */}
       }
       if (!mounted) return;
@@ -299,6 +336,30 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                       },
                     ),
                     const SizedBox(height: 18),
+                    const _Label('Cover photo (optional)'),
+                    const SizedBox(height: 8),
+                    _CoverPhotoTile(
+                      bytes: _coverBytes,
+                      onTap: _pickCover,
+                      onRemove: _coverBytes == null
+                          ? null
+                          : () => setState(() {
+                                _coverBytes = null;
+                                _coverName = null;
+                              }),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Shown on the challenge and in the invite link '
+                      'preview — a photo of your book, gear, or goal '
+                      'makes friends far more likely to join.',
+                      style: TextStyle(
+                        color: BrandColors.inkDim(context),
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
                     const _Label('Invite friends'),
                     const SizedBox(height: 8),
                     _InviteFriendsTile(
@@ -398,6 +459,92 @@ class _InviteFriendsTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CoverPhotoTile extends StatelessWidget {
+  const _CoverPhotoTile({
+    required this.bytes,
+    required this.onTap,
+    this.onRemove,
+  });
+
+  final Uint8List? bytes;
+  final VoidCallback onTap;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    if (bytes == null) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            decoration: BoxDecoration(
+              color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: AppColors.purple.withValues(alpha: 0.30)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.add_photo_alternate_rounded,
+                    color: AppColors.pinkLight, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Add a photo',
+                    style: TextStyle(
+                      color: BrandColors.inkSoft(context),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded,
+                    color: BrandColors.inkDim(context), size: 20),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: onTap,
+            child: Image.memory(
+              bytes!,
+              width: double.infinity,
+              height: 150,
+              fit: BoxFit.cover,
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: GestureDetector(
+              onTap: onRemove,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close_rounded,
+                    color: Colors.white, size: 16),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

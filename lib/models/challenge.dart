@@ -145,6 +145,7 @@ class ChallengeSummary {
     required this.userUpvoted,
     required this.commentCount,
     required this.participantsPreview,
+    this.imageUrl,
   });
 
   final int id;
@@ -164,6 +165,9 @@ class ChallengeSummary {
   final bool userUpvoted;
   final int commentCount;
   final List<ParticipantPreview> participantsPreview;
+  /// Optional cover photo path (e.g. "/api/challenge-images/c5-abc").
+  /// Run through [absoluteAvatarUrl] before handing to Image.network.
+  final String? imageUrl;
 
   factory ChallengeSummary.fromJson(Map<String, dynamic> json) {
     return ChallengeSummary(
@@ -191,6 +195,7 @@ class ChallengeSummary {
           .map((p) => ParticipantPreview.fromJson(
               p as Map<String, dynamic>))
           .toList(),
+      imageUrl: json['image_url'] as String?,
     );
   }
 
@@ -218,6 +223,7 @@ class ChallengeSummary {
         userUpvoted: userUpvoted ?? this.userUpvoted,
         commentCount: commentCount ?? this.commentCount,
         participantsPreview: participantsPreview,
+        imageUrl: imageUrl,
       );
 }
 
@@ -344,6 +350,7 @@ class ChallengeDetail {
     required this.upvoteCount,
     required this.userUpvoted,
     required this.commentCount,
+    this.imageUrl,
   });
 
   final int id;
@@ -368,6 +375,8 @@ class ChallengeDetail {
   final int upvoteCount;
   final bool userUpvoted;
   final int commentCount;
+  /// Optional cover photo path — see [ChallengeSummary.imageUrl].
+  final String? imageUrl;
 
   factory ChallengeDetail.fromJson(Map<String, dynamic> json) {
     return ChallengeDetail(
@@ -404,6 +413,7 @@ class ChallengeDetail {
       upvoteCount: (json['upvote_count'] as num?)?.toInt() ?? 0,
       userUpvoted: json['user_upvoted'] as bool? ?? false,
       commentCount: (json['comment_count'] as num?)?.toInt() ?? 0,
+      imageUrl: json['image_url'] as String?,
     );
   }
 }

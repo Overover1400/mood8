@@ -5,6 +5,7 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../models/challenge.dart';
@@ -616,7 +617,75 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       upvoteCount: d.upvoteCount,
       userUpvoted: d.userUpvoted,
       commentCount: d.commentCount,
+      imageUrl: d.imageUrl,
     );
+  }
+
+  /// Creator-only: pick a new cover photo and upload it, or remove
+  /// the current one (choice sheet when a cover already exists).
+  Future<void> _changeCover() async {
+    final d = _detail;
+    if (d == null) return;
+    var action = 'change';
+    if (d.imageUrl != null) {
+      final picked = await showModalBottomSheet<String>(
+        context: context,
+        backgroundColor: BrandColors.bgCard(context),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.add_photo_alternate_rounded,
+                    color: AppColors.pinkLight),
+                title: Text('Change cover photo',
+                    style: TextStyle(color: BrandColors.ink(ctx))),
+                onTap: () => Navigator.of(ctx).pop('change'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded,
+                    color: Color(0xFFFF6B81)),
+                title: const Text('Remove cover photo',
+                    style: TextStyle(color: Color(0xFFFF6B81))),
+                onTap: () => Navigator.of(ctx).pop('remove'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (picked == null) return;
+      action = picked;
+    }
+    try {
+      if (action == 'remove') {
+        await ChallengeService().removeCoverImage(d.id);
+      } else {
+        final file = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1600,
+          imageQuality: 85,
+        );
+        if (file == null) return;
+        final bytes = await file.readAsBytes();
+        await ChallengeService().uploadCoverImage(
+          challengeId: d.id,
+          bytes: bytes,
+          filename: file.name,
+        );
+      }
+      if (!mounted) return;
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(
+          e is ChallengeError ? e.message : 'Could not update the cover.',
+        )),
+      );
+    }
   }
 
   Future<void> _report() async {
@@ -731,6 +800,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                 ? _openInvite
                 : null,
             onShareLink: d.isCreator ? _shareInviteLink : null,
+            onCoverPhoto: d.isCreator ? _changeCover : null,
             onLeave: (!d.isCreator && d.me?.status == 'active')
                 ? _leave
                 : null,
@@ -749,6 +819,24 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                 : null,
           ),
           const SizedBox(height: 4),
+          // 0. Cover photo banner (when the creator uploaded one).
+          //    Creators tap it to change/remove the cover.
+          if (d.imageUrl != null) ...[
+            GestureDetector(
+              onTap: d.isCreator ? _changeCover : null,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.network(
+                  absoluteAvatarUrl(d.imageUrl)!,
+                  width: double.infinity,
+                  height: 170,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
           // 1. Title (gradient shader for a premium, editorial feel)
           //    + compact creator row + glowing meta chips replacing
           //    the old dot-separated text line.
@@ -835,6 +923,7 @@ class _TopBar extends StatelessWidget {
     required this.onReport,
     this.onInvite,
     this.onShareLink,
+    this.onCoverPhoto,
     this.onLeave,
     this.onDelete,
     this.onJoinRequests,
@@ -848,6 +937,9 @@ class _TopBar extends StatelessWidget {
   final VoidCallback? onInvite;
   /// Creator-only public shareable link. When null the item is omitted.
   final VoidCallback? onShareLink;
+  /// Creator-only cover photo add/change/remove. When null the item
+  /// is omitted.
+  final VoidCallback? onCoverPhoto;
   /// Shown to active non-creator participants. When null the "Leave
   /// challenge" item is omitted.
   final VoidCallback? onLeave;
@@ -890,6 +982,9 @@ class _TopBar extends StatelessWidget {
               case 'share_link':
                 onShareLink?.call();
                 break;
+              case 'cover_photo':
+                onCoverPhoto?.call();
+                break;
               case 'leave':
                 onLeave?.call();
                 break;
@@ -924,6 +1019,19 @@ class _TopBar extends StatelessWidget {
                         color: AppColors.pinkLight, size: 18),
                     const SizedBox(width: 8),
                     Text('Share invite link',
+                        style: TextStyle(color: BrandColors.ink(context))),
+                  ],
+                ),
+              ),
+            if (isCreator && onCoverPhoto != null)
+              PopupMenuItem(
+                value: 'cover_photo',
+                child: Row(
+                  children: [
+                    Icon(Icons.add_photo_alternate_rounded,
+                        color: AppColors.pinkLight, size: 18),
+                    const SizedBox(width: 8),
+                    Text('Cover photo',
                         style: TextStyle(color: BrandColors.ink(context))),
                   ],
                 ),
@@ -3156,5 +3264,6 @@ extension on ChallengeDetail {
         upvoteCount: upvoteCount ?? this.upvoteCount,
         userUpvoted: userUpvoted ?? this.userUpvoted,
         commentCount: commentCount ?? this.commentCount,
+        imageUrl: imageUrl,
       );
 }

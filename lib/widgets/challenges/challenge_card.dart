@@ -68,14 +68,31 @@ class ChallengeCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Row 1 — title + category icon + duration pill.
+              // Row 1 — title + category icon + duration pill. When
+              // the creator uploaded a cover photo it replaces the
+              // category bubble as the card's visual anchor.
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _CategoryBubble(
-                    category: challenge.category,
-                    color: accent,
-                  ),
+                  if (challenge.imageUrl != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        absoluteAvatarUrl(challenge.imageUrl)!,
+                        width: 34,
+                        height: 34,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _CategoryBubble(
+                          category: challenge.category,
+                          color: accent,
+                        ),
+                      ),
+                    )
+                  else
+                    _CategoryBubble(
+                      category: challenge.category,
+                      color: accent,
+                    ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
