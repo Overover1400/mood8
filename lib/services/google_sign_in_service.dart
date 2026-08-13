@@ -33,6 +33,17 @@ class GoogleSignInService {
   static const String webClientId =
       '322539199748-bonlhpebtrlsl01m3gs7s4n2d19en16v.apps.googleusercontent.com';
 
+  /// Web-only OAuth client, hosted in the Mood8 Cloud project
+  /// (224585170519). The original client's project (322539199748)
+  /// became console-inaccessible with the People API permanently
+  /// disabled, which broke ONLY the web sign-in flow (the web plugin
+  /// fetches the profile through People API; Android's native flow
+  /// doesn't). Android keeps [webClientId] as `serverClientId` so
+  /// installed builds are unaffected; the backend accepts both
+  /// audiences.
+  static const String webOnlyClientId =
+      '224585170519-tfkrqebm1624vhs34epclb741r71mcvk.apps.googleusercontent.com';
+
   /// Web vs mobile platform split. On web, `google_sign_in_web` reads
   /// the client id from the `<meta name="google-signin-client_id">`
   /// in index.html and must be constructed with `clientId:` instead
@@ -43,7 +54,7 @@ class GoogleSignInService {
   /// audience the backend verifies against).
   final GoogleSignIn _gs = kIsWeb
       ? GoogleSignIn(
-          clientId: webClientId,
+          clientId: webOnlyClientId,
           scopes: const ['email', 'profile'],
         )
       : GoogleSignIn(
