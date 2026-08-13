@@ -154,11 +154,10 @@ class EffectsService extends ChangeNotifier {
       await celebrateHabitComplete(context: context, origin: flameOrigin);
       return;
     }
-    if (!SubscriptionService().isPremium) {
-      // ignore: discarded_futures
-      _maybeShowPremiumHint();
-      return celebrateHabitComplete(context: context, origin: flameOrigin);
-    }
+    // Streak milestones celebrate for EVERYONE — free users included.
+    // This is the retention moment (day 3/7/14/30); gating it behind
+    // premium threw away the strongest "come back tomorrow" reward.
+    // Other premium effects stay gated.
     await _insert(
       context,
       (entry) => PhoenixRise(

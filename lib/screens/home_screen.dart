@@ -18,6 +18,8 @@ import '../models/morning_intention.dart';
 import '../models/reflection.dart';
 import '../models/routine_item.dart';
 import '../models/sfx_type.dart';
+import '../models/share_card_data.dart';
+import 'share_progress_screen.dart';
 import '../models/user_profile.dart';
 import '../services/adaptive_routine_service.dart';
 import '../services/badge_service.dart';
@@ -531,6 +533,29 @@ class _HomeScreenState extends State<HomeScreen> {
           days: streak,
         );
       }
+      // After the confetti settles, offer the share card — a streak
+      // milestone is the moment people actually want to post, and
+      // every share is a mood8 ad with a real streak on it.
+      if (hitMilestone || earned != null) {
+        Future<void>.delayed(const Duration(milliseconds: 3200), () {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('🔥 $streak-day streak — tell your people'),
+            duration: const Duration(seconds: 6),
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Share',
+              onPressed: () {
+                Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const ShareProgressScreen(
+                    initialTemplate: ShareCardTemplate.streakMilestone,
+                  ),
+                ));
+              },
+            ),
+          ));
+        });
+      }
       Future<void>.delayed(const Duration(milliseconds: 1400), () async {
         final awarded = await BadgeService().checkAndAwardBadges();
         if (awarded.isNotEmpty && mounted) {
@@ -948,7 +973,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  static const Set<int> _kStreakMilestones = {3, 7, 30, 100, 365};
+  static const Set<int> _kStreakMilestones = {3, 7, 14, 30, 100, 365};
 
 }
 
