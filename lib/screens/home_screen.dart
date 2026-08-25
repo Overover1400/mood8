@@ -21,6 +21,7 @@ import '../models/sfx_type.dart';
 import '../models/share_card_data.dart';
 import 'share_progress_screen.dart';
 import '../models/user_profile.dart';
+import '../widgets/adaptation_card.dart';
 import '../services/adaptive_routine_service.dart';
 import '../services/badge_service.dart';
 import '../services/effects_service.dart';
@@ -663,6 +664,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               begin: -0.15,
                               end: 0,
                               curve: Curves.easeOutCubic),
+                      // The adaptation engine's one visible surface:
+                      // a single inline card, at most once a day,
+                      // renders itself only when the server has
+                      // something concrete to propose (spec 10.4).
+                      AdaptationCard(
+                        onResolved: () {
+                          if (mounted) setState(() {});
+                        },
+                      ),
                       ValueListenableBuilder<Box<Reflection>>(
                         valueListenable: _reflections.watchReflections(),
                         builder: (context, _, _) {
@@ -1775,6 +1785,9 @@ class _MoodHeroCard extends StatelessWidget {
           Column(
             key: TutorialTargets.moodSliders,
             children: [
+              // 1–5 scale with the words shown (spec 2.1.1). Ten
+              // levels of mood twice a day is noise; five is a signal
+              // the adaptation engine can actually correlate against.
               CompactGlowSlider(
                 label: 'Mood',
                 icon: Icons.favorite_rounded,
@@ -1782,6 +1795,9 @@ class _MoodHeroCard extends StatelessWidget {
                 onChanged: onMood,
                 onChangeEnd: onSliderEnd,
                 fillTone: AppColors.pink,
+                levelLabels: const [
+                  'Very low', 'Low', 'Okay', 'Good', 'Great',
+                ],
               ),
               CompactGlowSlider(
                 label: 'Energy',
@@ -1790,6 +1806,9 @@ class _MoodHeroCard extends StatelessWidget {
                 onChanged: onEnergy,
                 onChangeEnd: onSliderEnd,
                 fillTone: AppColors.pinkLight,
+                levelLabels: const [
+                  'Exhausted', 'Tired', 'Okay', 'Energetic', 'Full',
+                ],
               ),
               CompactGlowSlider(
                 label: 'Focus',
@@ -1798,6 +1817,20 @@ class _MoodHeroCard extends StatelessWidget {
                 onChanged: onFocus,
                 onChangeEnd: onSliderEnd,
                 fillTone: AppColors.blueAccent,
+                levelLabels: const [
+                  'Scattered', 'Foggy', 'Okay', 'Clear', 'Sharp',
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Three quick taps, morning and night. mood8 learns when '
+                'you\'re at your best and moves your habits into those '
+                'hours.',
+                style: TextStyle(
+                  color: BrandColors.inkDim(context),
+                  fontSize: 11.5,
+                  height: 1.4,
+                ),
               ),
             ],
           ),

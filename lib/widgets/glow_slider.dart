@@ -193,6 +193,7 @@ class CompactGlowSlider extends StatefulWidget {
     required this.onChanged,
     this.onChangeEnd,
     this.fillTone,
+    this.levelLabels,
   });
 
   final String label;
@@ -200,6 +201,16 @@ class CompactGlowSlider extends StatefulWidget {
   final double value;
   final ValueChanged<double> onChanged;
   final ValueChanged<double>? onChangeEnd;
+  /// Five words for the 1–5 scale, lowest first. When supplied, the
+  /// slider shows "4 Good" beside the track instead of a bare bar.
+  /// The spec is explicit that the number and the word appear together:
+  /// a slider with no readout is the reason nobody knew what these
+  /// three controls meant. Storage stays a 0–1 double; only the
+  /// readout is quantised.
+  final List<String>? levelLabels;
+
+  /// 1–5 level for a 0–1 slider value.
+  static int levelFor(double v) => (v * 4).round().clamp(0, 4) + 1;
   /// When provided, the leading icon renders as a fill-by-value
   /// glyph (empty silhouette + bottom-up coloured fill), like the
   /// _MoodFillIcon that used to live in the Home header. Driven by
@@ -270,6 +281,24 @@ class _CompactGlowSliderState extends State<CompactGlowSlider> {
               ),
             ),
           ),
+          if (widget.levelLabels != null && widget.levelLabels!.length == 5)
+            SizedBox(
+              width: 74,
+              child: Builder(builder: (context) {
+                final shown = _liveValue ?? widget.value;
+                final lvl = CompactGlowSlider.levelFor(shown);
+                return Text(
+                  '$lvl ${widget.levelLabels![lvl - 1]}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: BrandColors.inkDim(context),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11.5,
+                  ),
+                );
+              }),
+            ),
           Expanded(
             child: SliderTheme(
               data: SliderThemeData(
