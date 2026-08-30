@@ -60,6 +60,34 @@ const int kInsightsTabIndex = kProgressTabIndex;
 final List<GlobalKey> kNavTabKeys =
     List<GlobalKey>.generate(kNavItems.length, (i) => GlobalKey());
 
+/// Spec 10.1 caps the bar at FOUR tabs. Rather than renumber the index
+/// space — which every `goToTab` caller and every `k*TabIndex` constant
+/// depends on — the bar simply renders four entries and routes the rest
+/// through "More". Challenge, Coach and Routine keep their existing
+/// indices and are reached from the More sheet.
+class VisibleTab {
+  const VisibleTab(this.label, this.icon, this.targetIndex);
+  final String label;
+  final IconData icon;
+  /// Index into [kNavItems] / the IndexedStack. -1 means "open More".
+  final int targetIndex;
+}
+
+const List<VisibleTab> kVisibleTabs = [
+  VisibleTab('Today', Icons.today_rounded, kHomeTabIndex),
+  VisibleTab('Habits', Icons.check_circle_outline_rounded, kHabitsTabIndex),
+  VisibleTab('Progress', Icons.bar_chart_rounded, kProgressTabIndex),
+  VisibleTab('More', Icons.grid_view_rounded, -1),
+];
+
+/// Everything that used to own a tab and now lives one tap deeper.
+const List<VisibleTab> kMoreTabs = [
+  VisibleTab('Challenges', Icons.flag_rounded, kChallengeTabIndex),
+  VisibleTab('Coach', Icons.chat_bubble_outline_rounded, kCoachTabIndex),
+  if (kRoutineEnabled)
+    VisibleTab('Routine', Icons.schedule_rounded, kRoutineTabIndex),
+];
+
 class MoodBottomNav extends StatelessWidget {
   const MoodBottomNav({
     super.key,
@@ -113,13 +141,21 @@ class MoodBottomNav extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            for (var i = 0; i < kNavItems.length; i++)
+            for (final t in kVisibleTabs)
               Expanded(
                 child: _NavButton(
-                  key: kNavTabKeys[i],
-                  item: kNavItems[i],
-                  selected: i == currentIndex,
-                  onTap: () => onTap(i),
+                  key: t.targetIndex >= 0 &&
+                          t.targetIndex < kNavTabKeys.length
+                      ? kNavTabKeys[t.targetIndex]
+                      : null,
+                  item: NavItem(t.label, t.icon),
+                  selected: t.targetIndex == -1
+                      // "More" lights up while any of its screens is on.
+                      ? kMoreTabs.any((m) => m.targetIndex == currentIndex)
+                      : t.targetIndex == currentIndex,
+                  onTap: () => t.targetIndex == -1
+                      ? _showMoreSheet(context, onTap)
+                      : onTap(t.targetIndex),
                 ),
               ),
           ],
@@ -127,6 +163,50 @@ class MoodBottomNav extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One tap deeper: the screens that no longer justify a permanent tab.
+Future<void> _showMoreSheet(
+    BuildContext context, ValueChanged<int> onTap) async {
+  HapticService().selection();
+  final picked = await showModalBottomSheet<int>(
+    context: context,
+    backgroundColor: BrandColors.bgCard(context),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 10),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: BrandColors.inkFaint(ctx),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (final t in kMoreTabs)
+            ListTile(
+              leading: Icon(t.icon, color: AppColors.pinkLight),
+              title: Text(
+                t.label,
+                style: TextStyle(
+                  color: BrandColors.ink(ctx),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              onTap: () => Navigator.of(ctx).pop(t.targetIndex),
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
+  if (picked != null && picked >= 0) onTap(picked);
 }
 
 class _NavButton extends StatelessWidget {

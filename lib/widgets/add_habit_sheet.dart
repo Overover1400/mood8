@@ -73,6 +73,53 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
   String? _titleError;
   bool _saving = false;
 
+  /// Field 2 of the visible form. Sets (or replaces) the habit's first
+  /// reminder — one tap, no toggle to find, reminders on by default.
+  Future<void> _pickPrimaryTime() async {
+    final current = _reminderMinutes.isEmpty ? 9 * 60 : _reminderMinutes.first;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: current ~/ 60, minute: current % 60),
+    );
+    if (picked == null || !mounted) return;
+    final m = picked.hour * 60 + picked.minute;
+    setState(() {
+      if (_reminderMinutes.isEmpty) {
+        _reminderMinutes = [m];
+      } else {
+        _reminderMinutes[0] = m;
+        _reminderMinutes.sort();
+      }
+      _remindersEnabled = true;
+    });
+  }
+
+  /// Spec 10.2: category is derived from the habit name rather than
+  /// asked. Wrong guesses are cheap — the field is still there under
+  /// More options — but asking everyone costs a decision every time.
+  RoutineCategory _guessCategory(String title) {
+    final t = title.toLowerCase();
+    bool has(List<String> words) => words.any(t.contains);
+    if (has(['run', 'walk', 'gym', 'workout', 'exercise', 'yoga',
+             'stretch', 'water', 'sleep', 'steps', 'swim', 'bike'])) {
+      return RoutineCategory.health;
+    }
+    if (has(['meditat', 'breath', 'journal', 'gratitude', 'pray',
+             'reflect', 'mindful', 'phone', 'screen'])) {
+      return RoutineCategory.mindful;
+    }
+    if (has(['read', 'study', 'learn', 'write', 'practice', 'code',
+             'language', 'course', 'book'])) {
+      return RoutineCategory.creative;
+    }
+    return _category;
+  }
+  /// Spec 10.2: a new habit needs exactly two decisions — what, and
+  /// when. Everything else has a sensible default and lives behind one
+  /// control. Editing an existing habit opens expanded, because someone
+  /// who tapped Edit came to change one of those very fields.
+  late bool _showMore;
+
   bool get _isEditing => widget.editing != null;
   bool get _isAvoid => _polarity == HabitPolarity.avoid;
 
@@ -92,8 +139,12 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
     _titleCtrl.text = e?.title ?? '';
     _targetCtrl.text = (e?.targetValue ?? _defaultTarget()).toString();
     _unitCtrl.text = e?.targetUnit ?? _type.defaultUnit;
-    _remindersEnabled = e?.remindersEnabled ?? false;
+    _showMore = e != null;
+    _remindersEnabled = e?.remindersEnabled ?? true;
     _reminderMinutes = [...?e?.reminderMinutes]..sort();
+    if (e == null && _reminderMinutes.isEmpty) {
+      _reminderMinutes = [9 * 60]; // 09:00 — changed with one tap below
+    }
     if (!_isEditing) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _titleFocus.requestFocus();
@@ -241,7 +292,9 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
           icon: _emoji,
           habitType: _type,
           identity: _identity,
-          category: _category,
+          // If the user never opened More options, infer the category
+          // from what they typed instead of making them pick one.
+          category: _showMore ? _category : _guessCategory(title),
           frequency: _frequency,
           targetValue: target,
           targetUnit: _type == HabitType.yesNo ? null : _unitCtrl.text.trim(),
@@ -438,6 +491,40 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 18),
+                  // ── Field 1 of 2: what is the habit? ──────────────
+                  _Label(
+                    _isAvoid
+                        ? 'What do you want to avoid?'
+                        : "What's the habit?",
+                  ),
+                  const SizedBox(height: 8),
+                  _UnderlineField(
+                    controller: _titleCtrl,
+                    focusNode: _titleFocus,
+                    hint: _isAvoid
+                        ? (_avoidMode == AvoidMode.quit
+                            ? 'Smoking'
+                            : 'Scrolling')
+                        : 'Drink water',
+                    error: _titleError,
+                  ),
+                  const SizedBox(height: 18),
+                  // ── Field 2 of 2: when? ───────────────────────────
+                  _Label('When?'),
+                  const SizedBox(height: 8),
+                  _WhenRow(
+                    minutes: _reminderMinutes.isEmpty
+                        ? null
+                        : _reminderMinutes.first,
+                    onTap: _pickPrimaryTime,
+                  ),
+                  const SizedBox(height: 18),
+                  _MoreOptionsToggle(
+                    expanded: _showMore,
+                    onTap: () => setState(() => _showMore = !_showMore),
+                  ),
+                  if (_showMore) ...[
+                  const SizedBox(height: 18),
                   _Label('Goal'),
                   const SizedBox(height: 8),
                   _PolarityTabs(
@@ -471,23 +558,6 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
                     presets:
                         _isAvoid ? _kAvoidEmojiPresets : _kEmojiPresets,
                     onChanged: (e) => setState(() => _emoji = e),
-                  ),
-                  const SizedBox(height: 18),
-                  _Label(
-                    _isAvoid
-                        ? 'What do you want to avoid?'
-                        : "What's the habit?",
-                  ),
-                  const SizedBox(height: 8),
-                  _UnderlineField(
-                    controller: _titleCtrl,
-                    focusNode: _titleFocus,
-                    hint: _isAvoid
-                        ? (_avoidMode == AvoidMode.quit
-                            ? 'Smoking'
-                            : 'Scrolling')
-                        : 'Drink water',
-                    error: _titleError,
                   ),
                   if (!_isAvoid) ...[
                     const SizedBox(height: 18),
@@ -576,6 +646,7 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
                     onEdit: _onEditReminder,
                     onRemove: _onRemoveReminder,
                   ),
+                  ],
                   const SizedBox(height: 28),
                   Row(
                     children: [
@@ -1507,6 +1578,102 @@ class _AddTimePill extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+
+/// The single "When?" control — spec 10.2's second and last required
+/// field. Shows the time the reminder will fire, opens a picker on tap.
+class _WhenRow extends StatelessWidget {
+  const _WhenRow({required this.minutes, required this.onTap});
+
+  final int? minutes;
+  final VoidCallback onTap;
+
+  String _fmt(int m) {
+    final h = m ~/ 60;
+    final mm = (m % 60).toString().padLeft(2, '0');
+    final ampm = h < 12 ? 'AM' : 'PM';
+    var hh = h % 12;
+    if (hh == 0) hh = 12;
+    return '$hh:$mm $ampm';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          decoration: BoxDecoration(
+            color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(16),
+            border:
+                Border.all(color: AppColors.purple.withValues(alpha: 0.30)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.alarm_rounded, size: 19, color: AppColors.pinkLight),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  minutes == null ? 'Pick a time' : _fmt(minutes!),
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                'Reminder on',
+                style: TextStyle(
+                  color: BrandColors.inkDim(context),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(Icons.chevron_right_rounded,
+                  size: 19, color: BrandColors.inkDim(context)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One control that hides the other seven decisions.
+class _MoreOptionsToggle extends StatelessWidget {
+  const _MoreOptionsToggle({required this.expanded, required this.onTap});
+
+  final bool expanded;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: onTap,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          foregroundColor: BrandColors.inkSoft(context),
+        ),
+        icon: Icon(
+          expanded ? Icons.expand_less_rounded : Icons.tune_rounded,
+          size: 18,
+        ),
+        label: Text(
+          expanded ? 'Fewer options' : 'More options',
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
         ),
       ),
     );
