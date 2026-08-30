@@ -8,7 +8,9 @@ import '../../services/haptic_service.dart';
 import '../../services/onboarding_service.dart';
 import '../../services/sfx_service.dart';
 import '../../theme/app_theme.dart';
+import '../../services/adaptation_service.dart';
 import 'steps/chronotype_step.dart';
+import 'steps/cold_start_steps.dart';
 import 'steps/completion_step.dart';
 import 'steps/first_checkin_step.dart';
 import 'steps/focus_areas_step.dart';
@@ -21,6 +23,10 @@ class OnboardingData {
   List<String> identities = [];
   List<FocusArea> focusAreas = [];
   Chronotype chronotype = Chronotype.balanced;
+  /// Spec 3.7 Q4/Q5 — the cold-start engine's only inputs before the
+  /// user has any history of their own.
+  String? energyPeak;
+  String? failureReason;
   double mood = 0.65;
   double energy = 0.6;
   double focus = 0.6;
@@ -40,7 +46,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   int _page = 0;
   bool _completing = false;
 
-  static const int _totalSteps = 7;
+  static const int _totalSteps = 9;
 
   @override
   void dispose() {
@@ -79,6 +85,29 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         energy: skipCheckin ? null : _data.energy,
         focus: skipCheckin ? null : _data.focus,
       );
+      // Ship the cold-start answers to the adaptation engine. Best
+      // effort: a signed-out or offline user still completes
+      // onboarding, they just start on generic defaults.
+      // ignore: discarded_futures
+      AdaptationService().saveOnboarding({
+        'identity': _data.identities.isEmpty ? null : _data.identities.first,
+        'goal_areas': _data.focusAreas.map((f) => f.name).toList(),
+        'wake_hour': switch (_data.chronotype) {
+          Chronotype.morningPerson => 6,
+          Chronotype.nightOwl => 10,
+          _ => 8,
+        },
+        'sleep_hour': switch (_data.chronotype) {
+          Chronotype.morningPerson => 22,
+          Chronotype.nightOwl => 1,
+          _ => 23,
+        },
+        'energy_peak': _data.energyPeak,
+        'failure_reason': _data.failureReason,
+        // Spec 3.7 Q6 is not asked — 10.7 says cut questions rather
+        // than extend onboarding, and 2 is the recommended default.
+        'habit_cap': 2,
+      });
       SfxService().fire(SfxType.onboardingFinish);
       HapticService().heavy();
     } catch (e) {
@@ -143,6 +172,20 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                         initial: _data.chronotype,
                         onSubmit: (c) {
                           _data.chronotype = c;
+                          _next();
+                        },
+                      ),
+                      EnergyPeakStep(
+                        selected: _data.energyPeak,
+                        onSubmit: (v) {
+                          _data.energyPeak = v;
+                          _next();
+                        },
+                      ),
+                      FailureReasonStep(
+                        selected: _data.failureReason,
+                        onSubmit: (v) {
+                          _data.failureReason = v;
                           _next();
                         },
                       ),

@@ -15,6 +15,7 @@ import '../services/analytics_service.dart';
 import '../services/badge_definitions.dart';
 import '../services/badge_service.dart';
 import '../services/effects_service.dart';
+import '../services/adaptation_service.dart';
 import '../services/gratitude_repository.dart';
 import '../services/habit_repository.dart';
 import '../services/milestone_service.dart';
@@ -188,6 +189,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
             title: 'Your streak',
             child: HabitCompletionCalendar(repo: _habits),
           ),
+          // Spec 3.3 / 9.3 — the product's value made visible. A user
+          // cannot see an algorithm working; they can see "completion
+          // went from 30% to 85% after we moved this".
+          const _AdaptationHistorySection(),
           const SizedBox(height: 18),
           ValueListenableBuilder<Box<GratitudeEntry>>(
             valueListenable: _gratitudeListenable,
@@ -571,6 +576,124 @@ class _HeroCard extends StatelessWidget {
 /// weight (bars, cards, calendar) so the extra rounded-panel chrome
 /// was pure noise. The previous version wrapped every child in a
 /// `bg-card 22-radius purple-border` container.
+/// Adaptation history — every change the engine proposed, and what it
+/// did to completion. Renders nothing until there is a first one, so it
+/// never shows an empty shell.
+class _AdaptationHistorySection extends StatefulWidget {
+  const _AdaptationHistorySection();
+
+  @override
+  State<_AdaptationHistorySection> createState() =>
+      _AdaptationHistorySectionState();
+}
+
+class _AdaptationHistorySectionState
+    extends State<_AdaptationHistorySection> {
+  List<AdaptationRecord> _items = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final r = await AdaptationService().history();
+    if (mounted) setState(() => _items = r);
+  }
+
+  String _pct(double v) => '${(v * 100).round()}%';
+
+  @override
+  Widget build(BuildContext context) {
+    final decided =
+        _items.where((a) => a.status != 'proposed').toList(growable: false);
+    if (decided.isEmpty) return const SizedBox.shrink();
+    return Column(
+      children: [
+        const SizedBox(height: 22),
+        _Section(
+          title: 'What we changed for you',
+          child: Column(
+            children: [
+              for (final a in decided.take(6))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: BrandColors.bgCard(context)
+                          .withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.purple.withValues(alpha: 0.20),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          a.habitTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: BrandColors.ink(context),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          a.status == 'accepted'
+                              ? (a.toValue == null
+                                  ? a.rationale
+                                  : 'Changed to ${a.toValue}')
+                              : 'You kept it as it was',
+                          style: TextStyle(
+                            color: BrandColors.inkDim(context),
+                            fontSize: 12.5,
+                            height: 1.35,
+                          ),
+                        ),
+                        if (a.hasOutcome) ...[
+                          const SizedBox(height: 7),
+                          Row(
+                            children: [
+                              Icon(
+                                (a.delta ?? 0) >= 0
+                                    ? Icons.trending_up_rounded
+                                    : Icons.trending_flat_rounded,
+                                size: 15,
+                                color: (a.delta ?? 0) >= 0
+                                    ? AppColors.pinkLight
+                                    : BrandColors.inkDim(context),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Completion ${_pct(a.beforeRate!)} → '
+                                '${_pct(a.afterRate!)}',
+                                style: TextStyle(
+                                  color: BrandColors.inkSoft(context),
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _Section extends StatelessWidget {
   const _Section({required this.title, required this.child});
 

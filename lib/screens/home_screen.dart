@@ -22,6 +22,7 @@ import '../models/share_card_data.dart';
 import 'share_progress_screen.dart';
 import '../models/user_profile.dart';
 import '../widgets/adaptation_card.dart';
+import '../widgets/miss_reason_sheet.dart';
 import '../services/adaptive_routine_service.dart';
 import '../services/badge_service.dart';
 import '../services/effects_service.dart';
@@ -117,6 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _maybeRunPatternDetection();
     _maybeShowGuestNudge();
     _hydrateTodayMood();
+    _maybeAskMissReason();
     // Tutorial-gated prompts: intention + recap banner only after the
     // tutorial completes (or if it was already completed in a prior
     // session). The notifier listener fires both immediately (if the
@@ -126,6 +128,18 @@ class _HomeScreenState extends State<HomeScreen> {
     if (tutorialCompletedNotifier.value) {
       _onTutorialStateChange();
     }
+  }
+
+  /// Second-miss question (spec 2.2). Runs once per day at most, only
+  /// when a habit has slipped exactly twice in the trailing week, and
+  /// never blocks anything — a dismissed sheet is simply recorded as
+  /// skipped. Delayed so it lands after the screen settles rather than
+  /// ambushing the user mid-animation.
+  void _maybeAskMissReason() {
+    Future<void>.delayed(const Duration(milliseconds: 1400), () async {
+      if (!mounted) return;
+      await MissReasonSheet.maybeShow(context);
+    });
   }
 
   /// If the user already checked in today, prefill the sliders with

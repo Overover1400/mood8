@@ -323,6 +323,26 @@ class HabitRepository {
     HabitReminderService().cancelFor(h);
   }
 
+  /// Bring a paused habit back (spec 2.2 step 4).
+  ///
+  /// Restarting deliberately pre-fills the *easier* version rather than
+  /// the target that already failed — restoring the exact plan that
+  /// stopped working is how a paused habit gets paused again.
+  Future<void> restartHabit(String id) async {
+    final h = _habitBox.get(id);
+    if (h == null) return;
+    h.isArchived = false;
+    final target = h.targetValue;
+    if (target != null && target > 1) {
+      h.targetValue = (target / 2).ceil();
+    }
+    h.updatedAt = DateTime.now();
+    await h.save();
+    SyncService().debouncedPush();
+    // ignore: discarded_futures
+    HabitReminderService().rescheduleFor(h);
+  }
+
   List<Habit> getAllHabits() {
     return _habitBox.values.toList()
       ..sort((a, b) {

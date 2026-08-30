@@ -198,35 +198,86 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
         createdAt: DateTime.now(),
       );
 
+  /// Spec 2.2 step 4: pause, don't delete.
+  ///
+  /// Removing someone's own stated goal on their behalf reads as the
+  /// app taking something away, and it destroys the history the
+  /// adaptation engine needs. Pausing keeps every log, keeps the habit
+  /// out of the way, and leaves a one-tap route back. Deleting for good
+  /// is still available, one layer down, for people who really mean it.
   Future<void> _confirmDelete(Habit habit) async {
-    final ok = await showDialog<bool>(
+    final choice = await showModalBottomSheet<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: BrandColors.bgCard(context),
-        title: Text(
-          'Delete habit?',
-          style: TextStyle(color: BrandColors.ink(context)),
-        ),
-        content: Text(
-          'This removes the habit and all logs for it.',
-          style: TextStyle(color: BrandColors.inkSoft(context)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Color(0xFFFF6B81)),
+      backgroundColor: BrandColors.bgCard(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
+              child: Text(
+                'Stop tracking “${habit.title}”?',
+                style: TextStyle(
+                  color: BrandColors.ink(ctx),
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+              child: Text(
+                'Pausing keeps your history so you can pick it back up '
+                'later.',
+                style: TextStyle(
+                  color: BrandColors.inkDim(ctx),
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.pause_circle_outline_rounded,
+                  color: AppColors.pinkLight),
+              title: Text('Pause it',
+                  style: TextStyle(
+                      color: BrandColors.ink(ctx),
+                      fontWeight: FontWeight.w700)),
+              subtitle: Text('Keeps every log. Restart anytime.',
+                  style: TextStyle(color: BrandColors.inkDim(ctx))),
+              onTap: () => Navigator.of(ctx).pop('archive'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded,
+                  color: Color(0xFFFF6B81)),
+              title: const Text('Delete permanently',
+                  style: TextStyle(
+                      color: Color(0xFFFF6B81),
+                      fontWeight: FontWeight.w700)),
+              subtitle: Text('Removes the habit and all its logs.',
+                  style: TextStyle(color: BrandColors.inkDim(ctx))),
+              onTap: () => Navigator.of(ctx).pop('delete'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
-    if (ok == true) {
+    if (choice == 'archive') {
+      await _repo.archiveHabit(habit.id);
+      HapticFeedback.mediumImpact();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Paused. You can restart this anytime.'),
+        ),
+      );
+      Navigator.of(context).pop();
+    } else if (choice == 'delete') {
       await _repo.deleteHabit(habit.id);
       HapticFeedback.mediumImpact();
       if (mounted) Navigator.of(context).pop();

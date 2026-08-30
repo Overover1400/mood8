@@ -407,6 +407,32 @@ class _HabitsScreenState extends State<HabitsScreen> {
                               const SizedBox(height: 6),
                               const UpgradePromptBar(),
                             ],
+                            // Paused habits (spec 2.2 step 4). Neutral
+                            // framing, full history kept, one tap to
+                            // restart — and restarting pre-fills the
+                            // easier version rather than the one that
+                            // already failed.
+                            _PausedSection(
+                              paused: _repo
+                                  .getAllHabits()
+                                  .where((h) => h.isArchived)
+                                  .toList(),
+                              onRestart: (h) async {
+                                final messenger =
+                                    ScaffoldMessenger.of(context);
+                                await _repo.restartHabit(h.id);
+                                HapticService().selection();
+                                if (!mounted) return;
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        '“${h.title}” is back — starting '
+                                        'easier this time.'),
+                                  ),
+                                );
+                                setState(() {});
+                              },
+                            ),
                           ],
                         ),
                       );
@@ -1542,6 +1568,88 @@ class _Fab extends StatelessWidget {
           ],
         ),
         child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+      ),
+    );
+  }
+}
+
+
+/// Collapsed list of paused habits. Deliberately quiet: it sits at the
+/// bottom, states nothing about failure, and offers one action.
+class _PausedSection extends StatelessWidget {
+  const _PausedSection({required this.paused, required this.onRestart});
+
+  final List<Habit> paused;
+  final ValueChanged<Habit> onRestart;
+
+  @override
+  Widget build(BuildContext context) {
+    if (paused.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 22),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: EdgeInsets.zero,
+          title: Text(
+            'Paused (${paused.length})',
+            style: TextStyle(
+              color: BrandColors.inkDim(context),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.4,
+            ),
+          ),
+          iconColor: BrandColors.inkDim(context),
+          collapsedIconColor: BrandColors.inkDim(context),
+          children: [
+            for (final h in paused)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: BrandColors.bgCard(context).withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.purple.withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(h.icon, style: const TextStyle(fontSize: 17)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          h.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: BrandColors.inkSoft(context),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => onRestart(h),
+                        child: Text(
+                          'Restart',
+                          style: TextStyle(
+                            color: AppColors.pinkLight,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
