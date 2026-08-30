@@ -22,6 +22,7 @@ import '../models/share_card_data.dart';
 import 'share_progress_screen.dart';
 import '../models/user_profile.dart';
 import '../widgets/adaptation_card.dart';
+import '../widgets/bad_day_sheet.dart';
 import '../widgets/miss_reason_sheet.dart';
 import '../services/adaptive_routine_service.dart';
 import '../services/badge_service.dart';
@@ -540,6 +541,17 @@ class _HomeScreenState extends State<HomeScreen> {
       } else {
         SfxService().fire(SfxType.checkInSuccess);
         EffectsService().celebrateHabitComplete(context: context);
+      }
+      // Spec 9.1: a low check-in is the moment to offer smaller
+      // versions — before the day is lost, not after.
+      if (mounted) {
+        // ignore: discarded_futures
+        BadDaySheet.maybeShow(
+          context,
+          energy: _energy,
+          mood: _mood,
+          remainingToday: remainingHabitsToday(_habits),
+        );
       }
       final earned = await MilestoneService().checkStreak(streak);
       if (earned != null && mounted && !hitMilestone) {
