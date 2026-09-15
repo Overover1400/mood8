@@ -30,11 +30,16 @@ class IdentityStep extends StatefulWidget {
   const IdentityStep({
     super.key,
     required this.initial,
+    required this.initialSentence,
     required this.onSubmit,
   });
 
   final List<String> initial;
-  final ValueChanged<List<String>> onSubmit;
+  final String? initialSentence;
+
+  /// Returns the chosen identity labels plus, optionally, the sentence the
+  /// user wrote themselves (spec 1.3.2).
+  final void Function(List<String> identities, String? sentence) onSubmit;
 
   @override
   State<IdentityStep> createState() => _IdentityStepState();
@@ -42,6 +47,14 @@ class IdentityStep extends StatefulWidget {
 
 class _IdentityStepState extends State<IdentityStep> {
   late final Set<String> _selected = {...widget.initial};
+  late final TextEditingController _sentence =
+      TextEditingController(text: widget.initialSentence ?? '');
+
+  @override
+  void dispose() {
+    _sentence.dispose();
+    super.dispose();
+  }
 
   void _toggle(String label) {
     HapticFeedback.selectionClick();
@@ -111,13 +124,62 @@ class _IdentityStepState extends State<IdentityStep> {
               ),
             ),
           ),
+          const SizedBox(height: 14),
+          // Spec 1.3.2 / 2.7 Q1 — the one place free typing earns its
+          // keystrokes. Optional: a blank field never blocks Continue.
+          TextField(
+            controller: _sentence,
+            maxLength: 80,
+            textCapitalization: TextCapitalization.sentences,
+            style: TextStyle(
+              color: BrandColors.ink(context),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Or say it your way — “I’m becoming a runner”',
+              hintStyle: TextStyle(
+                color: BrandColors.inkDim(context),
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+              ),
+              counterText: '',
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 12),
+              filled: true,
+              fillColor: BrandColors.bgCard(context).withValues(alpha: 0.7),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: AppColors.purple.withValues(alpha: 0.18),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: AppColors.purple.withValues(alpha: 0.18),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: AppColors.pinkLight.withValues(alpha: 0.65),
+                ),
+              ),
+            ),
+          ).animate().fadeIn(delay: 300.ms, duration: 400.ms),
           const SizedBox(height: 12),
           OnboardingPrimaryButton(
             label: 'Continue',
             icon: Icons.arrow_forward_rounded,
             onTap: _selected.isEmpty
                 ? null
-                : () => widget.onSubmit(_selected.toList()),
+                : () {
+                    final s = _sentence.text.trim();
+                    widget.onSubmit(
+                        _selected.toList(), s.isEmpty ? null : s);
+                  },
           ),
         ],
       ),

@@ -12,6 +12,8 @@ class MoodEntry extends HiveObject {
     required this.focus,
     this.note,
     this.updatedAt,
+    this.partOfDay,
+    this.dayRating,
   });
 
   @HiveField(0)
@@ -36,6 +38,22 @@ class MoodEntry extends HiveObject {
   /// compat — coalesces to [timestamp] when missing.
   @HiveField(6)
   DateTime? updatedAt;
+
+  /// Spec 2.1 — `'morning'` or `'evening'`. A plain string rather than a
+  /// Hive enum so it round-trips to the backend's `part_of_day` column
+  /// without a codec, and so old entries (null) stay readable.
+  ///
+  /// This is the field the adaptation engine needs: one entry per day
+  /// gives it nothing to compare, and comparison is the whole product.
+  @HiveField(7)
+  String? partOfDay;
+
+  /// Spec 2.1 — evening check-in only: "how did the day go", 1–5.
+  /// Null on morning entries.
+  @HiveField(8)
+  double? dayRating;
+
+  bool get isEvening => partOfDay == 'evening';
 
   double get averageScore => (mood + energy + focus) / 3.0;
 }

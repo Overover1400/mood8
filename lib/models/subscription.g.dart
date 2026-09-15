@@ -19,14 +19,6 @@ class SubscriptionTierAdapter extends TypeAdapter<SubscriptionTier> {
         return SubscriptionTier.premium;
       case 2:
         return SubscriptionTier.premiumLifetime;
-      // Legacy Plus values from before the tier collapse: read
-      // recurring Plus (3) back as plain Premium and lifetime Plus
-      // (4) back as Premium · Lifetime so any Hive-cached row
-      // written by an older build still deserialises cleanly.
-      case 3:
-        return SubscriptionTier.premium;
-      case 4:
-        return SubscriptionTier.premiumLifetime;
       default:
         return SubscriptionTier.free;
     }

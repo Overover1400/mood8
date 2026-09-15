@@ -68,6 +68,7 @@ class OnboardingService {
     required List<String> identities,
     required List<FocusArea> focusAreas,
     required Chronotype chronotype,
+    String? identitySentence,
     double? mood,
     double? energy,
     double? focus,
@@ -79,6 +80,7 @@ class OnboardingService {
       hasCompletedOnboarding: true,
       createdAt: DateTime.now(),
       chronotype: chronotype,
+      identitySentence: identitySentence,
     );
 
     await _users.saveUser(profile);

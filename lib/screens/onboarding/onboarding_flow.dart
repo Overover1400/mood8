@@ -21,6 +21,8 @@ import 'steps/welcome_step.dart';
 class OnboardingData {
   String name = '';
   List<String> identities = [];
+  /// Spec 1.3.2 — the user's own words, optional.
+  String? identitySentence;
   List<FocusArea> focusAreas = [];
   Chronotype chronotype = Chronotype.balanced;
   /// Spec 3.7 Q4/Q5 — the cold-start engine's only inputs before the
@@ -79,6 +81,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       await _service.complete(
         name: _data.name,
         identities: _data.identities,
+        identitySentence: _data.identitySentence,
         focusAreas: _data.focusAreas,
         chronotype: _data.chronotype,
         mood: skipCheckin ? null : _data.mood,
@@ -156,8 +159,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                       ),
                       IdentityStep(
                         initial: _data.identities,
-                        onSubmit: (ids) {
+                        initialSentence: _data.identitySentence,
+                        onSubmit: (ids, sentence) {
                           _data.identities = ids;
+                          _data.identitySentence = sentence;
                           _next();
                         },
                       ),

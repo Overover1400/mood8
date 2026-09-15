@@ -5,8 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/reminder_settings.dart';
+import '../services/checkin_schedule_service.dart';
+import '../services/habit_reminder_service.dart';
 import '../services/haptic_service.dart';
 import '../services/notification_service.dart';
+import '../services/preferences_service.dart';
 import '../services/reminder_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/responsive_container.dart';
@@ -23,6 +26,7 @@ class ReminderSettingsScreen extends StatefulWidget {
 class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
   final ReminderService _reminders = ReminderService();
   final NotificationService _notif = NotificationService();
+  final PreferencesService _prefs = PreferencesService.instance;
   late final ValueListenable<Box<ReminderSettings>> _listenable =
       _reminders.watch();
 
@@ -79,6 +83,75 @@ class _ReminderSettingsScreenState extends State<ReminderSettingsScreen> {
                     _TimesList(
                       settings: settings,
                       onChange: _setTimes,
+                    ),
+                    // Spec 1.5 — one switch per category. Without these a
+                    // user who wants habit reminders but not challenge
+                    // chatter has only one lever: turn Mood8 off in the
+                    // OS. That's the outcome this section prevents.
+                    const SizedBox(height: 18),
+                    _SectionLabel(label: 'WHAT YOU GET'),
+                    const SizedBox(height: 8),
+                    _Card(
+                      child: Column(
+                        children: [
+                          SettingsToggle(
+                            icon: Icons.favorite_rounded,
+                            title: 'Daily check-ins',
+                            subtitle: 'Morning and evening mood check-ins',
+                            value: _prefs.checkinNotificationsEnabled,
+                            onChanged: (v) async {
+                              await _prefs
+                                  .setCheckinNotificationsEnabled(v);
+                              await CheckinScheduleService().rescheduleAll();
+                              if (mounted) setState(() {});
+                            },
+                          ),
+                          SettingsToggle(
+                            icon: Icons.task_alt_rounded,
+                            title: 'Habit reminders',
+                            subtitle: 'Per-habit nudges at the times you set',
+                            value: _prefs.habitNotificationsEnabled,
+                            onChanged: (v) async {
+                              await _prefs.setHabitNotificationsEnabled(v);
+                              await HabitReminderService().scheduleAll();
+                              if (mounted) setState(() {});
+                            },
+                          ),
+                          SettingsToggle(
+                            icon: Icons.groups_rounded,
+                            title: 'Challenges',
+                            subtitle: 'Invites, progress and results',
+                            value: _prefs.challengeNotificationsEnabled,
+                            onChanged: (v) async {
+                              await _prefs
+                                  .setChallengeNotificationsEnabled(v);
+                              if (mounted) setState(() {});
+                            },
+                          ),
+                          SettingsToggle(
+                            icon: Icons.insights_rounded,
+                            title: 'Weekly recap',
+                            subtitle: 'Your week, once a week',
+                            value: _prefs.weeklyRecapNotificationsEnabled,
+                            onChanged: (v) async {
+                              await _prefs
+                                  .setWeeklyRecapNotificationsEnabled(v);
+                              if (mounted) setState(() {});
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    _SectionLabel(label: 'DAILY LIMIT'),
+                    const SizedBox(height: 8),
+                    _DailyCapCard(
+                      cap: _prefs.notificationDailyCap,
+                      sentToday: _prefs.notificationsSentToday,
+                      onChanged: (v) async {
+                        await _prefs.setNotificationDailyCap(v);
+                        if (mounted) setState(() {});
+                      },
                     ),
                     const SizedBox(height: 18),
                     _SectionLabel(label: 'QUIET HOURS'),
@@ -332,6 +405,109 @@ class _Card extends StatelessWidget {
         ),
       ),
       child: child,
+    );
+  }
+}
+
+/// Spec 1.5 — the daily ceiling. Default 3; "Off" means no cap, for the
+/// user who explicitly wants everything.
+class _DailyCapCard extends StatelessWidget {
+  const _DailyCapCard({
+    required this.cap,
+    required this.sentToday,
+    required this.onChanged,
+  });
+
+  final int cap;
+  final int sentToday;
+  final ValueChanged<int> onChanged;
+
+  static const List<int> _options = [1, 2, 3, 5, 0];
+
+  String _label(int v) => v == 0 ? 'Off' : '$v';
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.filter_alt_rounded,
+                    size: 18, color: AppColors.purpleLight),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Most notifications per day',
+                    style: TextStyle(
+                      color: BrandColors.ink(context),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              cap == 0
+                  ? 'No limit. Mood8 sends everything you’ve turned on.'
+                  : '$sentToday of $cap used today.',
+              style: TextStyle(
+                color: BrandColors.inkDim(context),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                for (final v in _options) ...[
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticService().selection();
+                        onChanged(v);
+                      },
+                      child: Container(
+                        height: 38,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: v == cap
+                              ? AppColors.purple.withValues(alpha: 0.45)
+                              : BrandColors.bgDeep(context)
+                                  .withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: v == cap
+                                ? AppColors.pinkLight.withValues(alpha: 0.6)
+                                : AppColors.purple.withValues(alpha: 0.18),
+                          ),
+                        ),
+                        child: Text(
+                          _label(v),
+                          style: TextStyle(
+                            color: v == cap
+                                ? Colors.white
+                                : BrandColors.inkSoft(context),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (v != _options.last) const SizedBox(width: 8),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -22,6 +22,9 @@ import '../models/share_card_data.dart';
 import 'share_progress_screen.dart';
 import '../models/user_profile.dart';
 import '../widgets/adaptation_card.dart';
+import '../services/anchor_service.dart';
+import '../services/miss_reason_service.dart';
+import '../widgets/anchor_sheet.dart';
 import '../widgets/bad_day_sheet.dart';
 import '../widgets/miss_reason_sheet.dart';
 import '../services/adaptive_routine_service.dart';
@@ -147,12 +150,20 @@ class _HomeScreenState extends State<HomeScreen> {
   /// today's values so further adjustments update the same entry
   /// instead of overwriting from the defaults.
   void _hydrateTodayMood() {
-    final today = _moods.getTodayEntry();
+    // Spec 2.1 — prefill from *this half* of the day. Carrying the
+    // morning's numbers into the evening would pre-answer the evening
+    // check-in with stale values, which is exactly the comparison the
+    // adaptation engine depends on.
+    final part = MoodRepository.currentPartOfDay();
+    final today = _moods.getTodayEntry(partOfDay: part);
     if (today == null) return;
     setState(() {
       _mood = (today.mood / 10).clamp(0.0, 1.0);
       _energy = (today.energy / 10).clamp(0.0, 1.0);
       _focus = (today.focus / 10).clamp(0.0, 1.0);
+      if (today.dayRating != null) {
+        _dayRating = (today.dayRating! / 10).clamp(0.0, 1.0);
+      }
       // Don't arm the auto-save baseline — opening Home shouldn't
       // re-save the existing entry.
       _initialMoodLoaded = false;
@@ -480,6 +491,8 @@ class _HomeScreenState extends State<HomeScreen> {
   double _mood = 0.72;
   double _energy = 0.58;
   double _focus = 0.65;
+  /// Spec 2.1 — evening-only "how did the day go".
+  double _dayRating = 0.6;
   bool _saving = false;
   // Auto-save debounce: every slider interaction restarts the timer;
   // after ~2 s of quiet we silently upsert today's mood entry and
@@ -493,6 +506,21 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onSliderChange(void Function() apply) {
     setState(apply);
     _initialMoodLoaded = true;
+  }
+
+  /// Spec 3.2 — pick the most-missed un-anchored habit and offer to
+  /// attach it to an existing routine. Silent when nothing qualifies.
+  Future<void> _maybeOfferAnchor() async {
+    final habits = _habits.getAllHabits();
+    if (habits.isEmpty) return;
+    final logs = _habits.allLogs;
+    final candidate = await AnchorService().pickCandidate(
+      habits,
+      (h) => MissReasonService().missesFor(h, logs),
+    );
+    if (candidate == null || !mounted) return;
+    await AnchorSheet.maybeShow(context, habit: candidate);
+    if (mounted) setState(() {});
   }
 
   /// Slider release — arm the 2-second auto-save countdown. Any new
@@ -510,10 +538,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final wasNewEntry = _moods.getTodayEntry() == null;
     setState(() => _saving = true);
     try {
+      final part = MoodRepository.currentPartOfDay();
       await _moods.upsertTodayEntry(
         mood: _mood * 10,
         energy: _energy * 10,
         focus: _focus * 10,
+        partOfDay: part,
+        // Only the evening check-in carries a day rating (spec 2.1).
+        dayRating: part == 'evening' ? _dayRating * 10 : null,
       );
       HapticService().selection();
       if (!mounted) return;
@@ -553,6 +585,11 @@ class _HomeScreenState extends State<HomeScreen> {
           remainingToday: remainingHabitsToday(_habits),
         );
       }
+      // Spec 3.2 — anchoring. Offered only for a habit that is actually
+      // being missed, and only when the bad-day sheet didn't already
+      // claim today's one interruption.
+      // ignore: discarded_futures
+      _maybeOfferAnchor();
       final earned = await MilestoneService().checkStreak(streak);
       if (earned != null && mounted && !hitMilestone) {
         EffectsService().celebrateStreakMilestone(
@@ -878,6 +915,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                   energy: _energy,
                                   focus: _focus,
                                   savedFlash: _savedFlash,
+                                  isEvening: MoodRepository
+                                          .currentPartOfDay() ==
+                                      'evening',
+                                  dayRating: _dayRating,
+                                  onDayRating: (v) =>
+                                      _onSliderChange(() => _dayRating = v),
                                   onMood: (v) =>
                                       _onSliderChange(() => _mood = v),
                                   onEnergy: (v) =>
@@ -1192,6 +1235,23 @@ class _Header extends StatelessWidget {
             ),
           ),
         ),
+        // Spec 1.3.2 — the sentence the user wrote about who they're
+        // becoming, shown back to them. Silent when they skipped it.
+        if ((profile?.identitySentence ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            profile!.identitySentence!.trim(),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: BrandColors.inkSoft(context),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1544,6 +1604,9 @@ class _HomeHero extends StatelessWidget {
     required this.onEnergy,
     required this.onFocus,
     required this.onSliderEnd,
+    required this.isEvening,
+    required this.dayRating,
+    required this.onDayRating,
   });
 
   final int streak;
@@ -1560,6 +1623,11 @@ class _HomeHero extends StatelessWidget {
   final ValueChanged<double> onEnergy;
   final ValueChanged<double> onFocus;
   final ValueChanged<double> onSliderEnd;
+
+  /// Spec 2.1 — passed straight through to the check-in card.
+  final bool isEvening;
+  final double dayRating;
+  final ValueChanged<double> onDayRating;
 
   @override
   Widget build(BuildContext context) {
@@ -1583,6 +1651,9 @@ class _HomeHero extends StatelessWidget {
           onEnergy: onEnergy,
           onFocus: onFocus,
           onSliderEnd: onSliderEnd,
+          isEvening: isEvening,
+          dayRating: dayRating,
+          onDayRating: onDayRating,
         ),
       ],
     );
@@ -1735,6 +1806,9 @@ class _MoodHeroCard extends StatelessWidget {
     required this.onFocus,
     required this.onSliderEnd,
     required this.savedFlash,
+    required this.isEvening,
+    required this.dayRating,
+    required this.onDayRating,
   });
 
   final double mood;
@@ -1747,6 +1821,13 @@ class _MoodHeroCard extends StatelessWidget {
   /// uses this to arm the 2-second auto-save countdown.
   final ValueChanged<double> onSliderEnd;
   final bool savedFlash;
+
+  /// Spec 2.1 — the evening check-in is the same three sliders plus one
+  /// question about the day. Shown only after 16:00 so the morning
+  /// check-in stays a three-tap, sub-10-second interaction.
+  final bool isEvening;
+  final double dayRating;
+  final ValueChanged<double> onDayRating;
 
   @override
   Widget build(BuildContext context) {
@@ -1847,6 +1928,19 @@ class _MoodHeroCard extends StatelessWidget {
                   'Scattered', 'Foggy', 'Okay', 'Clear', 'Sharp',
                 ],
               ),
+              // Spec 2.1 — evening only: "how did the day go".
+              if (isEvening)
+                CompactGlowSlider(
+                  label: 'Day',
+                  icon: Icons.nightlight_round,
+                  value: dayRating,
+                  onChanged: onDayRating,
+                  onChangeEnd: onSliderEnd,
+                  fillTone: AppColors.purpleLight,
+                  levelLabels: const [
+                    'Rough', 'Hard', 'Okay', 'Good', 'Great',
+                  ],
+                ),
               const SizedBox(height: 6),
               Text(
                 'Three quick taps, morning and night. mood8 learns when '

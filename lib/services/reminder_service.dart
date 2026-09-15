@@ -9,6 +9,7 @@ import '../models/reminder_settings.dart';
 import 'database_service.dart';
 import 'mood_repository.dart';
 import 'notification_service.dart';
+import 'preferences_service.dart';
 import 'sync_service.dart';
 
 /// Owns the scheduling lifecycle for "smart reminders" — daily mood
@@ -180,6 +181,17 @@ class ReminderService extends ChangeNotifier {
     if (shouldSkipToday()) {
       debugPrint(
           '[Reminders] slot $slotIndex skipped (mood already logged + smart skip)');
+      return;
+    }
+    // Spec 1.5 — per-category switch, then the daily ceiling. Budget is
+    // consumed only once every other guard has passed, so a suppressed
+    // notification doesn't silently eat one of the day's three slots.
+    if (!PreferencesService.instance.checkinNotificationsEnabled) {
+      debugPrint('[Reminders] slot $slotIndex — check-in category off');
+      return;
+    }
+    if (!await PreferencesService.instance.tryConsumeNotificationBudget()) {
+      debugPrint('[Reminders] slot $slotIndex — daily cap reached');
       return;
     }
     await NotificationService().showNow(

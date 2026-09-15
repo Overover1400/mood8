@@ -770,6 +770,11 @@ class PatternDetectionService {
     if (await _alreadyNotifiedThisWeek()) return;
     final notif = NotificationService();
     if (!notif.isSupported || !notif.isGranted) return;
+    // Spec 1.5 — pattern alerts count against the same daily ceiling as
+    // everything else, otherwise "max 3 per day" is only true per-source.
+    if (!await PreferencesService.instance.tryConsumeNotificationBudget()) {
+      return;
+    }
     await notif.showNow(title: top.title, body: top.body);
     await _markNotifiedThisWeek();
   }

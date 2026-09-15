@@ -23,6 +23,8 @@ import 'services/effects_service.dart';
 import 'services/freeze_service.dart';
 import 'services/gratitude_repository.dart';
 import 'services/habit_repository.dart';
+import 'services/checkin_schedule_service.dart';
+import 'services/feature_unlock_service.dart';
 import 'services/habit_reminder_service.dart';
 import 'services/haptic_service.dart';
 import 'services/intention_repository.dart';
@@ -130,10 +132,18 @@ Future<void> _boot() async {
   await _flushCorruptedNotificationCacheOnce();
   await ReminderService().getSettings();
   await ReminderService().scheduleAllReminders();
+  // Spec 6 — read the "unlock everything" override before first paint,
+  // otherwise a power user who enabled it sees locked tabs for a frame.
+  await FeatureUnlockService().load();
   // Per-habit reminders (final attempt — debug-screen instrumented).
   await HabitReminderService().loadGlobalSetting();
   // ignore: discarded_futures
   HabitReminderService().scheduleAll();
+  // Spec 2.1 — the two daily check-in prompts. Previously these were
+  // only reachable from two manual buttons in Settings, so in practice
+  // they never fired for real users.
+  // ignore: discarded_futures
+  CheckinScheduleService().rescheduleAll();
   // Fire-and-forget so a slow audio load doesn't block first paint.
   // Both services degrade silently when assets or capabilities are missing.
   HapticService().initialize();

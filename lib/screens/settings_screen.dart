@@ -16,6 +16,7 @@ import '../services/auth_service.dart';
 import '../services/badge_service.dart';
 import '../services/effects_service.dart';
 import '../services/feedback_service.dart';
+import '../services/feature_unlock_service.dart';
 import '../services/haptic_service.dart';
 import '../services/notification_service.dart';
 import '../services/onboarding_service.dart';
@@ -72,6 +73,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final UserRepository _users = UserRepository();
   final PreferencesService _prefs = PreferencesService.instance;
+  final FeatureUnlockService _unlock = FeatureUnlockService();
 
   late final ValueListenable<Box<UserProfile>> _userListenable =
       _users.watchUser();
@@ -345,7 +347,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _ProfileCard(user: user, onEditName: _editName),
+                    _ProfileCard(
+                      user: user,
+                      onEditName: _editName,
+                      onEditIdentity: _editIdentitySentence,
+                    ),
                     const SizedBox(height: 14),
                     _PremiumHeroCard(
                       onUpgrade: () => Navigator.of(context).push(
@@ -533,6 +539,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           value: _prefs.showGratitudeCard,
                           onChanged: (v) =>
                               _prefs.setShowGratitudeCard(v),
+                        ),
+                        // Spec 6 — mandatory escape hatch. Features open
+                        // up as the app earns the right to show them, but
+                        // nobody is ever locked behind the tutorial.
+                        SettingsToggle(
+                          icon: Icons.lock_open_rounded,
+                          title: 'Show all features now',
+                          subtitle:
+                              'Progress, Challenges and Coach normally open '
+                              'as you build up data. Turn this on to skip '
+                              'the wait.',
+                          value: _unlock.unlockAllEnabled,
+                          onChanged: (v) async {
+                            await _unlock.setUnlockAll(v);
+                            if (mounted) setState(() {});
+                          },
                         ),
                       ],
                     ),
@@ -1189,6 +1211,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
     HapticFeedback.lightImpact();
   }
 
+  /// Spec 1.3.2 — lets everyone who onboarded before this shipped (i.e.
+  /// every current Play user) still set their identity sentence, rather
+  /// than locking it behind a one-time onboarding screen they already saw.
+  Future<void> _editIdentitySentence() async {
+    final user = _users.getCurrentUser();
+    final ctrl = TextEditingController(text: user?.identitySentence ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text('Who are you becoming?',
+            style: TextStyle(color: BrandColors.ink(context))),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          maxLength: 80,
+          cursorColor: AppColors.pinkLight,
+          textCapitalization: TextCapitalization.sentences,
+          style: TextStyle(color: BrandColors.ink(context)),
+          decoration: InputDecoration(
+            hintText: 'I’m becoming a runner',
+            counterText: '',
+            hintStyle: TextStyle(color: BrandColors.inkDim(context)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (result == null || user == null) return;
+    // Empty clears it — the sentence is optional by design.
+    user.identitySentence = result.isEmpty ? null : result;
+    await _users.saveUser(user);
+    HapticFeedback.lightImpact();
+    if (mounted) setState(() {});
+  }
+
   Future<void> _editCheckinTime() async {
     final v = await showTimePicker(
       context: context,
@@ -1506,9 +1573,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 }
 
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.user, required this.onEditName});
+  const _ProfileCard({
+    required this.user,
+    required this.onEditName,
+    required this.onEditIdentity,
+  });
   final UserProfile? user;
   final VoidCallback onEditName;
+  final VoidCallback onEditIdentity;
 
   @override
   Widget build(BuildContext context) {
@@ -1579,6 +1651,43 @@ class _ProfileCard extends StatelessWidget {
                     color: AppColors.purpleLight, size: 18),
               ),
             ],
+          ),
+          // Spec 1.3.2 — always offered, including to users who onboarded
+          // before the sentence existed. Tapping the placeholder is how
+          // they set it for the first time.
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: onEditIdentity,
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome_rounded,
+                    size: 15, color: AppColors.purpleLight),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    (user?.identitySentence ?? '').trim().isEmpty
+                        ? 'Who are you becoming?'
+                        : user!.identitySentence!.trim(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: (user?.identitySentence ?? '').trim().isEmpty
+                          ? BrandColors.inkDim(context)
+                          : BrandColors.inkSoft(context),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                      fontStyle: (user?.identitySentence ?? '').trim().isEmpty
+                          ? FontStyle.normal
+                          : FontStyle.italic,
+                    ),
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded,
+                    size: 18, color: BrandColors.inkDim(context)),
+              ],
+            ),
           ),
           if (user != null && user!.identities.isNotEmpty) ...[
             const SizedBox(height: 14),

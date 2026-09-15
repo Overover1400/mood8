@@ -57,7 +57,7 @@ String _filterLabel(String id) {
   if (id == _kAiManagedFilter) return 'Mood8 AI Habits';
   if (id.startsWith(_kPackagePrefix)) {
     final p = habitPackageById(id.substring(_kPackagePrefix.length));
-    return p?.name ?? 'Package';
+    return p?.shortName ?? 'Package';
   }
   return id;
 }
@@ -519,7 +519,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
     if (!_filter.startsWith(_kPackagePrefix)) return;
     final packageId = _filter.substring(_kPackagePrefix.length);
     final pkg = habitPackageById(packageId);
-    final name = pkg?.name ?? 'this category';
+    final name = pkg?.shortName ?? 'this category';
     final n = visible.length;
     if (n == 0) return;
     HapticService().light();
@@ -1257,7 +1257,7 @@ class _IdentityFilter extends StatelessWidget {
                   ? 'Bad habits'
                   : isAi
                       ? 'Mood8 AI Habits'
-                      : pkg?.name ?? id;
+                      : pkg?.shortName ?? id;
           // The AI chip gets the brand purple→pink→blue gradient
           // (same vocabulary as the Premium hero card) so it reads
           // as the "this is the AI-shaped surface" affordance.
@@ -1448,7 +1448,7 @@ class _DeleteCategoryBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pkg = habitPackageById(packageId);
-    final name = pkg?.name ?? 'this category';
+    final name = pkg?.shortName ?? 'this category';
     return InkWell(
       onTap: onDelete,
       borderRadius: BorderRadius.circular(14),

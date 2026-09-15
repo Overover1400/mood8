@@ -36,6 +36,7 @@ class Habit extends HiveObject {
     this.programDurationDays,
     this.remindersEnabled = false,
     List<int>? reminderMinutes,
+    this.anchor,
   })  : frozenDates = frozenDates ?? <DateTime>[],
         reminderMinutes = reminderMinutes ?? <int>[];
 
@@ -149,6 +150,21 @@ class Habit extends HiveObject {
   /// can have many entries; yes/no habits typically have one.
   @HiveField(25)
   List<int> reminderMinutes;
+
+  /// Spec 3.2 — the habit's anchor: an existing routine this habit is
+  /// attached to, stored as the trailing half of the sentence ("I make
+  /// coffee" → "After I make coffee, …").
+  ///
+  /// This is an implementation intention. Specifying *when and where* a
+  /// behaviour will happen is one of the most replicated findings in
+  /// behavioural science, which is also why it's worth having in the
+  /// product: the method rests on published research rather than on our
+  /// own assertion that it works.
+  ///
+  /// Never a field on the create-habit form (spec 6) — it's offered as a
+  /// suggestion once the app has a reason to think it would help.
+  @HiveField(26)
+  String? anchor;
 
   bool get isAvoid => polarity == HabitPolarity.avoid;
   bool get isFromPackage => packageId != null;

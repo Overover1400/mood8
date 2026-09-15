@@ -5,6 +5,7 @@ import '../models/habit.dart';
 import 'database_service.dart';
 import 'notif_log.dart';
 import 'notification_service.dart';
+import 'preferences_service.dart';
 
 /// Per-habit reminder scheduling, restored after the v1 cut for the
 /// "final attempt" instrumentation pass.
@@ -76,6 +77,15 @@ class HabitReminderService {
     if (!_globalLoaded) await loadGlobalSetting();
     if (!_globalCache) {
       NotifLog.log('habitReminders: master switch off — skipping schedule');
+      return;
+    }
+    // Spec 1.5 — the per-category switch. Distinct from the master
+    // switch above: this one is the user saying "reminders yes, but not
+    // this kind", which is the choice that stops them disabling Mood8
+    // notifications entirely at the OS level.
+    if (!PreferencesService.instance.habitNotificationsEnabled) {
+      NotifLog.log('habitReminders: category disabled — skipping schedule');
+      await cancelAll();
       return;
     }
     final notif = NotificationService();

@@ -244,8 +244,11 @@ class _PackageTile extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
+                            // Identity sentence (spec 1.3.1) — needs two
+                            // lines; "I'm becoming a morning person" does
+                            // not fit on one at this size.
                             pkg.name,
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.bricolageGrotesque(
                               color: BrandColors.ink(context),
@@ -376,8 +379,8 @@ class _PackageDetailScreenState extends State<_PackageDetailScreen> {
         SnackBar(
           content: Text(
             created.isEmpty
-                ? '${widget.pkg.name} is already running.'
-                : '${widget.pkg.name} started — ${created.length} '
+                ? '${widget.pkg.shortName} is already running.'
+                : '${widget.pkg.shortName} started — ${created.length} '
                     'habit${created.length == 1 ? '' : 's'} added.',
           ),
           backgroundColor: BrandColors.bgCard(context),
@@ -436,10 +439,10 @@ class _PackageDetailScreenState extends State<_PackageDetailScreen> {
                   ],
                   const SizedBox(height: 22),
                   if (_alreadyRunning)
-                    _RunningCard(name: pkg.name)
+                    _RunningCard(name: pkg.shortName)
                   else if (unlocked)
                     _StartButton(
-                      label: _starting ? 'Starting…' : 'Start ${pkg.name}',
+                      label: _starting ? 'Starting…' : 'Start ${pkg.shortName}',
                       onTap: _starting ? null : _start,
                     )
                   else
@@ -591,6 +594,7 @@ class _ItemRow extends StatelessWidget {
         border: Border.all(color: accent.withValues(alpha: 0.18)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 36,
@@ -629,6 +633,19 @@ class _ItemRow extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.3,
+                  ),
+                ),
+                // Spec 1.3.3 — say what this habit is and why it's in the
+                // package. Accepting a bundle you don't understand is what
+                // drives the completion rate down.
+                const SizedBox(height: 5),
+                Text(
+                  item.why,
+                  style: TextStyle(
+                    color: BrandColors.inkSoft(context),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
                   ),
                 ),
               ],

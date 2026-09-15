@@ -72,6 +72,7 @@ class UserProfile extends HiveObject {
     int? totalFreezesUsed,
     this.updatedAt,
     bool? tutorialCompleted,
+    this.identitySentence,
   })  : freezesAvailable = freezesAvailable ?? 1,
         totalFreezesUsed = totalFreezesUsed ?? 0,
         tutorialCompleted = tutorialCompleted ?? false;
@@ -112,4 +113,12 @@ class UserProfile extends HiveObject {
   /// re-hydrate the cache.
   @HiveField(10)
   bool tutorialCompleted;
+
+  /// Spec 1.3.2 — the user's identity goal in their own words ("I'm
+  /// becoming someone who runs in the morning"). Optional, and the only
+  /// free-text field in onboarding: everywhere else typing is friction,
+  /// but a sentence you wrote about yourself is the one string worth
+  /// showing back to you on the home screen and in reports.
+  @HiveField(11)
+  String? identitySentence;
 }

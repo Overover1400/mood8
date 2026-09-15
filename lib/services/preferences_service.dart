@@ -44,6 +44,15 @@ class PreferencesService extends ChangeNotifier {
   static const _kPatternCheckIns = 'mood8.patternCheckIns';
   static const _kPatternNotifications = 'mood8.patternNotifications';
 
+  // Spec 1.5 — per-category notification switches + a daily cap.
+  static const _kNotifCheckin = 'mood8.notif.checkin';
+  static const _kNotifHabits = 'mood8.notif.habits';
+  static const _kNotifChallenges = 'mood8.notif.challenges';
+  static const _kNotifWeeklyRecap = 'mood8.notif.weeklyRecap';
+  static const _kNotifDailyCap = 'mood8.notif.dailyCap';
+  static const _kNotifSentDate = 'mood8.notif.sentDate';
+  static const _kNotifSentCount = 'mood8.notif.sentCount';
+
   SharedPreferences? _prefs;
 
   /// Reactive ThemeMode for `MaterialApp.themeMode`.
@@ -142,6 +151,78 @@ class PreferencesService extends ChangeNotifier {
     await p.setInt(_kCheckinHour, hour);
     await p.setInt(_kCheckinMinute, minute);
     notifyListeners();
+  }
+
+  // ─── Notification categories (spec 1.5) ───────────────────────────────
+  //
+  // An app that sends check-ins, habit reminders, challenge news and a
+  // weekly recap — with no way to separate them — gets its notifications
+  // turned off wholesale at the OS level. Each category is independently
+  // switchable so a user who only wants habit reminders can have exactly
+  // that instead of choosing between everything and nothing.
+
+  bool get checkinNotificationsEnabled =>
+      _prefs?.getBool(_kNotifCheckin) ?? true;
+  bool get habitNotificationsEnabled =>
+      _prefs?.getBool(_kNotifHabits) ?? true;
+  bool get challengeNotificationsEnabled =>
+      _prefs?.getBool(_kNotifChallenges) ?? true;
+  bool get weeklyRecapNotificationsEnabled =>
+      _prefs?.getBool(_kNotifWeeklyRecap) ?? true;
+
+  Future<void> setCheckinNotificationsEnabled(bool v) =>
+      _setNotifFlag(_kNotifCheckin, v);
+  Future<void> setHabitNotificationsEnabled(bool v) =>
+      _setNotifFlag(_kNotifHabits, v);
+  Future<void> setChallengeNotificationsEnabled(bool v) =>
+      _setNotifFlag(_kNotifChallenges, v);
+  Future<void> setWeeklyRecapNotificationsEnabled(bool v) =>
+      _setNotifFlag(_kNotifWeeklyRecap, v);
+
+  Future<void> _setNotifFlag(String key, bool v) async {
+    final p = await _get();
+    await p.setBool(key, v);
+    notifyListeners();
+  }
+
+  /// Spec 1.5 — default ceiling of 3 notifications per day. 0 means
+  /// "no cap" for the power user who explicitly wants everything.
+  int get notificationDailyCap => _prefs?.getInt(_kNotifDailyCap) ?? 3;
+
+  Future<void> setNotificationDailyCap(int v) async {
+    final p = await _get();
+    await p.setInt(_kNotifDailyCap, v.clamp(0, 20));
+    notifyListeners();
+  }
+
+  /// Consume one slot from today's budget. Returns false when the cap is
+  /// already spent, in which case the caller must not send.
+  ///
+  /// The counter resets on date change rather than on a timer, so an app
+  /// that never runs at midnight still gets a correct fresh budget on the
+  /// first send of the next day.
+  Future<bool> tryConsumeNotificationBudget() async {
+    final cap = notificationDailyCap;
+    if (cap <= 0) return true;
+    final p = await _get();
+    final today = _todayStamp();
+    final storedDate = p.getString(_kNotifSentDate);
+    final count = storedDate == today ? (p.getInt(_kNotifSentCount) ?? 0) : 0;
+    if (count >= cap) return false;
+    await p.setString(_kNotifSentDate, today);
+    await p.setInt(_kNotifSentCount, count + 1);
+    return true;
+  }
+
+  /// How many of today's slots are already used — for the settings UI.
+  int get notificationsSentToday {
+    if (_prefs?.getString(_kNotifSentDate) != _todayStamp()) return 0;
+    return _prefs?.getInt(_kNotifSentCount) ?? 0;
+  }
+
+  static String _todayStamp() {
+    final n = DateTime.now();
+    return '${n.year}-${n.month}-${n.day}';
   }
 
   // ─── AI insights toggle ───────────────────────────────────────────────

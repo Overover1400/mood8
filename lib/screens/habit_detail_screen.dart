@@ -12,6 +12,7 @@ import '../models/habit.dart';
 import '../models/habit_log.dart';
 import '../models/habit_type.dart';
 import '../models/routine_category.dart';
+import '../services/anchor_service.dart';
 import '../services/habit_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_habit_sheet.dart';
@@ -369,6 +370,30 @@ class _Header extends StatelessWidget {
                     letterSpacing: 0.4,
                   ),
                 ),
+                // Spec 3.2 — show the implementation intention as the
+                // full sentence, which is the form the research uses.
+                if ((habit.anchor ?? '').trim().isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.link_rounded,
+                          size: 13, color: AppColors.purpleLight),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          AnchorService().sentenceFor(habit),
+                          style: TextStyle(
+                            color: BrandColors.inkSoft(context),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

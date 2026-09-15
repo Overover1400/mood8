@@ -550,6 +550,9 @@ class _MoodEntryCodec implements _EntityCodec {
           'focus': e.focus,
           'note': e.note,
           'updatedAt': _iso(upd),
+          // Spec 2.1 — the server's adaptation engine keys off this.
+          'partOfDay': e.partOfDay,
+          'dayRating': e.dayRating,
         });
       }
     }
@@ -566,6 +569,8 @@ class _MoodEntryCodec implements _EntityCodec {
       focus: (json['focus'] as num?)?.toDouble() ?? 5.0,
       note: json['note'] as String?,
       updatedAt: _parseDate(json['updatedAt']),
+      partOfDay: json['partOfDay'] as String?,
+      dayRating: (json['dayRating'] as num?)?.toDouble(),
     );
     await _box.put(id, entry);
   }
@@ -885,6 +890,8 @@ class _HabitCodec implements _EntityCodec {
           'programDurationDays': h.programDurationDays,
           'remindersEnabled': h.remindersEnabled,
           'reminderMinutes': h.reminderMinutes,
+          // Spec 3.2 — the anchor travels with the habit.
+          'anchor': h.anchor,
         });
       }
     }
@@ -950,6 +957,7 @@ class _HabitCodec implements _EntityCodec {
       remindersEnabled: json['remindersEnabled'] as bool? ?? false,
       reminderMinutes:
           (json['reminderMinutes'] as List?)?.cast<int>(),
+      anchor: json['anchor'] as String?,
     );
     await _box.put(id, h);
     // After a pull writes a habit, reschedule its OS-level slots so

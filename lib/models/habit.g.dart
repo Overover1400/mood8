@@ -34,14 +34,14 @@ class HabitAdapter extends TypeAdapter<Habit> {
       isArchived: fields[14] as bool,
       frozenDates: (fields[15] as List?)?.cast<DateTime>(),
       updatedAt: fields[16] as DateTime?,
-      polarity: (fields[17] as HabitPolarity?) ?? HabitPolarity.build,
+      polarity: fields[17] as HabitPolarity,
       avoidMode: fields[18] as AvoidMode?,
       avoidDurationDays: fields[19] as int?,
       packageId: fields[20] as String?,
-      aiManaged: (fields[21] as bool?) ?? false,
+      aiManaged: fields[21] as bool,
       goalDescription: fields[22] as String?,
       programDurationDays: fields[23] as int?,
-      remindersEnabled: (fields[24] as bool?) ?? false,
+      remindersEnabled: fields[24] as bool,
       reminderMinutes: (fields[25] as List?)?.cast<int>(),
     );
   }

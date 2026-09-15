@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../feature_flags.dart';
+import '../services/feature_unlock_service.dart';
 import '../services/haptic_service.dart';
 import '../theme/app_theme.dart';
 
@@ -153,9 +154,20 @@ class MoodBottomNav extends StatelessWidget {
                       // "More" lights up while any of its screens is on.
                       ? kMoreTabs.any((m) => m.targetIndex == currentIndex)
                       : t.targetIndex == currentIndex,
-                  onTap: () => t.targetIndex == -1
-                      ? _showMoreSheet(context, onTap)
-                      : onTap(t.targetIndex),
+                  // Spec 6 — a locked tab explains what opens it rather
+                  // than navigating to an empty screen.
+                  locked: _isLocked(t.targetIndex),
+                  onTap: () {
+                    if (t.targetIndex == -1) {
+                      _showMoreSheet(context, onTap);
+                      return;
+                    }
+                    if (_isLocked(t.targetIndex)) {
+                      _explainLock(context, t.targetIndex);
+                      return;
+                    }
+                    onTap(t.targetIndex);
+                  },
                 ),
               ),
           ],
@@ -163,6 +175,39 @@ class MoodBottomNav extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Spec 6 — is this destination still closed for this user?
+bool _isLocked(int targetIndex) {
+  final svc = FeatureUnlockService();
+  if (targetIndex == kProgressTabIndex) return !svc.progressUnlocked;
+  if (targetIndex == kCoachTabIndex) return !svc.coachUnlocked;
+  if (targetIndex == kChallengeTabIndex) return !svc.challengesUnlocked;
+  return false;
+}
+
+String _lockReason(int targetIndex) {
+  final svc = FeatureUnlockService();
+  if (targetIndex == kProgressTabIndex) return svc.progressLockReason();
+  if (targetIndex == kCoachTabIndex) return svc.coachLockReason();
+  if (targetIndex == kChallengeTabIndex) return svc.challengesLockReason();
+  return '';
+}
+
+/// Tell the user what opens it, and when. Never a bare "locked".
+void _explainLock(BuildContext context, int targetIndex) {
+  HapticService().selection();
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(_lockReason(targetIndex)),
+      backgroundColor: BrandColors.bgCard(context),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+    ),
+  );
 }
 
 /// One tap deeper: the screens that no longer justify a permanent tab.
@@ -190,17 +235,43 @@ Future<void> _showMoreSheet(
           ),
           const SizedBox(height: 10),
           for (final t in kMoreTabs)
-            ListTile(
-              leading: Icon(t.icon, color: AppColors.pinkLight),
-              title: Text(
-                t.label,
-                style: TextStyle(
-                  color: BrandColors.ink(ctx),
-                  fontWeight: FontWeight.w700,
+            Builder(builder: (rowCtx) {
+              final locked = _isLocked(t.targetIndex);
+              return ListTile(
+                leading: Icon(
+                  locked ? Icons.lock_outline_rounded : t.icon,
+                  color: locked
+                      ? BrandColors.inkDim(ctx)
+                      : AppColors.pinkLight,
                 ),
-              ),
-              onTap: () => Navigator.of(ctx).pop(t.targetIndex),
-            ),
+                title: Text(
+                  t.label,
+                  style: TextStyle(
+                    color: locked
+                        ? BrandColors.inkDim(ctx)
+                        : BrandColors.ink(ctx),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                // Spec 6 — the locked row says what opens it, right there.
+                subtitle: locked
+                    ? Text(
+                        _lockReason(t.targetIndex),
+                        style: TextStyle(
+                          color: BrandColors.inkDim(ctx),
+                          fontSize: 11.5,
+                          height: 1.3,
+                        ),
+                      )
+                    : null,
+                // The subtitle already says what opens it, so a locked
+                // row simply doesn't respond rather than closing the
+                // sheet and leaving the user with no explanation.
+                onTap: locked
+                    ? null
+                    : () => Navigator.of(ctx).pop(t.targetIndex),
+              );
+            }),
           const SizedBox(height: 8),
         ],
       ),
@@ -215,11 +286,16 @@ class _NavButton extends StatelessWidget {
     required this.item,
     required this.selected,
     required this.onTap,
+    this.locked = false,
   });
 
   final NavItem item;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Spec 6 — dimmed with a small lock glyph. Still tappable: tapping is
+  /// how the user learns what opens it.
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
@@ -257,9 +333,12 @@ class _NavButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              item.icon,
+              locked ? Icons.lock_outline_rounded : item.icon,
               size: 22,
-              color: selected ? Colors.white : BrandColors.inkDim(context),
+              color: selected
+                  ? Colors.white
+                  : BrandColors.inkDim(context)
+                      .withValues(alpha: locked ? 0.55 : 1.0),
             ),
             const SizedBox(height: 2),
             Text(
@@ -267,7 +346,10 @@ class _NavButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : BrandColors.inkDim(context),
+                color: selected
+                    ? Colors.white
+                    : BrandColors.inkDim(context)
+                        .withValues(alpha: locked ? 0.55 : 1.0),
               ),
             ),
           ],
