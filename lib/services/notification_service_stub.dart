@@ -15,7 +15,34 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'checkin_action_queue.dart';
 import 'notif_log.dart';
+
+/// Spec 2.1 — notification button tapped while the app is NOT running.
+///
+/// The plugin spawns a fresh background isolate and looks this function
+/// up by symbol, so it must be top-level and annotated
+/// `@pragma('vm:entry-point')`. Without the pragma, AOT tree-shaking
+/// drops it from release builds and the buttons silently do nothing —
+/// while still working perfectly in debug.
+///
+/// Deliberately does no Hive work: see CheckinActionQueue for why a
+/// background-isolate write could corrupt the user's database.
+@pragma('vm:entry-point')
+void checkinActionBackgroundHandler(NotificationResponse response) {
+  final id = response.actionId;
+  if (id == null) return;
+  // ignore: discarded_futures
+  handleCheckinActionId(id);
+}
+
+/// Same tap, but the app is already running in the foreground.
+void _onNotificationResponse(NotificationResponse response) {
+  final id = response.actionId;
+  if (id == null) return;
+  // ignore: discarded_futures
+  handleCheckinActionId(id);
+}
 
 class NotificationServiceImpl {
   final FlutterLocalNotificationsPlugin _plugin =
@@ -101,6 +128,13 @@ class NotificationServiceImpl {
       await _plugin.initialize(
         const InitializationSettings(
             android: androidInit, iOS: darwinInit),
+        // Spec 2.1 — answering the check-in from the notification.
+        // Two callbacks because a tap can land in either isolate: the
+        // running app, or a cold background isolate when the app is
+        // closed. Both funnel into the same queue.
+        onDidReceiveNotificationResponse: _onNotificationResponse,
+        onDidReceiveBackgroundNotificationResponse:
+            checkinActionBackgroundHandler,
       );
       NotifLog.log('init step 3 ok: plugin initialize() done');
 
@@ -251,8 +285,11 @@ class NotificationServiceImpl {
         hour: hour,
         minute: minute,
         title: 'Good morning, $name ✨',
-        body: 'How are you today?',
+        // The body IS the question now — it has to stand on its own
+        // above three unlabelled-by-context buttons.
+        body: "How's your energy?",
         channel: _generalChannel,
+        actionPrefix: CheckinActionQueue.morningPrefix,
       );
 
   Future<void> scheduleEveningReflection({
@@ -263,9 +300,10 @@ class NotificationServiceImpl {
         id: 100002,
         hour: hour,
         minute: minute,
-        title: "Tonight's reflection is ready 💫",
-        body: 'Take 30 seconds with Mood8.',
+        title: 'How did today go? 💫',
+        body: 'Tap to answer, or open Mood8 for the full check-in.',
         channel: _generalChannel,
+        actionPrefix: CheckinActionQueue.eveningPrefix,
       );
 
   Future<void> scheduleStreakWarning({required int hoursLeft}) async {
@@ -543,6 +581,7 @@ class NotificationServiceImpl {
     required String title,
     required String body,
     required AndroidNotificationChannel channel,
+    String? actionPrefix,
   }) async {
     await ensureInitialized();
     if (!_supported) return;
@@ -566,7 +605,9 @@ class NotificationServiceImpl {
         title,
         body,
         when,
-        _notifDetails(channel),
+        actionPrefix == null
+            ? _notifDetails(channel)
+            : _checkinDetails(channel, actionPrefix),
         androidScheduleMode: mode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -641,6 +682,58 @@ class NotificationServiceImpl {
       }
       rethrow;
     }
+  }
+
+  /// Spec 2.1 — the three answer buttons on a check-in notification.
+  ///
+  /// Three is the ceiling: Android collapses anything beyond that behind
+  /// an overflow the user won't open. So this captures one coarse signal
+  /// (1 / 3 / 5 on the same five-point scale the sliders use) rather than
+  /// pretending to fit the whole check-in in the shade.
+  ///
+  /// `showsUserInterface: false` is what keeps the app from launching;
+  /// `cancelNotification: true` dismisses the notification on tap so the
+  /// answer feels committed.
+  List<AndroidNotificationAction> _checkinActions(String prefix) {
+    const labels = ['Low', 'Okay', 'Good'];
+    const values = [1, 3, 5];
+    return [
+      for (var i = 0; i < 3; i++)
+        AndroidNotificationAction(
+          '$prefix${values[i]}',
+          labels[i],
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+    ];
+  }
+
+  NotificationDetails _checkinDetails(
+    AndroidNotificationChannel channel,
+    String prefix,
+  ) {
+    final base = _notifDetails(channel).android!;
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        base.channelId,
+        base.channelName,
+        channelDescription: base.channelDescription,
+        importance: base.importance,
+        priority: base.priority,
+        category: base.category,
+        playSound: base.playSound,
+        enableVibration: base.enableVibration,
+        icon: base.icon,
+        color: base.color,
+        colorized: base.colorized,
+        actions: _checkinActions(prefix),
+      ),
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+    );
   }
 
   NotificationDetails _notifDetails(AndroidNotificationChannel channel) {

@@ -23,6 +23,7 @@ import 'services/effects_service.dart';
 import 'services/freeze_service.dart';
 import 'services/gratitude_repository.dart';
 import 'services/habit_repository.dart';
+import 'services/checkin_action_queue.dart';
 import 'services/checkin_schedule_service.dart';
 import 'services/feature_unlock_service.dart';
 import 'services/habit_reminder_service.dart';
@@ -144,6 +145,11 @@ Future<void> _boot() async {
   // they never fired for real users.
   // ignore: discarded_futures
   CheckinScheduleService().rescheduleAll();
+  // Spec 2.1 — apply any check-ins answered straight from a notification
+  // button while the app was closed. Those taps are handled in a
+  // background isolate that must not touch Hive, so they queue in
+  // SharedPreferences and land here, stamped with the time of the tap.
+  await CheckinActionQueue().drain();
   // Fire-and-forget so a slow audio load doesn't block first paint.
   // Both services degrade silently when assets or capabilities are missing.
   HapticService().initialize();
