@@ -892,6 +892,10 @@ class _HabitCodec implements _EntityCodec {
           'reminderMinutes': h.reminderMinutes,
           // Spec 3.2 — the anchor travels with the habit.
           'anchor': h.anchor,
+          // Stepping-stone links, so a parked habit can be revived on
+          // any device the user signs in on.
+          'supportFor': h.supportFor,
+          'parkedBehind': h.parkedBehind,
         });
       }
     }
@@ -958,6 +962,8 @@ class _HabitCodec implements _EntityCodec {
       reminderMinutes:
           (json['reminderMinutes'] as List?)?.cast<int>(),
       anchor: json['anchor'] as String?,
+      supportFor: json['supportFor'] as String?,
+      parkedBehind: json['parkedBehind'] as String?,
     );
     await _box.put(id, h);
     // After a pull writes a habit, reschedule its OS-level slots so

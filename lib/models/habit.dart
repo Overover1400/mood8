@@ -37,6 +37,8 @@ class Habit extends HiveObject {
     this.remindersEnabled = false,
     List<int>? reminderMinutes,
     this.anchor,
+    this.supportFor,
+    this.parkedBehind,
   })  : frozenDates = frozenDates ?? <DateTime>[],
         reminderMinutes = reminderMinutes ?? <int>[];
 
@@ -165,6 +167,21 @@ class Habit extends HiveObject {
   /// suggestion once the app has a reason to think it would help.
   @HiveField(26)
   String? anchor;
+
+  /// Set on a *stepping-stone* habit: the id of the harder habit that was
+  /// parked to make room for it.
+  ///
+  /// When a habit keeps failing, mood8 archives it and starts an easier
+  /// version instead. Once the easier one is running reliably, this link
+  /// is how the app knows which parked habit to offer back.
+  @HiveField(27)
+  String? supportFor;
+
+  /// Set on a *parked* habit: the id of the easier habit now standing in
+  /// for it. Present only while the habit is archived by this flow, which
+  /// distinguishes it from one the user archived by hand.
+  @HiveField(28)
+  String? parkedBehind;
 
   bool get isAvoid => polarity == HabitPolarity.avoid;
   bool get isFromPackage => packageId != null;

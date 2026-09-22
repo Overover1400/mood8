@@ -43,13 +43,16 @@ class HabitAdapter extends TypeAdapter<Habit> {
       programDurationDays: fields[23] as int?,
       remindersEnabled: fields[24] as bool,
       reminderMinutes: (fields[25] as List?)?.cast<int>(),
+      anchor: fields[26] as String?,
+      supportFor: fields[27] as String?,
+      parkedBehind: fields[28] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Habit obj) {
     writer
-      ..writeByte(26)
+      ..writeByte(29)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -101,7 +104,13 @@ class HabitAdapter extends TypeAdapter<Habit> {
       ..writeByte(24)
       ..write(obj.remindersEnabled)
       ..writeByte(25)
-      ..write(obj.reminderMinutes);
+      ..write(obj.reminderMinutes)
+      ..writeByte(26)
+      ..write(obj.anchor)
+      ..writeByte(27)
+      ..write(obj.supportFor)
+      ..writeByte(28)
+      ..write(obj.parkedBehind);
   }
 
   @override

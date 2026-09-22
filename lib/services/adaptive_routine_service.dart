@@ -6,21 +6,30 @@ import '../models/adaptive_suggestion.dart';
 import '../models/analytics_models.dart';
 import '../models/routine_category.dart';
 import 'analytics_service.dart';
+import 'habit_reminder_service.dart';
+import 'habit_repository.dart';
 import 'mood_repository.dart';
 import 'routine_repository.dart';
+import 'schedule_drift_service.dart';
 
 class AdaptiveRoutineService {
   AdaptiveRoutineService({
     AnalyticsService? analytics,
     MoodRepository? moods,
     RoutineRepository? routines,
+    HabitRepository? habits,
+    ScheduleDriftService? drift,
   })  : _analytics = analytics ?? AnalyticsService(),
         _moods = moods ?? MoodRepository(),
-        _routines = routines ?? RoutineRepository();
+        _routines = routines ?? RoutineRepository(),
+        _habits = habits ?? HabitRepository(),
+        _drift = drift ?? ScheduleDriftService();
 
   final AnalyticsService _analytics;
   final MoodRepository _moods;
   final RoutineRepository _routines;
+  final HabitRepository _habits;
+  final ScheduleDriftService _drift;
   final Uuid _uuid = const Uuid();
 
   static const String _dismissedPrefsKey = 'mood8.adaptive.dismissed';
@@ -51,6 +60,8 @@ class AdaptiveRoutineService {
 
     final morningRitual = _ruleNoMorningRitual();
     if (morningRitual != null) result.add(morningRitual);
+
+    result.addAll(_ruleScheduleDrift());
 
     result.sort((a, b) => b.confidence.compareTo(a.confidence));
     return result.where((s) => !dismissed.contains(s.id)).toList();
@@ -114,6 +125,33 @@ class AdaptiveRoutineService {
           meta: s.reason,
         );
         return 'Added to your routine.';
+      case AdaptiveActionType.moveHabit:
+        if (s.targetHabitId == null ||
+            s.newHour == null ||
+            s.newMinute == null) {
+          return null;
+        }
+        final habit = _habits
+            .getAllHabits()
+            .where((h) => h.id == s.targetHabitId)
+            .firstOrNull;
+        // The habit may have been archived or deleted between the
+        // suggestion being generated and the user tapping accept.
+        if (habit == null) return null;
+        final minute = s.newHour! * 60 + s.newMinute!;
+        final slots = List<int>.from(habit.reminderMinutes);
+        if (slots.isEmpty) {
+          slots.add(minute);
+        } else {
+          slots[0] = minute;
+        }
+        slots.sort();
+        habit.reminderMinutes = slots;
+        await _habits.updateHabit(habit);
+        // Re-arm the OS alarm, or the notification keeps firing at the
+        // old time and the change is invisible where it matters most.
+        await HabitReminderService().rescheduleFor(habit);
+        return 'Moved "${habit.title}" to ${_fmtTime(s.newHour!, s.newMinute!)}.';
       case AdaptiveActionType.addHabit:
       case AdaptiveActionType.simplify:
       case AdaptiveActionType.challenge:
@@ -122,6 +160,37 @@ class AdaptiveRoutineService {
   }
 
   // ─── Rules ────────────────────────────────────────────────────────────
+
+  /// "You set this for 10:00, but you actually do it around 12:00."
+  ///
+  /// The highest-confidence rule here, because it is the only one built on
+  /// the user's own completed actions rather than on an inference about
+  /// mood or energy. It fires on habits that are being *done* — the case
+  /// the miss-driven engine can never see, since nothing is ever missed.
+  List<AdaptiveSuggestion> _ruleScheduleDrift() {
+    final out = <AdaptiveSuggestion>[];
+    for (final d in _drift.detectAll()) {
+      final was = ScheduleDriftService.formatMinute(d.scheduledMinute);
+      final now = ScheduleDriftService.formatMinute(d.actualMinute);
+      out.add(AdaptiveSuggestion(
+        // Stable id per habit + target time, so dismissing it silences
+        // this specific proposal rather than the whole rule forever.
+        id: 'drift.${d.habit.id}.${d.actualMinute}',
+        title: 'Move "${d.habit.title}" to $now?',
+        reason: 'You scheduled it for $was, but across your last '
+            '${d.sampleSize} completions you actually do it around $now. '
+            'Moving it matches the plan to what already works.',
+        actionType: AdaptiveActionType.moveHabit,
+        // Confidence grows with evidence, capped so it can't crowd out
+        // everything else on a single very consistent habit.
+        confidence: (0.72 + d.sampleSize * 0.01).clamp(0.72, 0.95),
+        targetHabitId: d.habit.id,
+        newHour: d.actualHour,
+        newMinute: d.actualMinuteOfHour,
+      ));
+    }
+    return out;
+  }
 
   AdaptiveSuggestion? _ruleMorningSkips() {
     final today = _dayKey(DateTime.now());

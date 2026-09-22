@@ -24,8 +24,10 @@ import '../models/user_profile.dart';
 import '../widgets/adaptation_card.dart';
 import '../services/anchor_service.dart';
 import '../services/miss_reason_service.dart';
+import '../services/stepping_stone_service.dart';
 import '../widgets/anchor_sheet.dart';
 import '../widgets/bad_day_sheet.dart';
+import '../widgets/stepping_stone_sheet.dart';
 import '../widgets/miss_reason_sheet.dart';
 import '../services/adaptive_routine_service.dart';
 import '../services/badge_service.dart';
@@ -523,6 +525,43 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() {});
   }
 
+  /// Third miss on a habit: offer to park it and build a smaller version
+  /// first. Also checks whether anything parked earlier has earned its
+  /// way back. At most one of the two is shown per check-in — stacking
+  /// both turns a check-in into a review meeting.
+  Future<void> _maybeOfferSteppingStone() async {
+    final svc = SteppingStoneService();
+
+    // Revival first: good news outranks bad news.
+    final ready = svc.readyToRevive();
+    if (ready.isNotEmpty && mounted) {
+      final r = ready.first;
+      await svc.revive(r.parked);
+      if (!mounted) return;
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '"${r.support.title}" has held for ${r.streak} days — '
+            '"${r.parked.title}" is back.',
+          ),
+          backgroundColor: BrandColors.bgCard(context),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final candidate = svc.pickCandidate();
+    if (candidate == null || !mounted) return;
+    final parked = await SteppingStoneSheet.show(context, habit: candidate);
+    if (parked && mounted) setState(() {});
+  }
+
   /// Slider release — arm the 2-second auto-save countdown. Any new
   /// drag restarts it on the next release, so a quick re-adjustment
   /// doesn't get saved as a separate update.
@@ -590,6 +629,10 @@ class _HomeScreenState extends State<HomeScreen> {
       // claim today's one interruption.
       // ignore: discarded_futures
       _maybeOfferAnchor();
+      // Third-miss escalation, and the revival offer for anything parked
+      // earlier whose smaller version is now holding.
+      // ignore: discarded_futures
+      _maybeOfferSteppingStone();
       final earned = await MilestoneService().checkStreak(streak);
       if (earned != null && mounted && !hitMilestone) {
         EffectsService().celebrateStreakMilestone(

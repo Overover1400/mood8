@@ -29,6 +29,12 @@ class OnboardingData {
   /// user has any history of their own.
   String? energyPeak;
   String? failureReason;
+  /// Goal-setting answers: what they want to change, what blocks them,
+  /// the single 30-day focus, and where they're starting from.
+  String? mainGoal;
+  String? blockingHabit;
+  String? thirtyDayFocus;
+  String? baseline;
   double mood = 0.65;
   double energy = 0.6;
   double focus = 0.6;
@@ -48,7 +54,11 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   int _page = 0;
   bool _completing = false;
 
-  static const int _totalSteps = 9;
+  /// Must match the number of children in the PageView below. Welcome,
+  /// name, identity, focus areas, chronotype, main goal, blocking habit,
+  /// 30-day focus, baseline, energy peak, failure reason, first check-in,
+  /// completion.
+  static const int _totalSteps = 13;
 
   @override
   void dispose() {
@@ -107,6 +117,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         },
         'energy_peak': _data.energyPeak,
         'failure_reason': _data.failureReason,
+        'main_goal': _data.mainGoal,
+        'blocking_habit': _data.blockingHabit,
+        'thirty_day_focus': _data.thirtyDayFocus,
+        'baseline': _data.baseline,
         // Spec 3.7 Q6 is not asked — 10.7 says cut questions rather
         // than extend onboarding, and 2 is the recommended default.
         'habit_cap': 2,
@@ -177,6 +191,34 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                         initial: _data.chronotype,
                         onSubmit: (c) {
                           _data.chronotype = c;
+                          _next();
+                        },
+                      ),
+                      MainGoalStep(
+                        selected: _data.mainGoal,
+                        onSubmit: (v) {
+                          _data.mainGoal = v;
+                          _next();
+                        },
+                      ),
+                      BlockingHabitStep(
+                        selected: _data.blockingHabit,
+                        onSubmit: (v) {
+                          _data.blockingHabit = v;
+                          _next();
+                        },
+                      ),
+                      ThirtyDayFocusStep(
+                        selected: _data.thirtyDayFocus,
+                        onSubmit: (v) {
+                          _data.thirtyDayFocus = v;
+                          _next();
+                        },
+                      ),
+                      BaselineStep(
+                        selected: _data.baseline,
+                        onSubmit: (v) {
+                          _data.baseline = v;
                           _next();
                         },
                       ),

@@ -279,3 +279,22 @@ jobs:
               echo "Upload \`*.aab\` to **Google Play Console → Production → Create new release**."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # Artifact storage quota on this account is exhausted, which makes
+      # actions/upload-artifact fail and `gh run download` return nothing.
+      # Release storage is billed separately and still works, so the build
+      # is also published as a release asset — that is the copy we actually
+      # hand to testers.
+      - name: Publish APKs as a release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="build-${{ github.run_number }}"
+          gh release create "$TAG" \
+            artifacts/mood8-arm64-${{ github.run_number }}.apk \
+            artifacts/mood8-android-${{ github.run_number }}.aab \
+            --title "mood8 build ${{ github.run_number }}" \
+            --notes "Automated build from ${{ github.sha }}." \
+            || gh release upload "$TAG" \
+                 artifacts/mood8-arm64-${{ github.run_number }}.apk \
+                 artifacts/mood8-android-${{ github.run_number }}.aab --clobber

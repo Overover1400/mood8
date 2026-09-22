@@ -2,7 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-enum AdaptiveActionType { addRoutine, addHabit, moveRoutine, simplify, challenge }
+enum AdaptiveActionType {
+  addRoutine,
+  addHabit,
+  moveRoutine,
+
+  /// Move a *habit's* reminder to the hour the user actually completes it.
+  /// Distinct from [moveRoutine] because routines are behind a feature flag
+  /// and habits are what people actually use.
+  moveHabit,
+
+  simplify,
+  challenge,
+}
 
 class AdaptiveSuggestion {
   const AdaptiveSuggestion({
@@ -33,7 +45,8 @@ class AdaptiveSuggestion {
       case AdaptiveActionType.addHabit:
         return Icons.add_circle_outline_rounded;
       case AdaptiveActionType.moveRoutine:
-        return Icons.swap_vert_rounded;
+      case AdaptiveActionType.moveHabit:
+        return Icons.schedule_rounded;
       case AdaptiveActionType.simplify:
         return Icons.compress_rounded;
       case AdaptiveActionType.challenge:
@@ -47,6 +60,7 @@ class AdaptiveSuggestion {
       case AdaptiveActionType.addHabit:
         return AppColors.purpleLight;
       case AdaptiveActionType.moveRoutine:
+      case AdaptiveActionType.moveHabit:
         return AppColors.blueAccent;
       case AdaptiveActionType.simplify:
         return AppColors.pinkLight;
@@ -64,6 +78,7 @@ class AdaptiveSuggestion {
       case AdaptiveActionType.addHabit:
         return 'Suggestion';
       case AdaptiveActionType.moveRoutine:
+      case AdaptiveActionType.moveHabit:
         return 'Suggestion';
       case AdaptiveActionType.simplify:
         return 'Suggestion';
