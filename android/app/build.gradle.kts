@@ -102,7 +102,7 @@ android {
         // 24 = Android 7.0. Required by url_launcher_android 6.3.29 which
         // raised its plugin minSdk to 24. Covers ~98% of active devices.
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         // Version is sourced from pubspec.yaml (`version: x.y.z+code`).
         versionCode = flutter.versionCode
         versionName = flutter.versionName
