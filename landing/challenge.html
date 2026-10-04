@@ -106,58 +106,16 @@
         esc(fmtDeadline(c.daily_deadline_minutes))+' to keep your rank climbing. Started by '+esc(c.creator_name)+'.</p>'+
       (full
         ? '<p class="err">This challenge is full.</p>'
-        : '<input id="nm" maxlength="40" placeholder="Your name (optional)" />'+
-          '<button class="btn" id="join">Join challenge</button>'+
-          '<p class="muted">No account needed — you join as a guest. You can save your progress with a free Mood8 account later.</p>')
+        : '<a class="btn" id="join" href="'+esc(webUrl())+'" style="display:block;text-decoration:none;text-align:center">Sign in or sign up to join</a>'+
+          '<a class="btn secondary" id="openapp" href="'+esc(appUrl())+'" style="display:block;text-decoration:none;text-align:center">Open in the Mood8 app</a>'+
+          '<p class="muted">You can read everything here without an account. Joining needs a free Mood8 account, so your check-ins and rank are saved.</p>')
     );
-    if(!full){
-      document.getElementById("join").addEventListener("click", join);
-      document.getElementById("nm").addEventListener("keydown",function(e){if(e.key==="Enter")join();});
-    }
   }
 
-  function join(){
-    var btn=document.getElementById("join"); if(btn){btn.disabled=true;btn.textContent="Joining…";}
-    var name=(document.getElementById("nm")||{}).value||"";
-    fetch(API+"/c/"+encodeURIComponent(token)+"/join",{
-      method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({name:name})
-    })
-    .then(function(r){if(!r.ok)return r.json().then(function(b){throw new Error(b.detail||"Couldn't join.");});return r.json();})
-    .then(function(res){
-      try{localStorage.setItem("mood8_guest_token",res.token);}catch(e){}
-      renderJoined(res);
-    })
-    .catch(function(e){if(btn){btn.disabled=false;btn.textContent="Join challenge";}alert(e.message||"Couldn't join.");});
-  }
-
-  function renderJoined(res){
-    show(
-      '<div class="success center">'+
-        '<div class="tick">🎉</div>'+
-        '<h1>You\'re in!</h1>'+
-        '<p class="desc" style="text-align:center">'+esc(challenge.title)+'</p>'+
-      '</div>'+
-      '<button class="btn" id="checkin">Check in for today</button>'+
-      '<p class="muted" id="cstatus"></p>'+
-      '<a class="btn secondary" href="https://mood8.app/app" style="display:block;text-decoration:none;text-align:center">Get the app to save your progress</a>'
-    );
-    document.getElementById("checkin").addEventListener("click",function(){checkin(res);});
-  }
-
-  function checkin(res){
-    var btn=document.getElementById("checkin");var st=document.getElementById("cstatus");
-    btn.disabled=true;btn.textContent="Checking in…";
-    fetch(API+"/challenges/"+res.challenge_id+"/checkin",{
-      method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+res.token},body:"{}"
-    })
-    .then(function(r){if(!r.ok)return r.json().then(function(b){throw new Error(b.detail||"Check-in failed.");});return r.json();})
-    .then(function(d){
-      btn.textContent="Checked in ✓";
-      st.textContent=d.was_on_time===false?"Logged — but past today's deadline, so no rank-up.":("You're now "+(d.rank_name||"on the board")+". Come back tomorrow!");
-    })
-    .catch(function(e){btn.disabled=false;btn.textContent="Check in for today";st.textContent=e.message||"Check-in failed.";});
-  }
+  var ref = (new URLSearchParams(location.search).get("ref") || "").trim();
+  function qs(){return "c="+encodeURIComponent(token)+(ref?"&ref="+encodeURIComponent(ref):"");}
+  function webUrl(){return "https://mood8.app/app/?"+qs();}
+  function appUrl(){return "mood8://challenge?token="+encodeURIComponent(token)+(ref?"&ref="+encodeURIComponent(ref):"");}
 })();
 </script>
 </body>

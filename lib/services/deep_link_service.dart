@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 
+import 'pending_invite_service.dart';
 import 'subscription_service.dart';
 
 /// The custom-scheme URL Stripe redirects to after checkout. Mirrors
@@ -52,6 +53,12 @@ class DeepLinkService {
 
   Future<void> _handle(Uri uri) async {
     debugPrint('[DeepLink] received $uri');
+    // Invite links (mood8.app/r/CODE, /c/TOKEN, mood8://invite, ...):
+    // remember them, and act right away if the user is signed in.
+    if (await PendingInviteService().captureFromUri(uri)) {
+      await PendingInviteService().process();
+      return;
+    }
     if (uri.scheme != 'mood8') return;
     if (uri.host == 'checkout-complete' || uri.path.contains('checkout-complete')) {
       // Clear the in-progress flag so the resume hook doesn't double-fire.

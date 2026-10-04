@@ -1,3 +1,4 @@
+import '../../services/referral_service.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -368,8 +369,13 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     try {
       final url = await ChallengeService().inviteLink(d.id);
       if (!mounted || url.isEmpty) return;
+      // Tag the link with the sharer's own code so a friend who signs
+      // up through it is attributed (and both get the invite reward).
+      final mine = await ReferralService().me();
+      final link = mine == null ? url : '$url?ref=${mine.code}';
       await Share.share(
-        'Join me in “${d.title}” on Mood8 — no account needed:\n$url',
+        'Join me in “${d.title}” on Mood8. Take a look first — joining '
+        'takes a free account:\n$link',
         subject: 'Join my Mood8 challenge',
       );
     } catch (e) {

@@ -72,6 +72,21 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="mood8" />
             </intent-filter>
+            <!-- Invite links: https://mood8.app/r/CODE (friend invite) and
+                 https://mood8.app/c/TOKEN (challenge invite) open the app.
+                 autoVerify needs https://mood8.app/.well-known/assetlinks.json
+                 with the Play app-signing SHA-256; until it is published
+                 Android simply opens the link in the browser, whose page
+                 has an "Open in the app" button (mood8://invite). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="mood8.app"
+                    android:pathPrefix="/r/" />
+                <data android:scheme="https" android:host="mood8.app"
+                    android:pathPrefix="/c/" />
+            </intent-filter>
         </activity>
         <!-- flutter_local_notifications receivers — required for
              scheduled notifications to fire and for them to survive
