@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/challenge.dart';
 import '../../services/challenge_service.dart';
+import '../../services/haptic_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/challenges/challenge_card.dart';
 import '../../widgets/responsive_container.dart';
@@ -140,9 +141,18 @@ class _MyChallengesScreenState extends State<MyChallengesScreen> {
             for (final c in created)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: ChallengeCard(
-                  challenge: c,
-                  onTap: () => _open(c.id),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ChallengeCard(
+                      challenge: c,
+                      onTap: () => _open(c.id),
+                    ),
+                    _DeleteRow(
+                      canDelete: c.canDelete,
+                      onDelete: () => _confirmDelete(c),
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -162,6 +172,51 @@ class _MyChallengesScreenState extends State<MyChallengesScreen> {
     );
   }
 
+  Future<void> _confirmDelete(ChallengeSummary c) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrandColors.bgCard(context),
+        title: Text('Delete "${c.title}"?',
+            style: TextStyle(color: BrandColors.ink(context))),
+        content: Text(
+          'No one else is taking part, so it will be removed. '
+          'This can\'t be undone.',
+          style: TextStyle(color: BrandColors.inkSoft(context), height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete',
+                style: TextStyle(
+                    color: Color(0xFFFF6B81), fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    HapticService().heavy();
+    try {
+      await ChallengeService().delete(c.id);
+      if (!mounted) return;
+      setState(() => _created = _created?.where((x) => x.id != c.id).toList());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Challenge deleted.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            e is ChallengeError ? e.message : 'Could not delete challenge.'),
+      ));
+      _load(); // the list may be stale (someone just joined)
+    }
+  }
+
   Future<void> _open(int id) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -169,6 +224,38 @@ class _MyChallengesScreenState extends State<MyChallengesScreen> {
       ),
     );
     _load();
+  }
+}
+
+/// Under a challenge I created: a Delete button when nobody else is
+/// active in it, otherwise a quiet note saying why it isn't offered.
+class _DeleteRow extends StatelessWidget {
+  const _DeleteRow({required this.canDelete, required this.onDelete});
+
+  final bool canDelete;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!canDelete) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
+        child: Text(
+          'Can be deleted once no one else is active in it.',
+          style: TextStyle(color: BrandColors.inkDim(context), fontSize: 12),
+        ),
+      );
+    }
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton.icon(
+        onPressed: onDelete,
+        icon: const Icon(Icons.delete_outline_rounded,
+            size: 18, color: Color(0xFFFF6B81)),
+        label: const Text('Delete',
+            style: TextStyle(color: Color(0xFFFF6B81))),
+      ),
+    );
   }
 }
 

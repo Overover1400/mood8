@@ -146,7 +146,12 @@ class ChallengeSummary {
     required this.commentCount,
     required this.participantsPreview,
     this.imageUrl,
+    this.canDelete = false,
   });
+
+  /// True only for the creator's own challenge while nobody else is
+  /// active in it (the server enforces the same rule).
+  final bool canDelete;
 
   final int id;
   final String title;
@@ -196,6 +201,7 @@ class ChallengeSummary {
               p as Map<String, dynamic>))
           .toList(),
       imageUrl: json['image_url'] as String?,
+      canDelete: json['can_delete'] as bool? ?? false,
     );
   }
 
