@@ -72,25 +72,31 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="mood8" />
             </intent-filter>
-            <!-- Android App Links for shared challenge invites.
-                 A link like https://mood8.app/c/AbC123 should open the
-                 challenge inside Mood8, not bounce the user into a
-                 browser tab asking them to install an app they already
-                 have. That hand-off is where invite conversion was
-                 being lost.
+            <!-- Android App Links for invite links.
+                 https://mood8.app/c/TOKEN  — challenge invite
+                 https://mood8.app/r/CODE   — friend referral
+
+                 Both should open inside Mood8 rather than bouncing the
+                 user into a browser tab asking them to install an app
+                 they already have. That hand-off is where invite
+                 conversion was being lost.
 
                  autoVerify="true" makes Android fetch
-                 https://mood8.app/.well-known/assetlinks.json at install
-                 time and check our signing certificate against it. The
-                 file is live and lists both the Play app-signing key and
-                 the upload key (the latter so sideloaded test builds
-                 verify too). If verification fails Android silently
-                 falls back to the chooser, so the file must stay served
-                 as application/json over HTTPS with no redirect.
+                 /.well-known/assetlinks.json from each host at install
+                 time and check our signing certificate against it. That
+                 file is live on BOTH the apex and www, serving
+                 application/json over HTTPS with no redirect, and lists
+                 the Play app-signing key plus the upload key (so
+                 sideloaded test builds verify too).
 
-                 Scoped to /c/ deliberately: this is the invite path.
-                 Claiming all of mood8.app would hijack the marketing
-                 site and the web app. -->
+                 This is deliberately ONE filter covering all four
+                 host/path combinations rather than two. Android verifies
+                 every host across every autoVerify filter in the app and
+                 fails them all if any one fails, so splitting these
+                 would turn an unrelated typo into a total loss of App
+                 Links. Paths stay scoped to /c/ and /r/: claiming all of
+                 mood8.app would hijack the marketing site and the web
+                 app, which must stay in the browser. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -103,6 +109,14 @@
                     android:scheme="https"
                     android:host="www.mood8.app"
                     android:pathPrefix="/c/" />
+                <data
+                    android:scheme="https"
+                    android:host="mood8.app"
+                    android:pathPrefix="/r/" />
+                <data
+                    android:scheme="https"
+                    android:host="www.mood8.app"
+                    android:pathPrefix="/r/" />
             </intent-filter>
         </activity>
         <!-- flutter_local_notifications receivers — required for

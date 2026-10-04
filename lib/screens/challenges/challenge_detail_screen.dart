@@ -1,3 +1,5 @@
+import '../../widgets/challenges/shared_habits_section.dart';
+import '../../services/referral_service.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -368,8 +370,13 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     try {
       final url = await ChallengeService().inviteLink(d.id);
       if (!mounted || url.isEmpty) return;
+      // Tag the link with the sharer's own code so a friend who signs
+      // up through it is attributed (and both get the invite reward).
+      final mine = await ReferralService().me();
+      final link = mine == null ? url : '$url?ref=${mine.code}';
       await Share.share(
-        'Join me in “${d.title}” on Mood8 — no account needed:\n$url',
+        'Join me in “${d.title}” on Mood8. Take a look first — joining '
+        'takes a free account:\n$link',
         subject: 'Join my Mood8 challenge',
       );
     } catch (e) {
@@ -881,6 +888,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
             onTap: () => _openParticipants(d, initialTab: 0),
           ),
           const SizedBox(height: 12),
+          // 5b. Habits fellow members chose to show here (opt-in).
+          if (d.me?.status == 'active') ...[
+            SharedHabitsSection(challengeId: d.id),
+            const SizedBox(height: 12),
+          ],
           // 6. Slim upvote + comment-count action row.
           _EngagementRow(
             detail: d,

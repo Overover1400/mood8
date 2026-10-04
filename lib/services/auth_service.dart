@@ -1,3 +1,4 @@
+import 'pending_invite_service.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -84,12 +85,20 @@ class AuthService {
     required String name,
   }) async {
     debugPrint('[AuthService] register → $email');
+    // An invite that arrived before sign-up rides along so the server
+    // attributes the new account in the same round-trip.
+    final ref = await PendingInviteService().peekRef();
     // sendBearer: true → if we currently hold a guest JWT, the backend
     // upgrades that account in place (same user_id, same data) instead
     // of creating a fresh row.
     return _post(
       path: '/auth/register',
-      body: {'email': email.trim(), 'password': password, 'name': name.trim()},
+      body: {
+        'email': email.trim(),
+        'password': password,
+        'name': name.trim(),
+        'referral_code': ?ref,
+      },
       onSuccess: (json) => AuthResult.ok(
         message: (json['message'] as String?) ??
             'Check your email for a verification code.',
@@ -181,6 +190,7 @@ class AuthService {
     String? timezone,
   }) async {
     debugPrint('[AuthService] signInWithGoogleIdToken (len=${idToken.length})');
+    final ref = await PendingInviteService().peekRef();
     return _post(
       path: '/auth/google',
       body: {
@@ -189,6 +199,7 @@ class AuthService {
         // users.timezone stamped in the same round-trip. Server
         // ignores an empty/omitted string.
         if (timezone != null && timezone.isNotEmpty) 'timezone': timezone,
+        'referral_code': ?ref,
       },
       onSuccess: (json) => _persistFromAuthBody(json,
           fallbackMessage: 'Welcome to Mood8.'),

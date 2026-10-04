@@ -1,3 +1,4 @@
+import 'services/pending_invite_service.dart';
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:firebase_core/firebase_core.dart';
@@ -158,6 +159,16 @@ Future<void> _boot() async {
   // Web is a no-op — the existing ?checkout=success query handler covers it.
   // ignore: discarded_futures
   DeepLinkService().initialize();
+  // Invites: the web app arrives as /app/?ref=CODE or ?c=TOKEN, and an
+  // Android install from our Play link carries the code in the Play
+  // install referrer. Either way it is held until the user signs in.
+  if (kIsWeb) {
+    await PendingInviteService().captureFromUri(Uri.base);
+  }
+  // ignore: discarded_futures
+  PendingInviteService()
+      .checkInstallReferrer()
+      .then((_) => PendingInviteService().process());
   // Register this device's FCM push token so the backend can send daily
   // challenge reminders + invite pushes. Fire-and-forget + fully
   // defensive: no-op on web, when signed out, or when Firebase/FCM isn't
@@ -703,6 +714,10 @@ class _AuthGateState extends State<AuthGate> {
     } finally {
       _syncRunning = false;
       if (mounted) setState(() => _restoreInFlight = false);
+      // Act on an invite that was waiting for sign-in (claim the code,
+      // join the challenge the link pointed at).
+      // ignore: discarded_futures
+      PendingInviteService().process();
       // Make absolutely sure the background sync is running even if
       // the foreground call threw or timed out — that's how we'll
       // recover once the network comes back.

@@ -44,6 +44,7 @@ import 'year_in_review_screen.dart';
 import 'challenges/challenges_list_screen.dart';
 import 'challenges/my_challenges_screen.dart';
 import 'profile/edit_profile_screen.dart';
+import 'profile/invite_friends_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'reminder_settings_screen.dart';
 import '../services/sync_service.dart';
@@ -403,6 +404,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               onTap: _goToWelcome,
                             );
                           },
+                        ),
+                        SettingsTile(
+                          icon: Icons.card_giftcard_rounded,
+                          title: 'Invite friends',
+                          subtitle: 'Give 7 days of Premium, get 7',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const InviteFriendsScreen(),
+                            ),
+                          ),
                         ),
                         SettingsTile(
                           icon: Icons.sync_rounded,
