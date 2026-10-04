@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.mood8.app",
+      "sha256_cert_fingerprints": [
+        "C0:98:CE:61:87:2A:84:BD:17:DE:27:66:E5:76:D6:9A:F2:3F:8D:66:59:A8:9F:65:F9:54:A4:BC:38:B7:D3:9C",
+        "B6:F5:D5:2C:C4:F1:52:69:F3:55:8F:4E:31:1C:6D:63:A6:C0:39:F5:A2:A4:E4:31:B3:2A:75:99:1D:0F:46:FD"
+      ]
+    }
+  }
+]
