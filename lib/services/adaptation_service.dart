@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../models/habit.dart';
 import 'auth_service.dart';
+import 'habit_repository.dart';
 
 /// One proposed change to the user's plan.
 ///
@@ -22,27 +24,52 @@ class AdaptationProposal {
     required this.rationale,
     this.fromValue,
     this.toValue,
+    this.windows = const {},
+    this.canReduceAmount = false,
+    this.canReduceDuration = false,
   });
 
   final int id;
   final String habitId;
   final String habitTitle;
-  /// time · quantity · increase · floor
+  /// ask · time · quantity · duration · increase · floor
+  ///
+  /// `ask` is the first step of the card: the user has not said why
+  /// they keep missing the habit yet, so there is no change to propose.
   final String kind;
   final String rationale;
   final String? fromValue;
   final String? toValue;
 
-  factory AdaptationProposal.fromJson(Map<String, dynamic> j) =>
-      AdaptationProposal(
-        id: (j['id'] as num).toInt(),
-        habitId: (j['habit_id'] as String?) ?? '',
-        habitTitle: (j['habit_title'] as String?) ?? 'this habit',
-        kind: (j['kind'] as String?) ?? 'time',
-        rationale: (j['rationale'] as String?) ?? '',
-        fromValue: j['from'] as String?,
-        toValue: j['to'] as String?,
-      );
+  /// Only for `ask`: hour ranges ([from, to], inclusive) per window
+  /// name, and which kinds of "make it smaller" this habit supports.
+  final Map<String, List<int>> windows;
+  final bool canReduceAmount;
+  final bool canReduceDuration;
+
+  bool get isAsk => kind == 'ask';
+
+  factory AdaptationProposal.fromJson(Map<String, dynamic> j) {
+    final opts = (j['options'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final wins = <String, List<int>>{};
+    final rawWins = (opts['windows'] as Map?) ?? const {};
+    rawWins.forEach((k, v) {
+      final list = (v as List).map((e) => (e as num).toInt()).toList();
+      if (list.length == 2) wins[k as String] = list;
+    });
+    return AdaptationProposal(
+      id: (j['id'] as num).toInt(),
+      habitId: (j['habit_id'] as String?) ?? '',
+      habitTitle: (j['habit_title'] as String?) ?? 'this habit',
+      kind: (j['kind'] as String?) ?? 'time',
+      rationale: (j['rationale'] as String?) ?? '',
+      fromValue: j['from'] as String?,
+      toValue: j['to'] as String?,
+      windows: wins,
+      canReduceAmount: opts['can_reduce_amount'] == true,
+      canReduceDuration: opts['can_reduce_duration'] == true,
+    );
+  }
 
   /// Label for the accept button — phrased as the action, not "OK".
   String get acceptLabel {
@@ -51,6 +78,8 @@ class AdaptationProposal {
         return 'Move it';
       case 'quantity':
         return 'Make it smaller';
+      case 'duration':
+        return 'Shorten it';
       case 'increase':
         return 'Level up';
       default:
@@ -133,7 +162,7 @@ class AdaptationService {
     if (!_signedIn) return null;
     try {
       final res = await _client
-          .get(Uri.parse('$_baseUrl/adapt/proposal'), headers: _headers)
+          .get(Uri.parse('$_baseUrl/adapt/proposal?v=2'), headers: _headers)
           .timeout(_timeout);
       if (res.statusCode < 200 || res.statusCode >= 300) return null;
       final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -147,6 +176,86 @@ class AdaptationService {
   }
 
   Future<bool> accept(int id) => _decide(id, 'accept');
+
+  /// Answer the card's "why?" question. [reason] is no_time · no_mood ·
+  /// too_hard; [window] (morning · afternoon · night) goes with the
+  /// first two, [reduce] (duration · amount) with too_hard. Returns the
+  /// concrete proposal the server built from the answer, or null.
+  Future<AdaptationProposal?> answer(
+    int id, {
+    required String reason,
+    String? window,
+    String? reduce,
+  }) async {
+    if (!_signedIn) return null;
+    try {
+      final res = await _client
+          .post(Uri.parse('$_baseUrl/adapt/$id/answer'),
+              headers: _headers,
+              body: jsonEncode({
+                'reason': reason,
+                'window': ?window,
+                'reduce': ?reduce,
+              }))
+          .timeout(_timeout);
+      if (res.statusCode < 200 || res.statusCode >= 300) return null;
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final p = body['proposal'];
+      if (p == null) return null;
+      return AdaptationProposal.fromJson(p as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint('[adapt] answer failed: $e');
+      return null;
+    }
+  }
+
+  /// Write an accepted proposal into the habit itself. The server only
+  /// records the decision; the habit lives on the device, so without
+  /// this an accepted card would change nothing.
+  Future<bool> applyToHabit(AdaptationProposal p) async {
+    try {
+      final repo = HabitRepository();
+      Habit? h;
+      for (final x in repo.getAllHabits()) {
+        if (x.id == p.habitId) {
+          h = x;
+          break;
+        }
+      }
+      final to = p.toValue;
+      if (h == null || to == null) return false;
+      switch (p.kind) {
+        case 'time':
+          final parts = to.split(':');
+          if (parts.length != 2) return false;
+          final hh = int.tryParse(parts[0]);
+          final mm = int.tryParse(parts[1]);
+          if (hh == null || mm == null) return false;
+          // One slot: the card proposes one time for the habit.
+          h.reminderMinutes = [hh * 60 + mm];
+          h.remindersEnabled = true;
+        case 'quantity' || 'increase':
+          final n = int.tryParse(to);
+          if (n == null || n < 1) return false;
+          h.targetValue = n;
+        case 'duration':
+          final n = int.tryParse(to);
+          if (n == null || n < 1) return false;
+          if (h.programDurationDays != null) {
+            h.programDurationDays = n;
+          } else {
+            h.avoidDurationDays = n;
+          }
+        default:
+          return false;
+      }
+      await repo.updateHabit(h);
+      return true;
+    } catch (e) {
+      debugPrint('[adapt] apply failed: $e');
+      return false;
+    }
+  }
 
   Future<bool> decline(int id) => _decide(id, 'decline');
 
