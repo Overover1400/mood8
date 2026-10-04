@@ -1,3 +1,4 @@
+import '../widgets/challenges/shared_habits_section.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -299,6 +300,20 @@ class ChallengeService {
     _throwIfHttpError(res);
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     return body['url'] as String? ?? '';
+  }
+
+  /// Habits fellow members chose to show in this challenge (icon, title,
+  /// today's status). Active members only; throws otherwise.
+  Future<List<SharedHabitsMember>> sharedHabits(int challengeId) async {
+    final res = await _client
+        .get(Uri.parse('$_baseUrl/challenges/$challengeId/shared-habits'),
+            headers: _headers)
+        .timeout(_timeout);
+    _throwIfHttpError(res);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((body['members'] as List?) ?? const [])
+        .map((m) => SharedHabitsMember.fromJson(m as Map<String, dynamic>))
+        .toList();
   }
 
   // ── Friends (follow) + invites ────────────────────────────────────

@@ -39,6 +39,7 @@ class Habit extends HiveObject {
     this.anchor,
     this.supportFor,
     this.parkedBehind,
+    this.shareInChallenges = false,
   })  : frozenDates = frozenDates ?? <DateTime>[],
         reminderMinutes = reminderMinutes ?? <int>[];
 
@@ -182,6 +183,13 @@ class Habit extends HiveObject {
   /// distinguishes it from one the user archived by hand.
   @HiveField(28)
   String? parkedBehind;
+
+  /// "Show in my challenges". Habits are private unless this is on;
+  /// when it is, fellow members of the user's challenges (and only
+  /// them) see the habit's icon, title and today's status. Default off.
+  /// Never a field on the create-habit form.
+  @HiveField(29)
+  bool shareInChallenges;
 
   bool get isAvoid => polarity == HabitPolarity.avoid;
   bool get isFromPackage => packageId != null;

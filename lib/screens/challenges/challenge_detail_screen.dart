@@ -1,3 +1,4 @@
+import '../../widgets/challenges/shared_habits_section.dart';
 import '../../services/referral_service.dart';
 import 'dart:async';
 import 'dart:math' as math;
@@ -887,6 +888,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
             onTap: () => _openParticipants(d, initialTab: 0),
           ),
           const SizedBox(height: 12),
+          // 5b. Habits fellow members chose to show here (opt-in).
+          if (d.me?.status == 'active') ...[
+            SharedHabitsSection(challengeId: d.id),
+            const SizedBox(height: 12),
+          ],
           // 6. Slim upvote + comment-count action row.
           _EngagementRow(
             detail: d,

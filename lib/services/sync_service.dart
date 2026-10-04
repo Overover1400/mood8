@@ -896,6 +896,8 @@ class _HabitCodec implements _EntityCodec {
           // any device the user signs in on.
           'supportFor': h.supportFor,
           'parkedBehind': h.parkedBehind,
+          // Opt-in visibility to fellow challenge members only.
+          'shareInChallenges': h.shareInChallenges,
         });
       }
     }
@@ -964,6 +966,7 @@ class _HabitCodec implements _EntityCodec {
       anchor: json['anchor'] as String?,
       supportFor: json['supportFor'] as String?,
       parkedBehind: json['parkedBehind'] as String?,
+      shareInChallenges: json['shareInChallenges'] as bool? ?? false,
     );
     await _box.put(id, h);
     // After a pull writes a habit, reschedule its OS-level slots so
