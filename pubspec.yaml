@@ -70,6 +70,12 @@ flutter_launcher_icons:
     theme_color: "#A855F7"
 
 flutter:
+  # Flutter 3.47 defaults Swift Package Manager on. Keep mood8 on
+  # CocoaPods: permission_handler's unused-permission macros live in the
+  # Podfile post_install hook, and an SPM-resolved plugin never reaches
+  # it. See ios/Podfile for what those macros prevent.
+  config:
+    enable-swift-package-manager: false
   uses-material-design: true
   assets:
     - assets/sounds/
