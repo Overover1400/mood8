@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- How the archive is exported. "app-store-connect" is the current name;
+	     Xcode 15.2 and earlier called it "app-store". If a build fails with
+	     "unsupported method", that rename is the first thing to check. -->
+	<key>method</key>
+	<string>app-store-connect</string>
+
+	<!-- Apple Developer TEAM ID: the 10-character alphanumeric one shown beside
+	     the company name at developer.apple.com/account.
+	     NOT the 8-digit provider/legal-entity id (94926113) on the App Store
+	     Connect Business page - that belongs nowhere near signing. Confusing
+	     them fails the export with an error that mentions neither value. -->
+	<key>teamID</key>
+	<string>CFKU972D4H</string>
+
+	<!-- Manual signing, not automatic. CI has no Apple account session to
+	     resolve certificates with, so the profile is named explicitly.
+	     THE PROFILE NAME IS LOAD-BEARING: "Mood8 App Store" must match the
+	     name of profile UWC78R4K27 exactly, and the profile the workflow
+	     installs, or the export fails. -->
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>com.mood8.app</key>
+		<string>Mood8 App Store</string>
+	</dict>
+
+	<!-- Let Apple manage the app-thinning variants rather than shipping one
+	     universal binary. Also uploads dSYMs, which is what makes Crashlytics
+	     stack traces readable instead of hex addresses. -->
+	<key>uploadSymbols</key>
+	<true/>
+
+	<!-- Bitcode has been dead since Xcode 14; declaring it off avoids a
+	     deprecation warning turning into an error on a future toolchain. -->
+	<key>compileBitcode</key>
+	<false/>
+</dict>
+</plist>

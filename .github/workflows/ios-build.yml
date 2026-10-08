@@ -1,0 +1,245 @@
+name: Build iOS
+
+# Runs on macOS. This repo is PUBLIC, so Actions minutes are free and the 10x
+# macOS multiplier that constrains the private repos does not apply here.
+# It still only runs on demand or when ios/** changes rather than on every
+# push: a macOS build takes 10-15 minutes against the Linux job's 3-4, and
+# nothing about a Dart-only change needs re-proving on iOS.
+#
+# SIGNING IS CONDITIONAL. With no secrets configured the job builds unsigned,
+# which still proves the code compiles, the pods resolve and the plugins link.
+# The moment the six signing secrets exist it switches to producing a signed
+# IPA and uploading it to TestFlight - no edit to this file required. That is
+# deliberate: a half-configured repo should degrade to "builds but does not
+# ship", never to "red for a reason nobody remembers".
+#
+# Secrets it looks for (all six, or none):
+#   IOS_DIST_CERT_P12        base64 of the Apple Distribution .p12
+#   IOS_DIST_CERT_PASSWORD   the password set when exporting that .p12
+#   IOS_PROVISIONING_PROFILE base64 of the App Store .mobileprovision
+#   APPSTORE_ISSUER_ID       App Store Connect API issuer (a UUID)
+#   APPSTORE_KEY_ID          App Store Connect API key id
+#   APPSTORE_PRIVATE_KEY     contents of the AuthKey_XXXX.p8, newlines intact
+#
+# A GREEN RUN HERE DOES NOT MEAN APPLE ACCEPTED THE BUILD. Processing is a
+# separate gate that reports only by email, and on Dial98 three consecutive
+# builds uploaded cleanly and were rejected minutes later. Always confirm with
+# GET /v1/builds before telling anyone a build is on TestFlight.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-build.yml'
+  workflow_dispatch:
+    inputs:
+      upload_to_testflight:
+        description: 'Upload to TestFlight (requires signing secrets)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build iOS IPA
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # One place decides signed vs unsigned, so every later step agrees.
+      # Checking one secret would let a half-configured repo fail deep inside
+      # xcodebuild with a useless error; requiring all six fails here instead.
+      - name: Decide whether we can sign
+        id: mode
+        env:
+          CERT: ${{ secrets.IOS_DIST_CERT_P12 }}
+          CERT_PW: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+          ISSUER: ${{ secrets.APPSTORE_ISSUER_ID }}
+          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+        run: |
+          if [ -n "$CERT" ] && [ -n "$CERT_PW" ] && [ -n "$PROFILE" ] \
+             && [ -n "$ISSUER" ] && [ -n "$KEY_ID" ] && [ -n "$KEY" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "Signing secrets present - will produce a signed IPA."
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No signing secrets - building unsigned. This cannot be installed on a device."
+          fi
+
+      - name: Pub get
+        run: flutter pub get
+
+      # Separate from the build so a CocoaPods failure - the most common way
+      # an iOS build dies, and always a dependency problem rather than a code
+      # one - shows up as its own red step.
+      - name: Pod install
+        working-directory: ios
+        run: pod install --repo-update
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      # ---------------------------------------------------------------- signing
+      # The certificate goes into a THROWAWAY keychain, not the login one. The
+      # runner is ephemeral so it hardly matters, but it keeps the unlock
+      # password out of any shared store and means nothing leaks between jobs.
+      - name: Install certificate and provisioning profile
+        if: steps.mode.outputs.signed == 'true'
+        env:
+          CERT: ${{ secrets.IOS_DIST_CERT_P12 }}
+          CERT_PW: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+        run: |
+          CERT_PATH=$RUNNER_TEMP/dist.p12
+          PROFILE_PATH=$RUNNER_TEMP/profile.mobileprovision
+          KEYCHAIN=$RUNNER_TEMP/build.keychain
+          # Random, used once, never stored. The keychain dies with the runner.
+          KEYCHAIN_PW=$(uuidgen)
+
+          echo -n "$CERT" | base64 --decode -o "$CERT_PATH"
+          echo -n "$PROFILE" | base64 --decode -o "$PROFILE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security import "$CERT_PATH" -P "$CERT_PW" -A \
+            -t cert -f pkcs12 -k "$KEYCHAIN"
+          # Without this, codesign blocks on a GUI prompt that never comes and
+          # the job hangs until it times out.
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PW" "$KEYCHAIN" >/dev/null
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
+
+          echo "Installed signing identities:"
+          security find-identity -v -p codesigning "$KEYCHAIN" | sed 's/[0-9A-F]\{40\}/<hash>/'
+
+      # ------------------------------------------------------------- the build
+      # Build name comes from pubspec.yaml so there is one source of truth with
+      # the Android build. Only the build NUMBER is overridden: App Store
+      # Connect requires it to strictly increase per upload, and run_number
+      # does that for free. It is independent of the Play versionCode - these
+      # are separate app records on separate stores.
+      - name: Build iOS (unsigned)
+        if: steps.mode.outputs.signed != 'true'
+        run: flutter build ios --release --no-codesign --build-number=${{ github.run_number }}
+
+      - name: Build and archive iOS (signed)
+        if: steps.mode.outputs.signed == 'true'
+        run: |
+          flutter build ipa --release \
+            --build-number=${{ github.run_number }} \
+            --export-options-plist=ios/ExportOptions.plist
+
+      # Proves the permission strings survived into the BUILT app rather than
+      # only existing in the source Info.plist. A missing usage description
+      # does not fail the build - it fails Apple's PROCESSING stage days
+      # later (ITMS-90683), which reports by email long after CI went green.
+      #
+      # NSCameraUsageDescription is checked despite mood8 never opening the
+      # camera: image_picker_ios compiles its UIImagePickerController camera
+      # path unconditionally, and Apple requires a purpose string for every
+      # protected API the binary REFERENCES. If a plugin is added that touches
+      # another protected API, add its key here and to Info.plist.
+      - name: Verify Info.plist made it into the bundle
+        run: |
+          if [ "${{ steps.mode.outputs.signed }}" = "true" ]; then
+            APP=$(find build/ios/archive -name '*.app' -maxdepth 4 | head -1)
+          else
+            APP=build/ios/iphoneos/Runner.app
+          fi
+          test -d "$APP" || { echo "::error::no .app produced (looked in $APP)"; exit 1; }
+          echo "inspecting $APP"
+          PLIST="$APP/Info.plist"
+          for key in NSPhotoLibraryUsageDescription NSCameraUsageDescription \
+                     ITSAppUsesNonExemptEncryption; do
+            if /usr/libexec/PlistBuddy -c "Print :$key" "$PLIST" >/dev/null 2>&1; then
+              echo "ok   $key"
+            else
+              echo "::error::$key missing from the built Info.plist"; exit 1
+            fi
+          done
+          BID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PLIST")
+          test "$BID" = "com.mood8.app" \
+            || { echo "::error::bundle id is $BID, expected com.mood8.app"; exit 1; }
+          echo "ok   bundle id: $BID"
+          echo "ok   background modes: $(/usr/libexec/PlistBuddy -c 'Print :UIBackgroundModes' "$PLIST" | tr '\n' ' ')"
+          # Apple rejects an App Store icon carrying an alpha channel. The
+          # generator strips it, but a future hand-dropped PNG would not -
+          # catch that here rather than in an email after processing.
+          ICON=$(find "$APP" -name 'AppIcon60x60@2x.png' | head -1)
+          if [ -n "$ICON" ]; then
+            if sips -g hasAlpha "$ICON" | grep -q 'hasAlpha: yes'; then
+              echo "::error::app icon has an alpha channel - Apple will reject it"; exit 1
+            fi
+            echo "ok   app icon has no alpha channel"
+          fi
+
+      # --------------------------------------------------------- to TestFlight
+      - name: Upload to TestFlight
+        if: >
+          steps.mode.outputs.signed == 'true' &&
+          (github.event_name != 'workflow_dispatch' || inputs.upload_to_testflight)
+        env:
+          ISSUER: ${{ secrets.APPSTORE_ISSUER_ID }}
+          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+        run: |
+          IPA=$(find build/ios/ipa -name '*.ipa' | head -1)
+          test -n "$IPA" || { echo "::error::no .ipa produced"; exit 1; }
+          echo "uploading $(basename "$IPA")"
+
+          # altool looks for the key in one of a few fixed locations rather
+          # than taking a path, so it has to be written to disk under the
+          # exact AuthKey_<id>.p8 name.
+          mkdir -p ~/private_keys
+          printf '%s' "$KEY" > ~/private_keys/AuthKey_${KEY_ID}.p8
+
+          # Validate first. A rejection here is cheap and the message is far
+          # clearer than the email Apple sends an hour after a bad upload.
+          xcrun altool --validate-app -f "$IPA" -t ios \
+            --apiKey "$KEY_ID" --apiIssuer "$ISSUER"
+
+          xcrun altool --upload-app -f "$IPA" -t ios \
+            --apiKey "$KEY_ID" --apiIssuer "$ISSUER"
+
+          rm -f ~/private_keys/AuthKey_${KEY_ID}.p8
+          echo "::notice::Uploaded. Apple takes 5-15 minutes to PROCESS this, and processing can still reject it. Confirm with GET /v1/builds."
+
+      # Artifact storage quota on this account is exhausted, which makes
+      # actions/upload-artifact fail and `gh run download` return nothing.
+      # Release storage is billed separately and still works - same workaround
+      # android-build.yml uses.
+      - name: Publish IPA as a release asset
+        if: steps.mode.outputs.signed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IPA=$(find build/ios/ipa -name '*.ipa' | head -1)
+          TAG="ios-build-${{ github.run_number }}"
+          gh release create "$TAG" "$IPA" \
+            --title "mood8 iOS build ${{ github.run_number }}" \
+            --notes "Automated iOS build from ${{ github.sha }}." \
+            || gh release upload "$TAG" "$IPA" --clobber
+
+      # Runs even on failure so a cancelled or broken job never leaves a
+      # keychain holding the distribution certificate behind.
+      - name: Clean up keychain
+        if: always() && steps.mode.outputs.signed == 'true'
+        run: security delete-keychain $RUNNER_TEMP/build.keychain || true

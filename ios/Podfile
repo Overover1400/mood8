@@ -1,0 +1,106 @@
+# Mood8 iOS CocoaPods configuration.
+#
+# This file is committed deliberately. Flutter only generates a Podfile on
+# macOS, and the whole mood8 toolchain is Linux - so without this in the repo
+# the macOS runner would synthesise a default one and silently drop the
+# permission macros at the bottom, which are the difference between a build
+# Apple accepts and an ITMS-90683 rejection.
+#
+# iOS 15.0 IS NOT A PREFERENCE. firebase_core 3.x resolves to the Firebase
+# iOS SDK 11.x, which declares ios.deployment_target = '15.0'; anything lower
+# fails `pod install` outright. permission_handler needs 12.0 and the rest of
+# mood8's plugins are below that, so 15.0 satisfies everything we carry.
+# Keep this in step with IPHONEOS_DEPLOYMENT_TARGET in Runner.xcodeproj.
+platform :ios, '15.0'
+
+# CocoaPods analytics sends network stats synchronously, which slows the build.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path =
+    File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running " \
+          "pod install manually, run flutter pub get first."
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. " \
+        "Delete Generated.xcconfig, then run flutter pub get."
+end
+
+require File.expand_path(
+  File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+
+    target.build_configurations.each do |config|
+      # Some transitive pods still default below our floor, which produces a
+      # wall of warnings and occasionally a hard failure. Pin them all.
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+
+      # permission_handler ships code for EVERY permission it supports. Left
+      # alone, the binary references APIs for the camera, location, calendar,
+      # contacts and the rest - and Apple rejects a build that references a
+      # protected API with no matching usage description in Info.plist. These
+      # macros compile out everything mood8 does not actually ask for.
+      #
+      # mood8's Dart code requests exactly two permissions, confirmed by
+      # grepping for `Permission.` across lib/:
+      #   Permission.notification              -> NOTIFICATIONS below
+      #   Permission.ignoreBatteryOptimizations-> Android-only, no iOS analogue
+      #
+      # PHOTOS is 1 because image_picker drives the photo library directly
+      # rather than through permission_handler, and its usage description is
+      # declared in Info.plist. Everything else is 0.
+      #
+      # If a new permission is added to the Dart code, flip it here AND add
+      # its NS*UsageDescription to Info.plist, or it fails silently at
+      # runtime.
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+        '$(inherited)',
+        'PERMISSION_NOTIFICATIONS=1',
+        'PERMISSION_PHOTOS=1',
+        'PERMISSION_CAMERA=0',
+        'PERMISSION_MICROPHONE=0',
+        'PERMISSION_CONTACTS=0',
+        'PERMISSION_PHOTOS_ADD_ONLY=0',
+        'PERMISSION_LOCATION=0',
+        'PERMISSION_LOCATION_ALWAYS=0',
+        'PERMISSION_LOCATION_WHENINUSE=0',
+        'PERMISSION_EVENTS=0',
+        'PERMISSION_EVENTS_FULL_ACCESS=0',
+        'PERMISSION_REMINDERS=0',
+        'PERMISSION_BLUETOOTH=0',
+        'PERMISSION_MEDIA_LIBRARY=0',
+        'PERMISSION_SENSORS=0',
+        'PERMISSION_SPEECH_RECOGNIZER=0',
+        'PERMISSION_APP_TRACKING_TRANSPARENCY=0',
+        'PERMISSION_CRITICAL_ALERTS=0',
+        'PERMISSION_ASSISTANT=0',
+      ]
+    end
+  end
+end

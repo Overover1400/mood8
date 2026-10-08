@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Mood8</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>mood8</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+
+	<!-- ====================================================================
+	     PRIVACY PURPOSE STRINGS
+
+	     Apple requires a purpose string for every protected API the binary
+	     REFERENCES, not merely the ones it calls. A missing one is not a build
+	     failure: it is an ITMS-90683 rejection during Apple's *processing*
+	     stage, which happens minutes after a green CI run and reports only by
+	     email. On Dial98 that pattern consumed builds 6, 7 and 8 before anyone
+	     realised the workflow exit code was meaningless.
+
+	     If a plugin is added that touches another protected API, add its key
+	     here AND to the verification step in .github/workflows/ios-build.yml.
+	     ==================================================================== -->
+
+	<!-- image_picker, used in three places: profile photo, challenge cover, and
+	     a challenge comment attachment. All three pass ImageSource.gallery. -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Mood8 needs access to your photos so you can set a profile picture and add cover images to the challenges you create.</string>
+
+	<!-- Mood8 never opens the camera - every call site is ImageSource.gallery,
+	     verified by grepping for ImageSource. This string is here anyway
+	     because image_picker_ios compiles its UIImagePickerController camera
+	     path unconditionally; there is no build flag to exclude it, so the
+	     binary references the camera API regardless of our Dart code. Omitting
+	     the string is the exact ITMS-90683 trap described above. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Mood8 does not use your camera. This appears because the photo picker it uses can also take photos; Mood8 only ever opens your photo library.</string>
+
+	<!-- ====================================================================
+	     EXPORT COMPLIANCE
+
+	     This is a declaration to US export authorities, not a checkbox.
+	     Verified for mood8 on 2026-10-08 rather than assumed:
+	       - no crypto package in pubspec.yaml
+	       - no encrypt/decrypt/cipher/AES code anywhere in lib/
+	       - no plaintext http:// or ws:// endpoints; transport is ordinary
+	         OS-provided TLS to mood8.app
+	       - password hashing happens server-side, never in the client
+
+	     It stops being true the moment someone bundles a crypto library or
+	     adds end-to-end encryption. Revisit when the facts change.
+
+	     Declaring it here answers the question once for every future build.
+	     Without it, MISSING_EXPORT_COMPLIANCE blocks all testers even after a
+	     build has gone VALID.
+	     ==================================================================== -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+
+	<!-- FCM delivers mood8's retention notifications - streak protection,
+	     rank overtake, insight teaser, win-back. remote-notification lets the
+	     app act on a push while backgrounded instead of only when the user
+	     taps it. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>

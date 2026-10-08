@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The app's entitlements must be a SUBSET of what the provisioning
+	     profile grants. Both keys below were verified present in
+	     Mood8_App_Store.mobileprovision (profile UWC78R4K27) before this file
+	     was written:
+	       aps-environment                        = production
+	       com.apple.developer.associated-domains = *
+	     A profile that grants more than the app asks for is fine; the reverse
+	     fails code signing. -->
+
+	<!-- Push. The provisioning profile grants production only, which is what a
+	     distribution build needs. CI builds Release and Profile with manual
+	     signing; Debug keeps automatic signing so a local simulator build does
+	     not demand the distribution certificate.
+
+	     Note: push does not work yet. There is no GoogleService-Info.plist and
+	     no iOS app registered in the Firebase project, so firebase_messaging
+	     will not obtain a token. The entitlement is here now so that enabling
+	     push later needs no new profile and no re-signing dance. -->
+	<key>aps-environment</key>
+	<string>production</string>
+
+	<!-- The iOS counterpart of the assetlinks.json shipped for Android App
+	     Links. Covers the same two paths: /c/ for challenge invites and /r/
+	     for referrals.
+
+	     This has no effect until an apple-app-site-association file is served
+	     from https://mood8.app/.well-known/ and https://www.mood8.app/.well-known/
+	     over TLS with no redirects. Until then the entitlement is inert -
+	     links open in Safari as they do today. That is server work, tracked
+	     separately; it is not a build problem and causes no rejection. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:mood8.app</string>
+		<string>applinks:www.mood8.app</string>
+	</array>
+</dict>
+</plist>
