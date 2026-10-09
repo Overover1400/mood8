@@ -26,6 +26,7 @@ import '../widgets/grace_banner.dart';
 import '../widgets/habit_card.dart';
 import '../widgets/habit_completion_calendar.dart';
 import '../widgets/responsive_container.dart';
+import '../widgets/suggested_habits_sheet.dart';
 import '../widgets/tutorial_overlay.dart';
 import '../widgets/upgrade_prompt_bar.dart';
 import '../services/subscription_service.dart';
@@ -295,6 +296,11 @@ class _HabitsScreenState extends State<HabitsScreen> {
                             // chevron = unfurl the full month grid.
                             HabitCompletionCalendar(repo: _repo),
                             const SizedBox(height: 12),
+                            // Rule-based habit ideas from the user identity,
+                            // goals and recent behaviour. Renders nothing when
+                            // there is nothing to suggest or the server is
+                            // unreachable.
+                            const SuggestedHabitsCard(),
                             // Free-mode wind-down: grace warning (dismissible)
                             // or the read-only prompt. Renders nothing outside
                             // those states.
