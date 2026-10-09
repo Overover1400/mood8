@@ -11,10 +11,13 @@ import '../theme/app_theme.dart';
 /// sheet is dismissible, and skipping is a first-class outcome rather
 /// than a low score. The whole interaction exists to give the
 /// adaptation engine one fact it cannot infer from behaviour: *why*.
-class MissReasonSheet extends StatelessWidget {
+class MissReasonSheet extends StatefulWidget {
   const MissReasonSheet({super.key, required this.habit});
 
   final Habit habit;
+
+  @override
+  State<MissReasonSheet> createState() => _MissReasonSheetState();
 
   static const _options = <({String code, String label, IconData icon})>[
     (code: 'no_time', label: 'No time', icon: Icons.schedule_rounded),
@@ -41,8 +44,33 @@ class MissReasonSheet extends StatelessWidget {
     );
   }
 
+}
+
+class _MissReasonSheetState extends State<MissReasonSheet> {
+  final TextEditingController _note = TextEditingController();
+  bool _other = false;
+
+  Habit get habit => widget.habit;
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendOther() async {
+    HapticService().light();
+    await MissReasonService().recordAnswer(
+      habitId: habit.id,
+      reason: 'other',
+      note: _note.text.trim(),
+    );
+    if (mounted) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final options = MissReasonSheet._options;
     return SafeArea(
       child: Container(
         margin: const EdgeInsets.all(14),
@@ -89,7 +117,31 @@ class MissReasonSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            ..._options.map((o) => Padding(
+            if (_other) ...[
+              TextField(
+                controller: _note,
+                autofocus: true,
+                maxLength: 200,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  hintText: 'A few words (optional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => setState(() => _other = false),
+                    child: const Text('Back'),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                      onPressed: _sendOther, child: const Text('Send')),
+                ],
+              ),
+            ] else ...[
+            ...options.map((o) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _ReasonRow(
                     label: o.label,
@@ -104,6 +156,18 @@ class MissReasonSheet extends StatelessWidget {
                     },
                   ),
                 )),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _ReasonRow(
+                label: 'Something else',
+                icon: Icons.more_horiz_rounded,
+                onTap: () {
+                  HapticService().light();
+                  setState(() => _other = true);
+                },
+              ),
+            ),
+            ],
             const SizedBox(height: 2),
             Center(
               child: TextButton(

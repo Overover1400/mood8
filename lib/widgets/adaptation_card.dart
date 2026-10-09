@@ -35,7 +35,7 @@ class AdaptationCard extends StatefulWidget {
   State<AdaptationCard> createState() => _AdaptationCardState();
 }
 
-enum _Stage { reason, window, reduce, tooSmall, proposal, pause }
+enum _Stage { reason, other, window, reduce, tooSmall, proposal, pause }
 
 const _windowLabels = {
   'morning': 'Morning',
@@ -46,7 +46,8 @@ const _windowLabels = {
 class _AdaptationCardState extends State<AdaptationCard> {
   AdaptationProposal? _proposal;
   _Stage _stage = _Stage.proposal;
-  String? _reason; // no_time | no_mood | too_hard
+  String? _reason; // no_time | no_mood | too_hard | other
+  final TextEditingController _noteCtrl = TextEditingController();
   bool _busy = false;
   bool _done = false;
   String? _closing;
@@ -60,6 +61,12 @@ class _AdaptationCardState extends State<AdaptationCard> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _noteCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -145,6 +152,8 @@ class _AdaptationCardState extends State<AdaptationCard> {
                 p.canReduceFrequency)
             ? _Stage.reduce
             : _Stage.tooSmall;
+      } else if (reason == 'other') {
+        _stage = _Stage.other;
       } else {
         _stage = _Stage.window;
       }
@@ -160,8 +169,11 @@ class _AdaptationCardState extends State<AdaptationCard> {
       _error = null;
     });
     HapticService().light();
-    final next = await AdaptationService()
-        .answer(p.id, reason: reason, window: window, reduce: reduce);
+    final next = await AdaptationService().answer(p.id,
+        reason: reason,
+        window: window,
+        reduce: reduce,
+        note: reason == 'other' ? _noteCtrl.text.trim() : null);
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -362,7 +374,44 @@ class _AdaptationCardState extends State<AdaptationCard> {
           _Choice(
               label: 'It\'s too hard or too much',
               onTap: () => _pickReason('too_hard')),
+          _Choice(
+              label: 'Something else',
+              onTap: () => _pickReason('other')),
           _backRow(_dismiss, label: 'Not now'),
+        ];
+
+      case _Stage.other:
+        return [
+          _hint(context, p.habitTitle),
+          _question(context, 'What got in the way?'),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _noteCtrl,
+            maxLength: 200,
+            maxLines: 2,
+            decoration: const InputDecoration(
+              hintText: 'A few words (optional)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 4),
+          _question(context, 'What should we try?'),
+          const SizedBox(height: 10),
+          _Choice(
+            label: 'Change the time',
+            sub: 'Pick a time of day',
+            busy: _busy,
+            onTap: () => setState(() => _stage = _Stage.window),
+          ),
+          if (p.canReduceAmount || p.canReduceDuration || p.canReduceFrequency)
+            _Choice(
+              label: 'Make it smaller',
+              sub: 'Lighter, shorter or fewer days',
+              busy: _busy,
+              onTap: () => setState(() => _stage = _Stage.reduce),
+            ),
+          ...err,
+          _backRow(() => setState(() => _stage = _Stage.reason)),
         ];
 
       case _Stage.window:

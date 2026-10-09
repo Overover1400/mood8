@@ -5,6 +5,7 @@ import '../models/habit_type.dart';
 import '../models/personalization.dart';
 import '../models/routine_category.dart';
 import '../screens/paywall_screen.dart';
+import '../screens/profile/goals_screen.dart';
 import '../services/habit_repository.dart';
 import '../services/haptic_service.dart';
 import '../services/notification_service.dart';
@@ -110,6 +111,15 @@ class _SuggestedHabitsSheetState extends State<SuggestedHabitsSheet> {
         );
       }
     });
+  }
+
+  Future<void> _editAnswers() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const GoalsScreen()),
+    );
+    if (!mounted) return;
+    final next = await PersonalizationService().fetch();
+    if (mounted && next != null) setState(() => _result = next);
   }
 
   Future<void> _add(PersonalizedSuggestion s) async {
@@ -231,6 +241,18 @@ class _SuggestedHabitsSheetState extends State<SuggestedHabitsSheet> {
               const SizedBox(height: 4),
               Text(_result.basisLine,
                   style: TextStyle(color: dim, fontSize: 13.5)),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  onPressed: _busy ? null : _editAnswers,
+                  child: const Text('Edit my answers'),
+                ),
+              ),
               if (_result.basis.dropOffs.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(

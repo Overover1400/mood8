@@ -43,6 +43,23 @@ class PersonalizationService {
     }
   }
 
+  /// Every profile question with the current answer (null on any failure).
+  Future<List<ProfileQuestion>?> fetchProfile() async {
+    if (!_signedIn) return null;
+    try {
+      final res = await _client
+          .get(Uri.parse('$_baseUrl/personalization/profile'),
+              headers: _headers)
+          .timeout(_timeout);
+      if (res.statusCode < 200 || res.statusCode >= 300) return null;
+      final list = ProfileQuestion.parseList(jsonDecode(res.body));
+      return list.isEmpty ? null : list;
+    } catch (e) {
+      debugPrint('[personalization] profile failed: $e');
+      return null;
+    }
+  }
+
   /// Answer a follow-up question (or edit a profile answer). [value] is a
   /// String, or a list of strings for multi-select. Returns the refreshed
   /// suggestions.

@@ -329,6 +329,7 @@ class AdaptationService {
     required String reason,
     String? window,
     String? reduce,
+    String? note,
   }) async {
     if (!_signedIn) return null;
     try {
@@ -339,6 +340,7 @@ class AdaptationService {
                 'reason': reason,
                 'window': ?window,
                 'reduce': ?reduce,
+                if (note != null && note.isNotEmpty) 'note': note,
               }))
           .timeout(_timeout);
       if (res.statusCode < 200 || res.statusCode >= 300) return null;
@@ -481,16 +483,26 @@ class AdaptationService {
   }
 
   /// Fixed-option reason, one tap, sent after a second miss.
+  ///
+  /// [reason] may be `other`, with a short [note]. [missDate]
+  /// (`yyyy-MM-dd`) is the missed day the answer is about.
   Future<void> reportMissReason({
     required String habitId,
     required String reason,
+    String? note,
+    String? missDate,
   }) async {
     if (!_signedIn) return;
     try {
       await _client
           .post(Uri.parse('$_baseUrl/habits/miss-reason'),
               headers: _headers,
-              body: jsonEncode({'habit_id': habitId, 'reason': reason}))
+              body: jsonEncode({
+                'habit_id': habitId,
+                'reason': reason,
+                if (note != null && note.isNotEmpty) 'note': note,
+                'miss_date': ?missDate,
+              }))
           .timeout(_timeout);
     } catch (e) {
       debugPrint('[adapt] miss reason failed: $e');

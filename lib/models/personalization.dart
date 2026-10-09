@@ -293,3 +293,56 @@ class PersonalizationResult {
         slotsLeft: (j['slots_left'] as num?)?.toInt(),
       );
 }
+
+/// One profile question with the user's CURRENT answer, for the
+/// "Goals & preferences" screen.
+class ProfileQuestion {
+  const ProfileQuestion({
+    required this.key,
+    required this.question,
+    required this.options,
+    this.multi = false,
+    this.selected = const [],
+  });
+
+  final String key;
+  final String question;
+  final bool multi;
+  final List<FollowUpOption> options;
+  final List<String> selected;
+
+  /// The label of the first selected option, or null.
+  String? get selectedLabel {
+    if (selected.isEmpty) return null;
+    for (final o in options) {
+      if (o.value == selected.first) return o.label;
+    }
+    return selected.first;
+  }
+
+  static ProfileQuestion? tryParse(dynamic raw) {
+    final base = FollowUpQuestion.tryParse(raw);
+    if (base == null) return null;
+    final v = (raw as Map)['value'];
+    final sel = v is String
+        ? [v]
+        : [
+            if (v is List)
+              for (final x in v)
+                if (x is String) x
+          ];
+    return ProfileQuestion(
+      key: base.key,
+      question: base.question,
+      options: base.options,
+      multi: base.multi,
+      selected: sel,
+    );
+  }
+
+  static List<ProfileQuestion> parseList(dynamic raw) => [
+        for (final q in (raw is Map ? raw['questions'] : null) as List? ??
+            const [])
+          if (ProfileQuestion.tryParse(q) != null) ProfileQuestion.tryParse(q)!
+      ];
+}
