@@ -140,7 +140,9 @@ class _AdaptationCardState extends State<AdaptationCard> {
       _reason = reason;
       _error = null;
       if (reason == 'too_hard') {
-        _stage = (p.canReduceAmount || p.canReduceDuration)
+        _stage = (p.canReduceAmount ||
+                p.canReduceDuration ||
+                p.canReduceFrequency)
             ? _Stage.reduce
             : _Stage.tooSmall;
       } else {
@@ -404,6 +406,13 @@ class _AdaptationCardState extends State<AdaptationCard> {
               sub: 'Less each day',
               busy: _busy,
               onTap: () => _submitAnswer(reduce: 'amount'),
+            ),
+          if (p.canReduceFrequency)
+            _Choice(
+              label: 'How many days',
+              sub: 'Fewer days a week',
+              busy: _busy,
+              onTap: () => _submitAnswer(reduce: 'frequency'),
             ),
           ...err,
           _backRow(() => setState(() => _stage = _Stage.reason)),

@@ -75,4 +75,29 @@ void main() {
     expect(minuteOfDay('24:00'), isNull);
     expect(minuteOfDay('09:60'), isNull);
   });
+
+  test('fewer days: daily -> weekdays -> Mon/Wed/Fri land in the habit', () {
+    final h = _h();
+    expect(applyProposalToHabit(h, _p('frequency', 'weekdays')), isTrue);
+    expect(h.frequency, Frequency.weekdays);
+    expect(h.frequencyDays, isNull);
+    expect(proposalIsApplied(h, _p('frequency', 'weekdays')), isTrue);
+    expect(proposalIsApplied(h, _p('frequency', 'custom:1,3,5')), isFalse);
+
+    expect(applyProposalToHabit(h, _p('frequency', 'custom:1,3,5')), isTrue);
+    expect(h.frequency, Frequency.custom);
+    expect(h.frequencyDays, [1, 3, 5]);
+    expect(proposalIsApplied(h, _p('frequency', 'custom:1,3,5')), isTrue);
+    // the app's scheduling agrees: Monday yes, Tuesday no
+    expect(h.isScheduledFor(DateTime(2026, 10, 5)), isTrue);
+    expect(h.isScheduledFor(DateTime(2026, 10, 6)), isFalse);
+  });
+
+  test('bad frequency proposals are rejected', () {
+    final h = _h();
+    for (final v in ['', 'monthly', 'custom:', 'custom:9', 'custom:a,b']) {
+      expect(applyProposalToHabit(h, _p('frequency', v)), isFalse, reason: v);
+    }
+    expect(h.frequency, Frequency.daily);
+  });
 }

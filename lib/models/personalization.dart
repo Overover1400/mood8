@@ -156,6 +156,7 @@ class PersonalizationBasis {
     this.goalAreas = const [],
     this.behaviour = false,
     this.freshEnergy = 'none',
+    this.lowSignals = const [],
     this.similarUsers = 'insufficient_data',
     this.similarN = 0,
     this.similarLevel,
@@ -170,6 +171,9 @@ class PersonalizationBasis {
   /// low · ok · none
   final String freshEnergy;
 
+  /// Which of energy / mood / focus are LOW in the user's recent check-ins.
+  final List<String> lowSignals;
+
   /// used · insufficient_data
   final String similarUsers;
 
@@ -182,6 +186,18 @@ class PersonalizationBasis {
   final List<String> dropOffs;
   final int level;
 
+  static List<String> _lowSignals(Map<String, dynamic> j) {
+    final st = (j['fresh_state'] as Map?)?.cast<String, dynamic>();
+    if (st == null) {
+      // Older server: only energy was reported.
+      return j['fresh_energy'] == 'low' ? const ['energy'] : const [];
+    }
+    return [
+      for (final k in const ['energy', 'mood', 'focus'])
+        if (st[k] == 'low') k
+    ];
+  }
+
   factory PersonalizationBasis.fromJson(Map<String, dynamic>? j) {
     if (j == null) return const PersonalizationBasis();
     return PersonalizationBasis(
@@ -192,6 +208,7 @@ class PersonalizationBasis {
       ],
       behaviour: j['behaviour'] == true,
       freshEnergy: (j['fresh_energy'] as String?) ?? 'none',
+      lowSignals: _lowSignals(j),
       similarUsers: (j['similar_users'] as String?) ?? 'insufficient_data',
       similarN: (j['similar_n'] as num?)?.toInt() ?? 0,
       similarLevel: j['similar_level'] as String?,
@@ -229,7 +246,8 @@ class PersonalizationResult {
       if (basis.goalAreas.isNotEmpty)
         'your focus on ${_join(basis.goalAreas)}',
       if (basis.behaviour) 'your recent habits',
-      if (basis.freshEnergy == 'low') 'your low energy lately',
+      if (basis.lowSignals.isNotEmpty)
+        'your low ${_join(basis.lowSignals)} lately',
       if (basis.similarUsers == 'used') _similarPhrase(),
     ];
     if (parts.isEmpty) return 'Based on a few general starting points';

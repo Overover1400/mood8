@@ -133,6 +133,21 @@ void main() {
 
     expect(PersonalizationResult.fromJson({}).basisLine,
         'Based on a few general starting points');
+
+    final low = PersonalizationResult.fromJson({
+      'suggestions': [],
+      'basis': {
+        'fresh_state': {'energy': 'ok', 'mood': 'low', 'focus': 'low'},
+      },
+    });
+    expect(low.basis.lowSignals, ['mood', 'focus']);
+    expect(low.basisLine, 'Based on your low mood and focus lately');
+    // an older server only reported energy
+    final old = PersonalizationResult.fromJson({
+      'suggestions': [],
+      'basis': {'fresh_energy': 'low'},
+    });
+    expect(old.basisLine, 'Based on your low energy lately');
   });
 
   test('suggestions the user already has are filtered (case-insensitive)', () {

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/frequency.dart';
 import '../models/habit.dart';
 import 'auth_service.dart';
 import 'habit_reminder_service.dart';
@@ -29,6 +30,7 @@ class AdaptationProposal {
     this.windows = const {},
     this.canReduceAmount = false,
     this.canReduceDuration = false,
+    this.canReduceFrequency = false,
     this.cyclesUsed = 0,
     this.maxCycles = 3,
   });
@@ -54,6 +56,7 @@ class AdaptationProposal {
   final Map<String, List<int>> windows;
   final bool canReduceAmount;
   final bool canReduceDuration;
+  final bool canReduceFrequency;
 
   /// Only for `pause`: how many adjustments were used, out of how many.
   final int cyclesUsed;
@@ -81,6 +84,7 @@ class AdaptationProposal {
       windows: wins,
       canReduceAmount: opts['can_reduce_amount'] == true,
       canReduceDuration: opts['can_reduce_duration'] == true,
+      canReduceFrequency: opts['can_reduce_frequency'] == true,
       cyclesUsed: (j['cycles_used'] as num?)?.toInt() ?? 0,
       maxCycles: (j['max_cycles'] as num?)?.toInt() ?? 3,
     );
@@ -95,6 +99,8 @@ class AdaptationProposal {
         return 'Make it smaller';
       case 'duration':
         return 'Shorten it';
+      case 'frequency':
+        return 'Fewer days';
       case 'increase':
         return 'Level up';
       case 'pause':
@@ -181,9 +187,31 @@ bool applyProposalToHabit(Habit h, AdaptationProposal p) {
         h.avoidDurationDays = n;
       }
       return true;
+    case 'frequency':
+      final f = parseFrequencyProposal(to);
+      if (f == null) return false;
+      h.frequency = f.$1;
+      h.frequencyDays = f.$2;
+      return true;
     default:
       return false;
   }
+}
+
+/// "weekdays" or "custom:1,3,5" (weekday numbers, 0 = Sunday) from the
+/// server's `frequency` proposal. Null when it isn't one of those.
+(Frequency, List<int>?)? parseFrequencyProposal(String to) {
+  if (to == 'weekdays') return (Frequency.weekdays, null);
+  if (to == 'daily') return (Frequency.daily, null);
+  if (to.startsWith('custom:')) {
+    final days = [
+      for (final s in to.substring(7).split(','))
+        if (int.tryParse(s.trim()) != null) int.parse(s.trim())
+    ];
+    if (days.isEmpty || days.any((d) => d < 0 || d > 6)) return null;
+    return (Frequency.custom, days);
+  }
+  return null;
 }
 
 /// Whether [h] currently holds [p]'s value (what Edit would show).
@@ -201,6 +229,14 @@ bool proposalIsApplied(Habit h, AdaptationProposal p) {
       final n = int.tryParse(to);
       return n != null &&
           (h.programDurationDays ?? h.avoidDurationDays) == n;
+    case 'frequency':
+      final f = parseFrequencyProposal(to);
+      if (f == null || h.frequency != f.$1) return false;
+      final have = [...?h.frequencyDays]..sort();
+      final want = [...?f.$2]..sort();
+      return have.length == want.length &&
+          [for (var i = 0; i < have.length; i++) have[i] == want[i]]
+              .every((x) => x);
     default:
       return false;
   }
@@ -269,7 +305,7 @@ class AdaptationService {
     _flushPendingRestarts();
     try {
       final res = await _client
-          .get(Uri.parse('$_baseUrl/adapt/proposal?v=2'), headers: _headers)
+          .get(Uri.parse('$_baseUrl/adapt/proposal?v=3'), headers: _headers)
           .timeout(_timeout);
       if (res.statusCode < 200 || res.statusCode >= 300) return null;
       final body = jsonDecode(res.body) as Map<String, dynamic>;
