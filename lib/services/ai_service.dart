@@ -133,19 +133,7 @@ class AiService {
       if (context != null) 'context': context.toJson(),
     };
     final body = await _postJson('/coach/chat', payload);
-    final reply = _pickString(body, const ['reply']) ?? '';
-    final proposedRaw = body['proposed_habits'];
-    final proposed = proposedRaw is Map<String, dynamic>
-        ? ProposedHabits.fromJson(proposedRaw)
-        : null;
-    return CoachChatReply(
-      reply: reply,
-      proposed: proposed,
-      freeUsed: (body['free_messages_used'] as num?)?.toInt() ?? 0,
-      freeLimit: (body['free_messages_limit'] as num?)?.toInt() ?? 0,
-      remainingToday: (body['gpt4o_remaining_today'] as num?)?.toInt(),
-      remainingMonth: (body['gpt4o_remaining_month'] as num?)?.toInt(),
-    );
+    return CoachChatReply.fromJson(body);
   }
 
   Future<String> chat(
@@ -462,7 +450,29 @@ class CoachChatReply {
     this.freeLimit = 0,
     this.remainingToday,
     this.remainingMonth,
+    this.suggestionsUsed = 0,
+    this.suggestionsLimit = 0,
+    this.suggestionLimitReached = false,
   });
+
+  factory CoachChatReply.fromJson(Map<String, dynamic> body) {
+    final reply = body['reply'];
+    final proposedRaw = body['proposed_habits'];
+    return CoachChatReply(
+      reply: reply is String ? reply : '',
+      proposed: proposedRaw is Map<String, dynamic>
+          ? ProposedHabits.fromJson(proposedRaw)
+          : null,
+      freeUsed: (body['free_messages_used'] as num?)?.toInt() ?? 0,
+      freeLimit: (body['free_messages_limit'] as num?)?.toInt() ?? 0,
+      remainingToday: (body['gpt4o_remaining_today'] as num?)?.toInt(),
+      remainingMonth: (body['gpt4o_remaining_month'] as num?)?.toInt(),
+      // Absent on an older server: no cap, nothing reached.
+      suggestionsUsed: (body['suggestions_used'] as num?)?.toInt() ?? 0,
+      suggestionsLimit: (body['suggestions_limit'] as num?)?.toInt() ?? 0,
+      suggestionLimitReached: body['suggestion_limit_reached'] == true,
+    );
+  }
 
   final String reply;
   final ProposedHabits? proposed;
@@ -476,4 +486,16 @@ class CoachChatReply {
   /// low.
   final int? remainingToday;
   final int? remainingMonth;
+
+  /// Daily AI habit suggestions (separate from the message limit).
+  /// [suggestionsLimit] 0 = no cap. When [suggestionLimitReached] the
+  /// reply is a normal chat turn with [proposed] null.
+  final int suggestionsUsed;
+  final int suggestionsLimit;
+  final bool suggestionLimitReached;
+
+  /// Suggestions left today; null when uncapped.
+  int? get suggestionsLeft => suggestionsLimit <= 0
+      ? null
+      : (suggestionsLimit - suggestionsUsed).clamp(0, suggestionsLimit);
 }

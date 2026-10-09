@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/entitlement.dart';
 import '../models/subscription.dart';
 import 'auth_service.dart';
 
@@ -26,6 +27,13 @@ class SubscriptionService extends ChangeNotifier {
   static const String _kFreeModeKey = 'mood8.freeModeActive';
   static const String _kFreeModeEndsKey = 'mood8.freeModeEndsAt';
   static const String _kHabitLimitKey = 'mood8.habitLimit'; // -1 == unlimited
+  static const String _kPlanClassKey = 'mood8.planClass';
+  static const String _kTrialEndsKey = 'mood8.trialEndsAt';
+
+  /// Free standard accounts keep this many active habits. The server is
+  /// the source of truth; this is only the answer before /status has
+  /// ever replied (or when an older server doesn't send the field).
+  static const int kFreeHabitLimit = 3;
   // Flipped to true while a Stripe checkout flow is mid-air (the user
   // has tapped "Start Premium" and we've launched the checkout URL).
   // On the next AppLifecycleState.resumed we force a status refresh
@@ -58,6 +66,16 @@ class SubscriptionService extends ChangeNotifier {
   DateTime? _graceEndsAt; // set only while in a grace window
   bool _restrictionsActive = false; // grace expired + over limit
   List<String> _activeHabitIds = const [];
+
+  // ── Plan class / AI allowances / rewards (server-authoritative) ─────
+  EntitlementStatus _entitlement = EntitlementStatus.free;
+
+  /// Plan details from the last /status. Defaults to Free until then.
+  EntitlementStatus get entitlement => _entitlement;
+  String get planClass => _entitlement.planClass;
+
+  /// Days left on the Premium trial; null unless on a trial.
+  int? get trialDaysLeft => _entitlement.trialDaysLeft();
 
   SubscriptionTier get tier => _tier;
   bool get isPremium => _tier.isPaid && !_isExpired();
@@ -133,10 +151,10 @@ class SubscriptionService extends ChangeNotifier {
   /// unlimited). Falls back to premium=unlimited / free=3 before /status.
   int get maxHabits {
     if (isPremium || _freeModeActive) return -1;
-    // Server-driven: a null habit_limit means UNLIMITED (e.g. a
-    // grandfathered user, or during grace before restrictions). We never
-    // hardcode a cap when the server said there isn't one. Before the
-    // first /status fetch, [load] seeds a safe free default of 3.
+    // Server-driven: a null habit_limit means UNLIMITED (legacy accounts,
+    // grace before restrictions). We never hardcode a cap when the server
+    // said there isn't one. Before the first /status fetch, [load] seeds
+    // the free default of 3, and so does a /status without the field.
     return _habitLimit == null ? -1 : _habitLimit!;
   }
 
@@ -169,10 +187,14 @@ class SubscriptionService extends ChangeNotifier {
       final fmEnds = prefs.getString(_kFreeModeEndsKey);
       _freeModeEndsAt = fmEnds == null ? null : DateTime.tryParse(fmEnds);
       final hl = prefs.getInt(_kHabitLimitKey);
-      // No pref (never fetched) → safe free default of 3; -1 → unlimited
+      // No pref (never fetched) → free default of 3; -1 → unlimited
       // (server said null); N → N. /status overrides on next refresh.
-      _habitLimit = hl == null ? 3 : (hl < 0 ? null : hl);
+      _habitLimit = hl == null ? kFreeHabitLimit : (hl < 0 ? null : hl);
       _featuresPremium = _freeModeActive;
+      _entitlement = EntitlementStatus(
+        planClass: prefs.getString(_kPlanClassKey) ?? PlanClass.free,
+        trialEndsAt: DateTime.tryParse(prefs.getString(_kTrialEndsKey) ?? ''),
+      );
     } catch (e) {
       debugPrint('[Subscription] load failed: $e');
     } finally {
@@ -200,7 +222,10 @@ class SubscriptionService extends ChangeNotifier {
     _freeModeActive = false;
     _freeModeEndsAt = null;
     _featuresPremium = false;
-    _habitLimit = null;
+    // Signed out = a fresh free account until /status says otherwise.
+    // (null here used to mean "unlimited" for the next sign-in.)
+    _habitLimit = kFreeHabitLimit;
+    _entitlement = EntitlementStatus.free;
     _habitsOverLimit = 0;
     _graceEndsAt = null;
     _restrictionsActive = false;
@@ -209,6 +234,9 @@ class SubscriptionService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_kTierKey);
       await prefs.remove(_kExpiresKey);
+      await prefs.remove(_kHabitLimitKey);
+      await prefs.remove(_kPlanClassKey);
+      await prefs.remove(_kTrialEndsKey);
       await prefs.remove(_kCheckoutInProgressKey);
     } catch (e) {
       debugPrint('[Subscription] clearForLogout prefs failed: $e');
@@ -233,6 +261,13 @@ class SubscriptionService extends ChangeNotifier {
             _kFreeModeEndsKey, _freeModeEndsAt!.toIso8601String());
       }
       await prefs.setInt(_kHabitLimitKey, _habitLimit ?? -1);
+      await prefs.setString(_kPlanClassKey, _entitlement.planClass);
+      final te = _entitlement.trialEndsAt;
+      if (te == null) {
+        await prefs.remove(_kTrialEndsKey);
+      } else {
+        await prefs.setString(_kTrialEndsKey, te.toIso8601String());
+      }
     } catch (e) {
       debugPrint('[Subscription] persist failed: $e');
     }
@@ -289,7 +324,9 @@ class SubscriptionService extends ChangeNotifier {
       final fmEnds = body['free_mode_ends_at'] as String?;
       _freeModeEndsAt = fmEnds != null ? DateTime.tryParse(fmEnds) : null;
       _featuresPremium = body['features_premium'] as bool? ?? false;
-      _habitLimit = body['habit_limit'] as int?; // null = unlimited
+      _habitLimit = habitLimitFromStatus(body, isPremium: apiIsPremium);
+      _entitlement =
+          EntitlementStatus.fromJson(body, isPremium: apiIsPremium);
       _habitsOverLimit = (body['habits_over_limit'] as num?)?.toInt() ?? 0;
       final graceIso = body['grace_ends_at'] as String?;
       _graceEndsAt = graceIso != null ? DateTime.tryParse(graceIso) : null;
@@ -318,6 +355,19 @@ class SubscriptionService extends ChangeNotifier {
       debugPrint('[Subscription] refreshStatus error: $e');
       return false;
     }
+  }
+
+  /// The free habit cap from a /status body. The server sends
+  /// `habit_limit: null` for unlimited, so an explicit null is honoured;
+  /// only a body that lacks the key altogether (older server) falls back
+  /// to the free default of 3 — premium accounts stay unlimited.
+  @visibleForTesting
+  static int? habitLimitFromStatus(Map<String, dynamic> body,
+      {required bool isPremium}) {
+    if (!body.containsKey('habit_limit')) {
+      return isPremium ? null : kFreeHabitLimit;
+    }
+    return (body['habit_limit'] as num?)?.toInt();
   }
 
   /// Mark the checkout flow as "in progress" so the next app resume

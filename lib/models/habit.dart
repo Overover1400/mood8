@@ -7,6 +7,9 @@ import 'routine_category.dart';
 
 part 'habit.g.dart';
 
+/// [Habit.pausedReason] value for "the adaptation engine paused this".
+const String kPausedAdaptCycles = 'adapt_cycles';
+
 @HiveType(typeId: 8)
 class Habit extends HiveObject {
   Habit({
@@ -40,6 +43,8 @@ class Habit extends HiveObject {
     this.supportFor,
     this.parkedBehind,
     this.shareInChallenges = false,
+    this.pausedReason,
+    this.pausedAt,
   })  : frozenDates = frozenDates ?? <DateTime>[],
         reminderMinutes = reminderMinutes ?? <int>[];
 
@@ -190,6 +195,22 @@ class Habit extends HiveObject {
   /// Never a field on the create-habit form.
   @HiveField(29)
   bool shareInChallenges;
+
+  /// Why this habit is paused, when the app paused it. `adapt_cycles`
+  /// = the adaptation engine used all of its approved adjustments and
+  /// the habit was still being missed. Null for a habit the user paused
+  /// by hand or that was parked behind a stepping stone (that one has
+  /// [parkedBehind] instead).
+  @HiveField(30)
+  String? pausedReason;
+
+  /// When [pausedReason] was applied.
+  @HiveField(31)
+  DateTime? pausedAt;
+
+  /// Paused by the adaptation engine (3 adjustments used, still missed).
+  bool get isPausedByAdaptation =>
+      isArchived && pausedReason == kPausedAdaptCycles;
 
   bool get isAvoid => polarity == HabitPolarity.avoid;
   bool get isFromPackage => packageId != null;

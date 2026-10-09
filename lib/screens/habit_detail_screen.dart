@@ -77,6 +77,16 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
                   SliverToBoxAdapter(
                     child: _Header(habit: habit, color: color),
                   ),
+                  if (habit.isPausedByAdaptation)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                        child: _PausedBanner(
+                          habit: habit,
+                          onRestart: () => _restartPaused(habit),
+                        ),
+                      ),
+                    ),
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
@@ -283,6 +293,76 @@ class _HabitDetailScreenState extends State<HabitDetailScreen> {
       HapticFeedback.mediumImpact();
       if (mounted) Navigator.of(context).pop();
     }
+  }
+
+  Future<void> _restartPaused(Habit habit) async {
+    final messenger = ScaffoldMessenger.of(context);
+    await _repo.restartHabit(habit.id);
+    HapticFeedback.mediumImpact();
+    messenger.showSnackBar(
+      SnackBar(content: Text('“${habit.title}” is back.')),
+    );
+  }
+}
+
+/// Shown on a habit the adaptation engine paused after its 3 approved
+/// adjustments. Never auto-reactivates: restarting is the user's call.
+class _PausedBanner extends StatelessWidget {
+  const _PausedBanner({required this.habit, required this.onRestart});
+  final Habit habit;
+  final VoidCallback onRestart;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.purple.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.pause_circle_outline_rounded,
+              size: 20, color: AppColors.pinkLight),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Paused after 3 adjustments',
+                  style: TextStyle(
+                    color: BrandColors.ink(context),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Your history is kept. Restart any time.',
+                  style: TextStyle(
+                    color: BrandColors.inkDim(context),
+                    fontSize: 12.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onRestart,
+            child: Text(
+              'Restart',
+              style: TextStyle(
+                color: AppColors.pinkLight,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

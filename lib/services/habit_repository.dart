@@ -9,6 +9,7 @@ import '../models/habit_log.dart';
 import '../models/habit_polarity.dart';
 import '../models/habit_type.dart';
 import '../models/routine_category.dart';
+import 'adaptation_service.dart';
 import 'database_service.dart';
 import 'habit_reminder_service.dart';
 import 'sync_service.dart';
@@ -328,19 +329,30 @@ class HabitRepository {
   /// Restarting deliberately pre-fills the *easier* version rather than
   /// the target that already failed — restoring the exact plan that
   /// stopped working is how a paused habit gets paused again.
+  ///
+  /// A habit the adaptation engine paused (3 adjustments used) is
+  /// restarted as it stands: its plan was already adjusted, so it isn't
+  /// halved again. The server's cycle counter is reset too.
   Future<void> restartHabit(String id) async {
     final h = _habitBox.get(id);
     if (h == null) return;
-    h.isArchived = false;
-    final target = h.targetValue;
-    if (target != null && target > 1) {
-      h.targetValue = (target / 2).ceil();
+    final fromAdaptation = clearAdaptationPause(h);
+    if (!fromAdaptation) {
+      h.isArchived = false;
+      final target = h.targetValue;
+      if (target != null && target > 1) {
+        h.targetValue = (target / 2).ceil();
+      }
     }
     h.updatedAt = DateTime.now();
     await h.save();
     SyncService().debouncedPush();
     // ignore: discarded_futures
     HabitReminderService().rescheduleFor(h);
+    if (fromAdaptation) {
+      // ignore: discarded_futures
+      AdaptationService().restartHabit(h.id);
+    }
   }
 
   List<Habit> getAllHabits() {

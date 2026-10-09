@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../models/badge_category.dart';
 import '../models/chat_message.dart';
 import '../models/earned_badge.dart';
+import '../models/entitlement.dart';
 import '../models/focus_area.dart';
 import '../models/frequency.dart';
 import '../models/gratitude_entry.dart';
@@ -69,6 +70,13 @@ class SyncService extends ChangeNotifier {
   }
 
   // ─── Status (light) ─────────────────────────────────────────────────
+
+  /// Pulses the free-plan habit limit (e.g. 3) after a push in which the
+  /// server refused to create one or more new habits and we archived them
+  /// locally. AuthGate listens and tells the user once per push. Reset to
+  /// null synchronously so the same value can pulse again.
+  final ValueNotifier<int?> habitLimitRejectedNotifier =
+      ValueNotifier<int?>(null);
 
   Timer? _periodicTimer;
   Timer? _pushDebounce;
@@ -153,6 +161,18 @@ class SyncService extends ChangeNotifier {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       debugPrint(
           '[Sync] pushed · accepted=${body['accepted']} · skipped=${body['skipped']}');
+      // Older servers send no `rejected` key — parseList gives [].
+      final rejected = SyncRejection.parseList(body['rejected']);
+      if (rejected.isNotEmpty) {
+        final limit = rejected
+            .map((r) => r.limit)
+            .firstWhere((l) => l != null, orElse: () => null);
+        final archived = await applyHabitLimitRejections(rejected);
+        if (archived > 0) {
+          habitLimitRejectedNotifier.value = limit ?? 3;
+          habitLimitRejectedNotifier.value = null;
+        }
+      }
     } on TimeoutException {
       debugPrint('[Sync] push timeout');
     } catch (e) {
@@ -160,6 +180,39 @@ class SyncService extends ChangeNotifier {
     } finally {
       _syncing = false;
     }
+  }
+
+  /// The server refuses to CREATE a new active habit once a standard Free
+  /// account is at its cap. Nothing is deleted: the habit is kept locally
+  /// as archived (inactive, history intact) and stamped so the next push
+  /// sends it as an archived row, which the server always accepts. Returns
+  /// how many habits were archived.
+  @visibleForTesting
+  Future<int> applyHabitLimitRejections(
+    List<SyncRejection> rejected, {
+    Box<Habit>? habitBox,
+    void Function(Habit habit)? onArchived,
+    bool pushAfter = true,
+  }) async {
+    final box = habitBox ?? DatabaseService.instance.habitBox;
+    var archived = 0;
+    for (final r in rejected) {
+      if (!r.isHabitLimit) continue;
+      final h = box.get(r.entityId);
+      if (h == null || h.isArchived) continue;
+      h.isArchived = true;
+      h.updatedAt = DateTime.now();
+      await h.save();
+      archived++;
+      if (onArchived != null) {
+        onArchived(h);
+      } else {
+        // ignore: discarded_futures
+        HabitReminderService().cancelFor(h);
+      }
+    }
+    if (archived > 0 && pushAfter) debouncedPush();
+    return archived;
   }
 
   // ─── Pull ───────────────────────────────────────────────────────────
@@ -898,6 +951,10 @@ class _HabitCodec implements _EntityCodec {
           'parkedBehind': h.parkedBehind,
           // Opt-in visibility to fellow challenge members only.
           'shareInChallenges': h.shareInChallenges,
+          // Set when the adaptation engine paused the habit; absent /
+          // null on older clients' payloads.
+          'pausedReason': h.pausedReason,
+          'pausedAt': h.pausedAt == null ? null : _iso(h.pausedAt!),
         });
       }
     }
@@ -967,6 +1024,8 @@ class _HabitCodec implements _EntityCodec {
       supportFor: json['supportFor'] as String?,
       parkedBehind: json['parkedBehind'] as String?,
       shareInChallenges: json['shareInChallenges'] as bool? ?? false,
+      pausedReason: json['pausedReason'] as String?,
+      pausedAt: _parseDate(json['pausedAt']),
     );
     await _box.put(id, h);
     // After a pull writes a habit, reschedule its OS-level slots so

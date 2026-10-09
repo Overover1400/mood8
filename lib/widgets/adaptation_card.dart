@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/adaptation_service.dart';
+import '../services/habit_repository.dart';
 import '../services/haptic_service.dart';
 import '../theme/app_theme.dart';
 
@@ -19,6 +20,10 @@ import '../theme/app_theme.dart';
 ///
 /// Older proposals that already carry a concrete change skip straight
 /// to step 3.
+///
+/// A `pause` proposal is the exception: it asks nothing. The habit has
+/// used all its approved adjustments and is still being missed, so the
+/// card pauses it (history kept), says so, and offers a restart.
 class AdaptationCard extends StatefulWidget {
   const AdaptationCard({super.key, this.onResolved});
 
@@ -30,7 +35,7 @@ class AdaptationCard extends StatefulWidget {
   State<AdaptationCard> createState() => _AdaptationCardState();
 }
 
-enum _Stage { reason, window, reduce, tooSmall, proposal }
+enum _Stage { reason, window, reduce, tooSmall, proposal, pause }
 
 const _windowLabels = {
   'morning': 'Morning',
@@ -47,6 +52,10 @@ class _AdaptationCardState extends State<AdaptationCard> {
   String? _closing;
   String? _error;
 
+  /// The local pause + server confirmation for a `pause` proposal. Started
+  /// once when the card appears; "Got it" / "Restart now" wait for it.
+  Future<void>? _pauseApplied;
+
   @override
   void initState() {
     super.initState();
@@ -58,7 +67,68 @@ class _AdaptationCardState extends State<AdaptationCard> {
     if (!mounted) return;
     setState(() {
       _proposal = p;
-      _stage = (p != null && p.isAsk) ? _Stage.reason : _Stage.proposal;
+      _stage = p == null
+          ? _Stage.proposal
+          : p.isPause
+              ? _Stage.pause
+              : p.isAsk
+                  ? _Stage.reason
+                  : _Stage.proposal;
+    });
+    if (p != null && p.isPause) _pauseApplied ??= _applyPause(p);
+  }
+
+  /// Pausing doesn't change the plan, it stops the nagging, so it is
+  /// applied without asking. Idempotent: if the confirmation fails the
+  /// server offers the same card again and this runs again harmlessly.
+  Future<void> _applyPause(AdaptationProposal p) async {
+    final svc = AdaptationService();
+    await svc.applyPause(p);
+    await svc.accept(p.id);
+    widget.onResolved?.call();
+  }
+
+  void _collapse() {
+    if (!mounted) return;
+    setState(() => _proposal = null);
+    widget.onResolved?.call();
+  }
+
+  Future<void> _gotIt() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    HapticService().light();
+    await _pauseApplied;
+    _collapse();
+  }
+
+  Future<void> _restartNow(AdaptationProposal p) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    HapticService().light();
+    try {
+      await _pauseApplied;
+      await HabitRepository().restartHabit(p.habitId);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = 'Couldn\'t restart it — try again from the Habits tab.';
+      });
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _done = true;
+      _closing = 'Restarted. We\'ll start fresh with this habit.';
+    });
+    widget.onResolved?.call();
+    Future<void>.delayed(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _proposal = null);
     });
   }
 
@@ -194,7 +264,7 @@ class _AdaptationCardState extends State<AdaptationCard> {
                     size: 17, color: AppColors.pinkLight),
                 const SizedBox(width: 7),
                 Text(
-                  'YOUR PLAN, ADJUSTED',
+                  _stage == _Stage.pause ? 'HABIT PAUSED' : 'YOUR PLAN, ADJUSTED',
                   style: TextStyle(
                     color: BrandColors.inkDim(context),
                     fontSize: 10,
@@ -352,6 +422,56 @@ class _AdaptationCardState extends State<AdaptationCard> {
             }),
           ),
           _backRow(() => setState(() => _stage = _Stage.reason)),
+        ];
+
+      case _Stage.pause:
+        return [
+          _hint(context, p.habitTitle),
+          _question(context, 'Paused after ${p.maxCycles} adjustments'),
+          const SizedBox(height: 6),
+          Text(
+            p.rationale.isNotEmpty
+                ? p.rationale
+                : 'We tried ${p.maxCycles} adjustments and it\'s still not '
+                    'sticking, so we\'ve paused it.',
+            style: TextStyle(
+              color: BrandColors.inkSoft(context),
+              fontSize: 14,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Your history is kept. Restart any time.',
+            style: TextStyle(
+              color: BrandColors.inkDim(context),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _Btn(
+                  label: 'Got it',
+                  primary: true,
+                  busy: _busy,
+                  onTap: _gotIt,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _Btn(
+                  label: 'Restart now',
+                  primary: false,
+                  busy: _busy,
+                  onTap: () => _restartNow(p),
+                ),
+              ),
+            ],
+          ),
+          ...err,
         ];
 
       case _Stage.proposal:

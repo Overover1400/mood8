@@ -420,14 +420,16 @@ class _HabitsScreenState extends State<HabitsScreen> {
                               onRestart: (h) async {
                                 final messenger =
                                     ScaffoldMessenger.of(context);
+                                final byAdaptation = h.isPausedByAdaptation;
                                 await _repo.restartHabit(h.id);
                                 HapticService().selection();
                                 if (!mounted) return;
                                 messenger.showSnackBar(
                                   SnackBar(
-                                    content: Text(
-                                        '“${h.title}” is back — starting '
-                                        'easier this time.'),
+                                    content: Text(byAdaptation
+                                        ? '“${h.title}” is back.'
+                                        : '“${h.title}” is back — starting '
+                                            'easier this time.'),
                                   ),
                                 );
                                 setState(() {});
@@ -1622,15 +1624,30 @@ class _PausedSection extends StatelessWidget {
                       Text(h.icon, style: const TextStyle(fontSize: 17)),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(
-                          h.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: BrandColors.inkSoft(context),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              h.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: BrandColors.inkSoft(context),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              h.isPausedByAdaptation
+                                  ? 'Paused after 3 adjustments'
+                                  : 'Paused',
+                              style: TextStyle(
+                                color: BrandColors.inkDim(context),
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       TextButton(

@@ -577,6 +577,12 @@ class _ChatTabState extends State<_ChatTab> {
   /// most recent assistant message. Cleared when the user accepts,
   /// declines, or sends another message.
   ProposedHabits? _pendingProposal;
+
+  /// From the last coach reply: the daily AI habit-suggestion allowance
+  /// (null = uncapped) and whether it just ran out.
+  int? _suggestionsLeft;
+  int _suggestionsLimit = 0;
+  bool _suggestionLimitReached = false;
   bool _addingProposal = false;
   /// Latest gpt-4o quota remaining today, echoed by the server on
   /// each successful Coach reply. Null before the first reply or
@@ -635,6 +641,7 @@ class _ChatTabState extends State<_ChatTab> {
       // talking. Either way the old card shouldn't linger above the
       // new reply.
       _pendingProposal = null;
+      _suggestionLimitReached = false;
     });
 
     try {
@@ -657,6 +664,9 @@ class _ChatTabState extends State<_ChatTab> {
       // Track the latest remaining-4o counts so the compose bar can
       // render a subtle "N left today" hint when we're getting low.
       _remainingToday = result.remainingToday;
+      _suggestionsLeft = result.suggestionsLeft;
+      _suggestionsLimit = result.suggestionsLimit;
+      _suggestionLimitReached = result.suggestionLimitReached;
       SfxService().fire(SfxType.aiMessage);
       HapticService().light();
     } on AiException catch (e) {
@@ -939,6 +949,30 @@ class _ChatTabState extends State<_ChatTab> {
                         },
                       ),
               ),
+              if (_suggestionLimitReached)
+                _SuggestionLimitNotice(
+                  onUpgrade: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const PaywallScreen(
+                        contextNote:
+                            'Premium removes the daily AI habit suggestion limit.',
+                      ),
+                    ),
+                  ),
+                )
+              else if (_suggestionsLimit > 0 && _suggestionsLeft != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    '$_suggestionsLeft of $_suggestionsLimit AI habit '
+                    'suggestion${_suggestionsLimit == 1 ? '' : 's'} left today',
+                    style: TextStyle(
+                      color: BrandColors.inkDim(context),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               if (_pendingProposal != null)
                 _ProposalCard(
                   proposal: _pendingProposal!,
@@ -1526,6 +1560,54 @@ class _ProposalRow extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Shown under the coach reply when the free daily allowance of AI habit
+/// suggestions is used up. Chat itself keeps working (its own limit is
+/// separate), so this is a notice, not a block.
+class _SuggestionLimitNotice extends StatelessWidget {
+  const _SuggestionLimitNotice({required this.onUpgrade});
+  final VoidCallback onUpgrade;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: BrandColors.bgCard(context).withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.purple.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'You\'ve used today\'s AI habit suggestions. Chat still '
+              'works; suggestions reset tomorrow (UTC).',
+              style: TextStyle(
+                color: BrandColors.inkSoft(context),
+                fontSize: 12.5,
+                height: 1.4,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onUpgrade,
+            child: Text(
+              'Upgrade',
+              style: TextStyle(
+                color: AppColors.pinkLight,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
             ),
           ),
         ],

@@ -3,9 +3,11 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/habit.dart';
 import 'auth_service.dart';
+import 'habit_reminder_service.dart';
 import 'habit_repository.dart';
 
 /// One proposed change to the user's plan.
@@ -27,15 +29,21 @@ class AdaptationProposal {
     this.windows = const {},
     this.canReduceAmount = false,
     this.canReduceDuration = false,
+    this.cyclesUsed = 0,
+    this.maxCycles = 3,
   });
 
   final int id;
   final String habitId;
   final String habitTitle;
-  /// ask · time · quantity · duration · increase · floor
+  /// ask · time · quantity · duration · increase · floor · pause
   ///
   /// `ask` is the first step of the card: the user has not said why
   /// they keep missing the habit yet, so there is no change to propose.
+  ///
+  /// `pause` means the habit has used all its approved adjustments and is
+  /// still being missed. It changes nothing about the plan, it stops the
+  /// nagging, so the client applies it without asking.
   final String kind;
   final String rationale;
   final String? fromValue;
@@ -47,7 +55,12 @@ class AdaptationProposal {
   final bool canReduceAmount;
   final bool canReduceDuration;
 
+  /// Only for `pause`: how many adjustments were used, out of how many.
+  final int cyclesUsed;
+  final int maxCycles;
+
   bool get isAsk => kind == 'ask';
+  bool get isPause => kind == 'pause';
 
   factory AdaptationProposal.fromJson(Map<String, dynamic> j) {
     final opts = (j['options'] as Map?)?.cast<String, dynamic>() ?? const {};
@@ -68,6 +81,8 @@ class AdaptationProposal {
       windows: wins,
       canReduceAmount: opts['can_reduce_amount'] == true,
       canReduceDuration: opts['can_reduce_duration'] == true,
+      cyclesUsed: (j['cycles_used'] as num?)?.toInt() ?? 0,
+      maxCycles: (j['max_cycles'] as num?)?.toInt() ?? 3,
     );
   }
 
@@ -82,6 +97,8 @@ class AdaptationProposal {
         return 'Shorten it';
       case 'increase':
         return 'Level up';
+      case 'pause':
+        return 'Got it';
       default:
         return 'Do it';
     }
@@ -136,6 +153,28 @@ class AdaptationRecord {
       );
 }
 
+/// Pause [h] because the adaptation engine ran out of adjustments.
+/// Idempotent, and it never overrides another flow: a habit the user
+/// already archived, or one parked behind a stepping stone, is left as
+/// it is. Returns true when [h] was changed (and needs saving).
+bool markPausedByAdaptation(Habit h, {DateTime? now}) {
+  if (h.isArchived || h.parkedBehind != null) return false;
+  h.isArchived = true;
+  h.pausedReason = kPausedAdaptCycles;
+  h.pausedAt = now ?? DateTime.now();
+  return true;
+}
+
+/// Undo [markPausedByAdaptation] on restart. Returns true when [h] was
+/// an adaptation pause (and so needs saving + the server told).
+bool clearAdaptationPause(Habit h) {
+  if (h.pausedReason != kPausedAdaptCycles) return false;
+  h.isArchived = false;
+  h.pausedReason = null;
+  h.pausedAt = null;
+  return true;
+}
+
 class AdaptationService {
   AdaptationService._();
   static final AdaptationService _instance = AdaptationService._();
@@ -143,6 +182,7 @@ class AdaptationService {
 
   static const String _baseUrl = 'https://mood8.app/api';
   static const Duration _timeout = Duration(seconds: 15);
+  static const String _kPendingRestartsKey = 'mood8.adapt.pendingRestarts';
 
   final http.Client _client = http.Client();
 
@@ -160,6 +200,8 @@ class AdaptationService {
   /// users, on any error, and on the (common) days with nothing to say.
   Future<AdaptationProposal?> todaysProposal() async {
     if (!_signedIn) return null;
+    // ignore: discarded_futures
+    _flushPendingRestarts();
     try {
       final res = await _client
           .get(Uri.parse('$_baseUrl/adapt/proposal?v=2'), headers: _headers)
@@ -258,6 +300,91 @@ class AdaptationService {
   }
 
   Future<bool> decline(int id) => _decide(id, 'decline');
+
+  /// Apply a `pause` proposal on this device: archive the habit (history
+  /// kept), record why and when, and switch its reminders off. Safe to
+  /// call again for the same proposal. Returns false only when the habit
+  /// can't be found. The caller then confirms with [accept].
+  Future<bool> applyPause(AdaptationProposal p) async {
+    try {
+      final repo = HabitRepository();
+      Habit? h;
+      for (final x in repo.getAllHabits()) {
+        if (x.id == p.habitId) {
+          h = x;
+          break;
+        }
+      }
+      if (h == null) return false;
+      if (markPausedByAdaptation(h)) await repo.updateHabit(h);
+      // Belt and braces: updateHabit reschedules (= cancels, archived),
+      // but a paused habit must never keep a reminder.
+      await HabitReminderService().cancelFor(h);
+      return true;
+    } catch (e) {
+      debugPrint('[adapt] applyPause failed: $e');
+      return false;
+    }
+  }
+
+  /// Tell the server the user restarted a paused habit, which resets its
+  /// adjustment counter. If it can't be sent now it is retried on the next
+  /// [todaysProposal].
+  Future<bool> restartHabit(String habitId) async {
+    if (!_signedIn) {
+      await _queueRestart(habitId);
+      return false;
+    }
+    try {
+      final res = await _client
+          .post(
+              Uri.parse(
+                  '$_baseUrl/adapt/habits/${Uri.encodeComponent(habitId)}/restart'),
+              headers: _headers)
+          .timeout(_timeout);
+      if (res.statusCode >= 200 && res.statusCode < 300) return true;
+      // 4xx = the server doesn't know the habit / an older server without
+      // the endpoint: nothing to retry. 5xx / rate limits are worth it.
+      if (res.statusCode >= 500 || res.statusCode == 429) {
+        await _queueRestart(habitId);
+      }
+      return false;
+    } catch (e) {
+      debugPrint('[adapt] restart failed: $e');
+      await _queueRestart(habitId);
+      return false;
+    }
+  }
+
+  Future<void> _queueRestart(String habitId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final ids = (prefs.getStringList(_kPendingRestartsKey) ?? const [])
+          .toSet()
+        ..add(habitId);
+      await prefs.setStringList(_kPendingRestartsKey, ids.toList());
+    } catch (_) {}
+  }
+
+  bool _flushing = false;
+
+  Future<void> _flushPendingRestarts() async {
+    if (_flushing) return;
+    _flushing = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final ids = prefs.getStringList(_kPendingRestartsKey) ?? const [];
+      if (ids.isEmpty) return;
+      await prefs.remove(_kPendingRestartsKey);
+      for (final id in ids) {
+        // Re-queues itself on a retryable failure.
+        await restartHabit(id);
+      }
+    } catch (_) {
+    } finally {
+      _flushing = false;
+    }
+  }
 
   Future<bool> _decide(int id, String what) async {
     if (!_signedIn) return false;
