@@ -19,6 +19,8 @@ class PersonalizedSuggestion {
     this.difficulty = 2,
     this.identity = 'General',
     this.source = 'identity',
+    this.peerUsers,
+    this.peerKept,
   });
 
   final String key;
@@ -38,6 +40,11 @@ class PersonalizedSuggestion {
 
   /// identity · goal · similar_users
   final String source;
+
+  /// When similar users' real behaviour backed this suggestion: how many
+  /// of them there were and how many kept the habit. Null otherwise.
+  final int? peerUsers;
+  final int? peerKept;
 
   /// Reminder minute-of-day for [time], or null when absent / malformed.
   int? get reminderMinute {
@@ -95,6 +102,8 @@ class PersonalizedSuggestion {
         identity: (j['identity'] as String?) ?? 'General',
         why: (j['why'] as String?) ?? '',
         source: (j['source'] as String?) ?? 'identity',
+        peerUsers: ((j['peers'] as Map?)?['users'] as num?)?.toInt(),
+        peerKept: ((j['peers'] as Map?)?['kept'] as num?)?.toInt(),
       );
 }
 
@@ -148,6 +157,9 @@ class PersonalizationBasis {
     this.behaviour = false,
     this.freshEnergy = 'none',
     this.similarUsers = 'insufficient_data',
+    this.similarN = 0,
+    this.similarLevel,
+    this.dropOffs = const [],
     this.level = 2,
   });
 
@@ -160,6 +172,14 @@ class PersonalizationBasis {
 
   /// used · insufficient_data
   final String similarUsers;
+
+  /// How many similar users the suggestions drew on, and how closely they
+  /// matched: goal+energy+reason · goal+energy · goal · same reason.
+  final int similarN;
+  final String? similarLevel;
+
+  /// Habits that people like this user tend to drop.
+  final List<String> dropOffs;
   final int level;
 
   factory PersonalizationBasis.fromJson(Map<String, dynamic>? j) {
@@ -173,6 +193,12 @@ class PersonalizationBasis {
       behaviour: j['behaviour'] == true,
       freshEnergy: (j['fresh_energy'] as String?) ?? 'none',
       similarUsers: (j['similar_users'] as String?) ?? 'insufficient_data',
+      similarN: (j['similar_n'] as num?)?.toInt() ?? 0,
+      similarLevel: j['similar_level'] as String?,
+      dropOffs: [
+        for (final d in (j['drop_offs'] as List?) ?? const [])
+          if (d is String) d
+      ],
       level: (j['level'] as num?)?.toInt() ?? 2,
     );
   }
@@ -204,10 +230,23 @@ class PersonalizationResult {
         'your focus on ${_join(basis.goalAreas)}',
       if (basis.behaviour) 'your recent habits',
       if (basis.freshEnergy == 'low') 'your low energy lately',
-      if (basis.similarUsers == 'used') 'people with a similar rhythm',
+      if (basis.similarUsers == 'used') _similarPhrase(),
     ];
     if (parts.isEmpty) return 'Based on a few general starting points';
     return 'Based on ${_join(parts)}';
+  }
+
+  String _similarPhrase() {
+    final n = basis.similarN;
+    final who = switch (basis.similarLevel) {
+      'goal+energy+reason' =>
+        'people with your goal, energy pattern and reason for stopping',
+      'goal+energy' => 'people with your goal and energy pattern',
+      'goal' => 'people with your goal',
+      'same reason' => 'people who stopped for the same reason',
+      _ => 'people like you',
+    };
+    return n > 0 ? '$n $who' : who;
   }
 
   static String _join(List<String> xs) {

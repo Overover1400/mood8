@@ -21,7 +21,8 @@ Map<String, dynamic> _payload() => {
           'difficulty': 2,
           'identity': 'Scholar',
           'why': 'Fits your Scholar identity.',
-          'source': 'identity',
+          'source': 'similar_users',
+          'peers': {'users': 12, 'kept': 9, 'level': 'goal+energy'},
         },
         {
           'key': 'scholar.review',
@@ -47,6 +48,8 @@ Map<String, dynamic> _payload() => {
         'behaviour': true,
         'fresh_energy': 'low',
         'similar_users': 'insufficient_data',
+        'similar_n': 0,
+        'drop_offs': ['Journal'],
         'level': 1,
       },
       'slots_left': 2,
@@ -66,6 +69,10 @@ void main() {
     expect(r.followUp!.options.map((o) => o.label), ['Morning', 'evening']);
     expect(r.slotsLeft, 2);
     expect(r.isEmpty, isFalse);
+    expect(read.peerUsers, 12);
+    expect(read.peerKept, 9);
+    expect(r.suggestions.last.peerUsers, isNull);
+    expect(r.basis.dropOffs, ['Journal']);
   });
 
   test('tolerates missing fields and unknown enum strings', () {
@@ -104,9 +111,25 @@ void main() {
 
     final used = PersonalizationResult.fromJson({
       'suggestions': [],
-      'basis': {'similar_users': 'used'},
+      'basis': {
+        'similar_users': 'used',
+        'similar_n': 14,
+        'similar_level': 'goal+energy+reason',
+      },
     });
-    expect(used.basisLine, 'Based on people with a similar rhythm');
+    expect(used.basisLine,
+        'Based on 14 people with your goal, energy pattern and reason for stopping');
+    final goalOnly = PersonalizationResult.fromJson({
+      'suggestions': [],
+      'basis': {
+        'identity': 'Scholar',
+        'similar_users': 'used',
+        'similar_n': 11,
+        'similar_level': 'goal',
+      },
+    });
+    expect(goalOnly.basisLine,
+        'Based on your Scholar identity and 11 people with your goal');
 
     expect(PersonalizationResult.fromJson({}).basisLine,
         'Based on a few general starting points');

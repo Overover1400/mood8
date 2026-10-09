@@ -231,6 +231,14 @@ class _SuggestedHabitsSheetState extends State<SuggestedHabitsSheet> {
               const SizedBox(height: 4),
               Text(_result.basisLine,
                   style: TextStyle(color: dim, fontSize: 13.5)),
+              if (_result.basis.dropOffs.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'People like you often drop: '
+                  '${_result.basis.dropOffs.join(', ')}.',
+                  style: TextStyle(color: dim, fontSize: 12.5),
+                ),
+              ],
               if (_result.slotsLeft != null) ...[
                 const SizedBox(height: 4),
                 Text(
