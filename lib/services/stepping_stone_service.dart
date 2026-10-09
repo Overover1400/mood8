@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../feature_flags.dart';
 import '../models/habit.dart';
 import '../models/habit_type.dart';
 import 'bad_day_service.dart';
@@ -41,6 +42,9 @@ class SteppingStoneService {
   /// Returns at most one. Telling someone three of their habits are
   /// failing in a single sitting is a pile-on, not help.
   Habit? pickCandidate() {
+    // New parking is off (see [kSteppingStoneParkingEnabled]): the third
+    // miss belongs to the ask-why / propose / approve loop.
+    if (!kSteppingStoneParkingEnabled) return null;
     final logs = _habits.allLogs.toList();
     final misses = MissReasonService();
     Habit? worst;
