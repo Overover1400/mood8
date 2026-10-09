@@ -193,8 +193,11 @@ class _AdaptationCardState extends State<AdaptationCard> {
           : !accept
               ? 'Kept as it is.'
               : applied
-                  ? 'Done — updated. We\'ll check in two weeks whether it '
-                      'helped.'
+                  ? (p.kind == 'time'
+                      ? 'Done — your reminder is now at ${p.toValue}. '
+                          'We\'ll check in two weeks whether it helped.'
+                      : 'Done — updated. We\'ll check in two weeks whether '
+                          'it helped.')
                   : 'Saved, but we couldn\'t update the habit on this '
                       'device. Edit it by hand.';
     });

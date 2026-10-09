@@ -153,6 +153,71 @@ class AdaptationRecord {
       );
 }
 
+/// Put an accepted proposal's value into [h] (in memory; the caller saves).
+/// `time` replaces the habit's reminder slots with the one proposed time and
+/// switches reminders on, so the Edit screen shows exactly that time.
+/// Returns false when the proposal can't be applied to this habit.
+bool applyProposalToHabit(Habit h, AdaptationProposal p) {
+  final to = p.toValue;
+  if (to == null) return false;
+  switch (p.kind) {
+    case 'time':
+      final m = minuteOfDay(to);
+      if (m == null) return false;
+      h.reminderMinutes = [m];
+      h.remindersEnabled = true;
+      return true;
+    case 'quantity' || 'increase':
+      final n = int.tryParse(to);
+      if (n == null || n < 1) return false;
+      h.targetValue = n;
+      return true;
+    case 'duration':
+      final n = int.tryParse(to);
+      if (n == null || n < 1) return false;
+      if (h.programDurationDays != null) {
+        h.programDurationDays = n;
+      } else {
+        h.avoidDurationDays = n;
+      }
+      return true;
+    default:
+      return false;
+  }
+}
+
+/// Whether [h] currently holds [p]'s value (what Edit would show).
+bool proposalIsApplied(Habit h, AdaptationProposal p) {
+  final to = p.toValue;
+  if (to == null) return false;
+  switch (p.kind) {
+    case 'time':
+      final m = minuteOfDay(to);
+      return m != null && h.remindersEnabled && h.reminderMinutes.length == 1 &&
+          h.reminderMinutes.first == m;
+    case 'quantity' || 'increase':
+      return h.targetValue == int.tryParse(to);
+    case 'duration':
+      final n = int.tryParse(to);
+      return n != null &&
+          (h.programDurationDays ?? h.avoidDurationDays) == n;
+    default:
+      return false;
+  }
+}
+
+/// "HH:MM" -> minute of day, or null.
+int? minuteOfDay(String hhmm) {
+  final parts = hhmm.split(':');
+  if (parts.length != 2) return null;
+  final hh = int.tryParse(parts[0]);
+  final mm = int.tryParse(parts[1]);
+  if (hh == null || mm == null || hh < 0 || hh > 23 || mm < 0 || mm > 59) {
+    return null;
+  }
+  return hh * 60 + mm;
+}
+
 /// Pause [h] because the adaptation engine ran out of adjustments.
 /// Idempotent, and it never overrides another flow: a habit the user
 /// already archived, or one parked behind a stepping stone, is left as
@@ -253,7 +318,8 @@ class AdaptationService {
 
   /// Write an accepted proposal into the habit itself. The server only
   /// records the decision; the habit lives on the device, so without
-  /// this an accepted card would change nothing.
+  /// this an accepted card would change nothing. Returns true only when
+  /// the habit was changed AND reads back changed.
   Future<bool> applyToHabit(AdaptationProposal p) async {
     try {
       final repo = HabitRepository();
@@ -264,35 +330,14 @@ class AdaptationService {
           break;
         }
       }
-      final to = p.toValue;
-      if (h == null || to == null) return false;
-      switch (p.kind) {
-        case 'time':
-          final parts = to.split(':');
-          if (parts.length != 2) return false;
-          final hh = int.tryParse(parts[0]);
-          final mm = int.tryParse(parts[1]);
-          if (hh == null || mm == null) return false;
-          // One slot: the card proposes one time for the habit.
-          h.reminderMinutes = [hh * 60 + mm];
-          h.remindersEnabled = true;
-        case 'quantity' || 'increase':
-          final n = int.tryParse(to);
-          if (n == null || n < 1) return false;
-          h.targetValue = n;
-        case 'duration':
-          final n = int.tryParse(to);
-          if (n == null || n < 1) return false;
-          if (h.programDurationDays != null) {
-            h.programDurationDays = n;
-          } else {
-            h.avoidDurationDays = n;
-          }
-        default:
-          return false;
-      }
+      if (h == null || !applyProposalToHabit(h, p)) return false;
       await repo.updateHabit(h);
-      return true;
+      // Read it back: the card must never say "updated" for a habit that
+      // still shows the old value in Edit.
+      for (final x in repo.getAllHabits()) {
+        if (x.id == p.habitId) return proposalIsApplied(x, p);
+      }
+      return false;
     } catch (e) {
       debugPrint('[adapt] apply failed: $e');
       return false;
