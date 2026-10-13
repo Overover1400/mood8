@@ -2,8 +2,10 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../models/entitlement.dart';
 import '../models/subscription.dart';
 import '../services/haptic_service.dart';
 import '../services/purchase_service.dart';
@@ -48,7 +50,10 @@ class PremiumScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _CurrentPlanCard(tier: tier, expiresAt: svc.expiresAt)
+                    _CurrentPlanCard(
+                            tier: tier,
+                            expiresAt: svc.expiresAt,
+                            entitlement: svc.entitlement)
                         .animate()
                         .fadeIn(duration: 380.ms)
                         .slideY(
@@ -83,7 +88,7 @@ class PremiumScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 22),
-                    _CTAStack(tier: tier),
+                    _CTAStack(tier: tier, entitlement: svc.entitlement),
                     const SizedBox(height: 18),
                     // Checkout footer hidden during the promo (no upsell).
                     if (!svc.freeModeActive)
@@ -115,9 +120,14 @@ class PremiumScreen extends StatelessWidget {
 }
 
 class _CurrentPlanCard extends StatelessWidget {
-  const _CurrentPlanCard({required this.tier, required this.expiresAt});
+  const _CurrentPlanCard({
+    required this.tier,
+    required this.expiresAt,
+    required this.entitlement,
+  });
   final SubscriptionTier tier;
   final DateTime? expiresAt;
+  final EntitlementStatus entitlement;
 
   @override
   Widget build(BuildContext context) {
@@ -130,8 +140,8 @@ class _CurrentPlanCard extends StatelessWidget {
               AppColors.pink.withValues(alpha: 0.10),
             ],
           );
-    final label = isPaid ? tier.label : 'Free';
-    final sub = _subtitleFor(tier, expiresAt);
+    final label = planCardTitle(tier, entitlement);
+    final sub = planCardSubtitle(tier, expiresAt, entitlement);
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
@@ -221,18 +231,49 @@ class _CurrentPlanCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  static String? _subtitleFor(SubscriptionTier tier, DateTime? expiresAt) {
-    if (!tier.isPaid) return "Upgrade any time — your data stays.";
-    if (tier.isLifetime) return 'Paid once. Yours forever.';
-    if (expiresAt != null) {
-      final d = expiresAt;
-      final mm = d.month.toString().padLeft(2, '0');
-      final dd = d.day.toString().padLeft(2, '0');
-      return 'Renews $mm/$dd/${d.year}';
-    }
-    return 'Active subscription.';
+/// Big label: the server's plan class wins for the non-paying kinds
+/// (trial / reward / legacy); a real subscription keeps the tier label.
+String planCardTitle(SubscriptionTier tier, EntitlementStatus ent) {
+  switch (ent.planClass) {
+    case PlanClass.legacyUnlimited:
+    case PlanClass.premiumTrial:
+    case PlanClass.premiumComplimentary:
+      return ent.planLabel;
   }
+  return tier.isPaid ? tier.label : 'Free';
+}
+
+String? planCardSubtitle(
+    SubscriptionTier tier, DateTime? expiresAt, EntitlementStatus ent) {
+  String date(DateTime d) => DateFormat.yMMMd().format(d.toLocal());
+  switch (ent.planClass) {
+    case PlanClass.legacyUnlimited:
+      return 'Unlimited habits; this is not Premium.';
+    case PlanClass.premiumTrial:
+      final end = ent.trialEndsAt ?? expiresAt;
+      final days = ent.trialDaysLeft();
+      if (end == null) return 'Trial active.';
+      final left = days == null
+          ? ''
+          : days <= 0
+              ? ' · ends today'
+              : ' · $days ${days == 1 ? 'day' : 'days'} left';
+      return 'Ends ${date(end)}$left';
+    case PlanClass.premiumComplimentary:
+      return expiresAt == null
+          ? 'Included with your account.'
+          : 'Ends ${date(expiresAt)}';
+  }
+  if (!tier.isPaid) return "Upgrade any time — your data stays.";
+  if (tier.isLifetime) return 'Paid once. Yours forever.';
+  if (expiresAt != null) {
+    // A promo / referral grant doesn't renew; a subscription does.
+    final stripe = ent.premiumSource == null || ent.premiumSource == 'stripe';
+    return stripe ? 'Renews ${date(expiresAt)}' : 'Ends ${date(expiresAt)}';
+  }
+  return 'Active subscription.';
 }
 
 class _TierBenefitsCard extends StatelessWidget {
@@ -385,18 +426,24 @@ class _TierBenefitsCard extends StatelessWidget {
 }
 
 class _CTAStack extends StatelessWidget {
-  const _CTAStack({required this.tier});
+  const _CTAStack({required this.tier, required this.entitlement});
   final SubscriptionTier tier;
+  final EntitlementStatus entitlement;
 
   @override
   Widget build(BuildContext context) {
     final canPurchaseInApp = PurchaseService().supportsInAppPurchase;
+    // A trial or a reward grant has no Stripe subscription to manage, so
+    // it gets the same "See plans" path as a free account.
+    final subscriber = tier.isPaid &&
+        !entitlement.isTrial &&
+        entitlement.planClass != PlanClass.premiumComplimentary;
     // During the free-mode promo, suppress the upgrade CTA for non-payers
     // and show a single tasteful line instead (no checkout surface).
-    if (!tier.isPaid && SubscriptionService().freeModeActive) {
+    if (!subscriber && SubscriptionService().freeModeActive) {
       return const _FreeModeNotice();
     }
-    if (!tier.isPaid) {
+    if (!subscriber) {
       // Free user. On web → normal "See plans" opens the paywall
       // with a live checkout button. On native mobile (Play Billing
       // not wired yet) → CTA opens mood8.app directly, which is

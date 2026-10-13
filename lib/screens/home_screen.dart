@@ -22,6 +22,7 @@ import '../models/share_card_data.dart';
 import 'share_progress_screen.dart';
 import '../models/user_profile.dart';
 import '../widgets/adaptation_card.dart';
+import '../widgets/trial_chip.dart';
 import '../services/anchor_service.dart';
 import '../services/miss_reason_service.dart';
 import '../services/stepping_stone_service.dart';
@@ -889,6 +890,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       // Free-tier upgrade nudge — self-hides for
                       // premium users and after dismissal.
                       const UpgradePromptBar(),
+                      // "Premium trial: N days left" while on a trial.
+                      const TrialChip(),
                       // Today's intention (banner above the hero). Shown
                       // once the user has set one via the "+" sheet.
                       ValueListenableBuilder<Box<MorningIntention>>(

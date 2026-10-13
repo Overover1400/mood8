@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/adaptation_service.dart';
+import '../services/habit_repository.dart';
 import '../services/haptic_service.dart';
 import '../theme/app_theme.dart';
 
@@ -19,6 +20,10 @@ import '../theme/app_theme.dart';
 ///
 /// Older proposals that already carry a concrete change skip straight
 /// to step 3.
+///
+/// A `pause` proposal is the exception: it asks nothing. The habit has
+/// used all its approved adjustments and is still being missed, so the
+/// card pauses it (history kept), says so, and offers a restart.
 class AdaptationCard extends StatefulWidget {
   const AdaptationCard({super.key, this.onResolved});
 
@@ -30,7 +35,7 @@ class AdaptationCard extends StatefulWidget {
   State<AdaptationCard> createState() => _AdaptationCardState();
 }
 
-enum _Stage { reason, window, reduce, tooSmall, proposal }
+enum _Stage { reason, other, window, reduce, tooSmall, proposal, pause }
 
 const _windowLabels = {
   'morning': 'Morning',
@@ -41,11 +46,16 @@ const _windowLabels = {
 class _AdaptationCardState extends State<AdaptationCard> {
   AdaptationProposal? _proposal;
   _Stage _stage = _Stage.proposal;
-  String? _reason; // no_time | no_mood | too_hard
+  String? _reason; // no_time | no_mood | too_hard | other
+  final TextEditingController _noteCtrl = TextEditingController();
   bool _busy = false;
   bool _done = false;
   String? _closing;
   String? _error;
+
+  /// The local pause + server confirmation for a `pause` proposal. Started
+  /// once when the card appears; "Got it" / "Restart now" wait for it.
+  Future<void>? _pauseApplied;
 
   @override
   void initState() {
@@ -53,12 +63,79 @@ class _AdaptationCardState extends State<AdaptationCard> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     final p = await AdaptationService().todaysProposal();
     if (!mounted) return;
     setState(() {
       _proposal = p;
-      _stage = (p != null && p.isAsk) ? _Stage.reason : _Stage.proposal;
+      _stage = p == null
+          ? _Stage.proposal
+          : p.isPause
+              ? _Stage.pause
+              : p.isAsk
+                  ? _Stage.reason
+                  : _Stage.proposal;
+    });
+    if (p != null && p.isPause) _pauseApplied ??= _applyPause(p);
+  }
+
+  /// Pausing doesn't change the plan, it stops the nagging, so it is
+  /// applied without asking. Idempotent: if the confirmation fails the
+  /// server offers the same card again and this runs again harmlessly.
+  Future<void> _applyPause(AdaptationProposal p) async {
+    final svc = AdaptationService();
+    await svc.applyPause(p);
+    await svc.accept(p.id);
+    widget.onResolved?.call();
+  }
+
+  void _collapse() {
+    if (!mounted) return;
+    setState(() => _proposal = null);
+    widget.onResolved?.call();
+  }
+
+  Future<void> _gotIt() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    HapticService().light();
+    await _pauseApplied;
+    _collapse();
+  }
+
+  Future<void> _restartNow(AdaptationProposal p) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    HapticService().light();
+    try {
+      await _pauseApplied;
+      await HabitRepository().restartHabit(p.habitId);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = 'Couldn\'t restart it — try again from the Habits tab.';
+      });
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _done = true;
+      _closing = 'Restarted. We\'ll start fresh with this habit.';
+    });
+    widget.onResolved?.call();
+    Future<void>.delayed(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _proposal = null);
     });
   }
 
@@ -70,9 +147,13 @@ class _AdaptationCardState extends State<AdaptationCard> {
       _reason = reason;
       _error = null;
       if (reason == 'too_hard') {
-        _stage = (p.canReduceAmount || p.canReduceDuration)
+        _stage = (p.canReduceAmount ||
+                p.canReduceDuration ||
+                p.canReduceFrequency)
             ? _Stage.reduce
             : _Stage.tooSmall;
+      } else if (reason == 'other') {
+        _stage = _Stage.other;
       } else {
         _stage = _Stage.window;
       }
@@ -88,8 +169,11 @@ class _AdaptationCardState extends State<AdaptationCard> {
       _error = null;
     });
     HapticService().light();
-    final next = await AdaptationService()
-        .answer(p.id, reason: reason, window: window, reduce: reduce);
+    final next = await AdaptationService().answer(p.id,
+        reason: reason,
+        window: window,
+        reduce: reduce,
+        note: reason == 'other' ? _noteCtrl.text.trim() : null);
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -123,8 +207,11 @@ class _AdaptationCardState extends State<AdaptationCard> {
           : !accept
               ? 'Kept as it is.'
               : applied
-                  ? 'Done — updated. We\'ll check in two weeks whether it '
-                      'helped.'
+                  ? (p.kind == 'time'
+                      ? 'Done — your reminder is now at ${p.toValue}. '
+                          'We\'ll check in two weeks whether it helped.'
+                      : 'Done — updated. We\'ll check in two weeks whether '
+                          'it helped.')
                   : 'Saved, but we couldn\'t update the habit on this '
                       'device. Edit it by hand.';
     });
@@ -194,7 +281,7 @@ class _AdaptationCardState extends State<AdaptationCard> {
                     size: 17, color: AppColors.pinkLight),
                 const SizedBox(width: 7),
                 Text(
-                  'YOUR PLAN, ADJUSTED',
+                  _stage == _Stage.pause ? 'HABIT PAUSED' : 'YOUR PLAN, ADJUSTED',
                   style: TextStyle(
                     color: BrandColors.inkDim(context),
                     fontSize: 10,
@@ -287,7 +374,44 @@ class _AdaptationCardState extends State<AdaptationCard> {
           _Choice(
               label: 'It\'s too hard or too much',
               onTap: () => _pickReason('too_hard')),
+          _Choice(
+              label: 'Something else',
+              onTap: () => _pickReason('other')),
           _backRow(_dismiss, label: 'Not now'),
+        ];
+
+      case _Stage.other:
+        return [
+          _hint(context, p.habitTitle),
+          _question(context, 'What got in the way?'),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _noteCtrl,
+            maxLength: 200,
+            maxLines: 2,
+            decoration: const InputDecoration(
+              hintText: 'A few words (optional)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 4),
+          _question(context, 'What should we try?'),
+          const SizedBox(height: 10),
+          _Choice(
+            label: 'Change the time',
+            sub: 'Pick a time of day',
+            busy: _busy,
+            onTap: () => setState(() => _stage = _Stage.window),
+          ),
+          if (p.canReduceAmount || p.canReduceDuration || p.canReduceFrequency)
+            _Choice(
+              label: 'Make it smaller',
+              sub: 'Lighter, shorter or fewer days',
+              busy: _busy,
+              onTap: () => setState(() => _stage = _Stage.reduce),
+            ),
+          ...err,
+          _backRow(() => setState(() => _stage = _Stage.reason)),
         ];
 
       case _Stage.window:
@@ -332,6 +456,13 @@ class _AdaptationCardState extends State<AdaptationCard> {
               busy: _busy,
               onTap: () => _submitAnswer(reduce: 'amount'),
             ),
+          if (p.canReduceFrequency)
+            _Choice(
+              label: 'How many days',
+              sub: 'Fewer days a week',
+              busy: _busy,
+              onTap: () => _submitAnswer(reduce: 'frequency'),
+            ),
           ...err,
           _backRow(() => setState(() => _stage = _Stage.reason)),
         ];
@@ -352,6 +483,56 @@ class _AdaptationCardState extends State<AdaptationCard> {
             }),
           ),
           _backRow(() => setState(() => _stage = _Stage.reason)),
+        ];
+
+      case _Stage.pause:
+        return [
+          _hint(context, p.habitTitle),
+          _question(context, 'Paused after ${p.maxCycles} adjustments'),
+          const SizedBox(height: 6),
+          Text(
+            p.rationale.isNotEmpty
+                ? p.rationale
+                : 'We tried ${p.maxCycles} adjustments and it\'s still not '
+                    'sticking, so we\'ve paused it.',
+            style: TextStyle(
+              color: BrandColors.inkSoft(context),
+              fontSize: 14,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Your history is kept. Restart any time.',
+            style: TextStyle(
+              color: BrandColors.inkDim(context),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _Btn(
+                  label: 'Got it',
+                  primary: true,
+                  busy: _busy,
+                  onTap: _gotIt,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _Btn(
+                  label: 'Restart now',
+                  primary: false,
+                  busy: _busy,
+                  onTap: () => _restartNow(p),
+                ),
+              ),
+            ],
+          ),
+          ...err,
         ];
 
       case _Stage.proposal:

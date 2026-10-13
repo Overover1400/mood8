@@ -22,3 +22,13 @@ const bool kRoutineEnabled = false;
 /// isn't destroyed by shipping this. Flip [kStreakFreezeEnabled]
 /// to true to bring the feature back with no other code changes.
 const bool kStreakFreezeEnabled = false;
+
+/// Stepping-stone PARKING at the third miss (archive the hard habit, build
+/// a smaller one) — disabled. The product rule for a habit that keeps being
+/// missed is one loop: ask why -> propose a change the user approves ->
+/// after three approved changes that still fail the habit is deactivated
+/// (kept, history intact) until the user restarts it. Parking competed with
+/// that loop at the same third miss and skipped its three-chance limit.
+/// Habits parked earlier still get the "it is back" offer; only NEW parking
+/// is off. Flip to true to bring parking back.
+const bool kSteppingStoneParkingEnabled = false;

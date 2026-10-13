@@ -58,6 +58,29 @@ class MissReasonService {
     return misses;
   }
 
+  /// The most recent day [h] was due and not done (never today), or null.
+  /// A "why?" answer belongs to this occurrence, not just to the habit.
+  static DateTime? latestMissedDay(Habit h, Iterable<HabitLog> logs,
+      {DateTime? now}) {
+    String key(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+        '${d.day.toString().padLeft(2, '0')}';
+    final done = <String>{
+      for (final l in logs)
+        if (l.habitId == h.id) key(l.date)
+    };
+    final today = now ?? DateTime.now();
+    final created =
+        DateTime(h.createdAt.year, h.createdAt.month, h.createdAt.day);
+    for (var i = 1; i <= windowDays; i++) {
+      final day = today.subtract(Duration(days: i));
+      if (day.isBefore(created)) continue;
+      if (!h.isScheduledFor(day)) continue;
+      if (!done.contains(key(day))) return DateTime(day.year, day.month, day.day);
+    }
+    return null;
+  }
+
   /// The habit worth asking about right now, or null. Returns at most
   /// one — a prompt about three habits at once is an interrogation.
   Future<Habit?> habitToAskAbout() async {
@@ -98,6 +121,7 @@ class MissReasonService {
   Future<void> recordAnswer({
     required String habitId,
     String? reason,
+    String? note,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -108,8 +132,18 @@ class MissReasonService {
       debugPrint('[missReason] persist failed: $e');
     }
     if (reason != null) {
-      await AdaptationService()
-          .reportMissReason(habitId: habitId, reason: reason);
+      String? missDate;
+      try {
+        final habit =
+            _habits.getAllHabits().firstWhere((h) => h.id == habitId);
+        final d = latestMissedDay(habit, _habits.allLogs);
+        if (d != null) {
+          missDate = '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+              '${d.day.toString().padLeft(2, '0')}';
+        }
+      } catch (_) {/* the server falls back to the latest missed day */}
+      await AdaptationService().reportMissReason(
+          habitId: habitId, reason: reason, note: note, missDate: missDate);
     }
   }
 }

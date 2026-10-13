@@ -44,6 +44,7 @@ import 'year_in_review_screen.dart';
 import 'challenges/challenges_list_screen.dart';
 import 'challenges/my_challenges_screen.dart';
 import 'profile/edit_profile_screen.dart';
+import 'profile/goals_screen.dart';
 import 'profile/invite_friends_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'reminder_settings_screen.dart';
@@ -457,6 +458,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) => const EditProfileScreen(),
+                            ),
+                          ),
+                        ),
+                        SettingsTile(
+                          icon: Icons.flag_outlined,
+                          title: 'Goals & preferences',
+                          subtitle:
+                              'Your energy time, goals and what gets in the way',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const GoalsScreen(),
                             ),
                           ),
                         ),

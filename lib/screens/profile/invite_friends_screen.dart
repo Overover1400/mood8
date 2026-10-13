@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../models/entitlement.dart';
 import '../../services/auth_service.dart';
 import '../../services/haptic_service.dart';
 import '../../services/referral_service.dart';
+import '../../services/subscription_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/responsive_container.dart';
 import '../auth/register_screen.dart';
@@ -46,6 +48,10 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
 
   Future<void> _load() async {
     final info = _isGuest ? null : await ReferralService().me();
+    // The referral endpoint may not carry `rewards`; /status always can.
+    if (info != null && !info.rewards.hasAnything) {
+      await SubscriptionService().refreshStatus();
+    }
     if (!mounted) return;
     setState(() {
       _info = info;
@@ -206,6 +212,9 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
             _stat(context, '${info.daysEarned}', 'Days earned'),
           ],
         ),
+        _rewards(context, info.rewards.hasAnything
+            ? info.rewards
+            : SubscriptionService().entitlement.rewards),
         if (info.invitedBy == null) ...[
           const SizedBox(height: 24),
           Text('Have a friend\'s code?',
@@ -253,6 +262,65 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
               style: TextStyle(color: dim, fontSize: 13)),
         ],
       ],
+    );
+  }
+
+  /// Progress toward the two 1-month rewards. Draws only the lines the
+  /// server sent targets for, and nothing at all if it sent none.
+  Widget _rewards(BuildContext context, RewardsProgress r) {
+    if (!r.hasAnything) return const SizedBox.shrink();
+    final ink = BrandColors.ink(context);
+    final dim = BrandColors.inkDim(context);
+    Widget bar(String line, int done, int target) => Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(line,
+                  style: TextStyle(
+                      color: ink, fontSize: 14, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: (done / target).clamp(0.0, 1.0),
+                  minHeight: 6,
+                  backgroundColor: AppColors.purple.withValues(alpha: 0.18),
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(AppColors.pinkLight),
+                ),
+              ),
+            ],
+          ),
+        );
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: _card(
+        context,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('1-MONTH PREMIUM REWARDS',
+                style: TextStyle(
+                    color: dim,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.5)),
+            if (r.referralLine != null)
+              bar(r.referralLine!, r.referralProgress, r.referralTarget),
+            if (r.challengeLine != null)
+              bar(r.challengeLine!, r.challengeProgress, r.challengeTarget),
+            if (r.bankedDays > 0) ...[
+              const SizedBox(height: 12),
+              Text(
+                '${r.bankedDays} banked day${r.bankedDays == 1 ? '' : 's'} '
+                'of Premium',
+                style: TextStyle(color: dim, fontSize: 12.5),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 

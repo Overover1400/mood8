@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../models/entitlement.dart';
 import 'auth_service.dart';
 
 /// The signed-in user's own referral state.
@@ -18,6 +19,7 @@ class ReferralInfo {
     this.daysEarned = 0,
     this.maxRewarded = 20,
     this.invitedBy,
+    this.rewards = RewardsProgress.empty,
   });
 
   final String code;
@@ -32,6 +34,10 @@ class ReferralInfo {
   /// Name of whoever invited this user, if they came through an invite.
   final String? invitedBy;
 
+  /// Progress toward the 1-month rewards; empty when the server doesn't
+  /// send it.
+  final RewardsProgress rewards;
+
   factory ReferralInfo.fromJson(Map<String, dynamic> j) => ReferralInfo(
         code: (j['code'] as String?) ?? '',
         url: (j['url'] as String?) ?? '',
@@ -42,6 +48,7 @@ class ReferralInfo {
         daysEarned: (j['days_earned'] as num?)?.toInt() ?? 0,
         maxRewarded: (j['max_rewarded'] as num?)?.toInt() ?? 20,
         invitedBy: j['invited_by'] as String?,
+        rewards: RewardsProgress.fromJson(j['rewards']),
       );
 }
 

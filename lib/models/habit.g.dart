@@ -47,13 +47,15 @@ class HabitAdapter extends TypeAdapter<Habit> {
       supportFor: fields[27] as String?,
       parkedBehind: fields[28] as String?,
       shareInChallenges: fields[29] as bool? ?? false,
+      pausedReason: fields[30] as String?,
+      pausedAt: fields[31] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Habit obj) {
     writer
-      ..writeByte(30)
+      ..writeByte(32)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -113,7 +115,11 @@ class HabitAdapter extends TypeAdapter<Habit> {
       ..writeByte(28)
       ..write(obj.parkedBehind)
       ..writeByte(29)
-      ..write(obj.shareInChallenges);
+      ..write(obj.shareInChallenges)
+      ..writeByte(30)
+      ..write(obj.pausedReason)
+      ..writeByte(31)
+      ..write(obj.pausedAt);
   }
 
   @override

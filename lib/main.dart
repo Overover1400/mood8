@@ -479,6 +479,8 @@ class _AuthGateState extends State<AuthGate> {
     _maybeHandleCheckoutReturn();
     SubscriptionService().premiumJustUnlockedNotifier
         .addListener(_onPremiumJustUnlocked);
+    SyncService().habitLimitRejectedNotifier
+        .addListener(_onHabitLimitRejected);
     EffectsService().premiumEffectHintNotifier
         .addListener(_onPremiumEffectHint);
     AuthService().prestigeUnlockedNotifier
@@ -490,6 +492,8 @@ class _AuthGateState extends State<AuthGate> {
   void dispose() {
     SubscriptionService().premiumJustUnlockedNotifier
         .removeListener(_onPremiumJustUnlocked);
+    SyncService().habitLimitRejectedNotifier
+        .removeListener(_onHabitLimitRejected);
     EffectsService().premiumEffectHintNotifier
         .removeListener(_onPremiumEffectHint);
     AuthService().prestigeUnlockedNotifier
@@ -531,6 +535,38 @@ class _AuthGateState extends State<AuthGate> {
       const SnackBar(
         content: Text('Welcome to Mood8 Premium ✨ Thanks for being here.'),
         duration: Duration(seconds: 4),
+      ),
+    );
+  }
+
+  /// The server refused to create a new habit on the Free plan; sync
+  /// kept it locally as inactive. Say so, with a way to the paywall.
+  void _onHabitLimitRejected() {
+    final limit = SyncService().habitLimitRejectedNotifier.value;
+    if (limit == null) return;
+    final messenger = rootScaffoldMessengerKey.currentState;
+    if (messenger == null) return;
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+            'Free plan keeps $limit active habits. Your new habit was saved '
+            'as inactive; upgrade or free a slot to activate it.'),
+        duration: const Duration(seconds: 10),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Upgrade',
+          onPressed: () {
+            messenger.hideCurrentSnackBar();
+            rootNavigatorKey.currentState?.push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PaywallScreen(
+                  contextNote: 'Unlimited habits is a Premium feature',
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
